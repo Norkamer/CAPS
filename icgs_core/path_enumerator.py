@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class EnumerationStatistics:
-    """Statistiques énumération chemins pour monitoring performance"""
+    """Statistiques énumération chemins pour monitoring performance - Version étendue"""
     paths_enumerated: int = 0
     cycles_detected: int = 0
     early_terminations: int = 0
@@ -39,6 +39,15 @@ class EnumerationStatistics:
     max_depth_reached: int = 0
     cache_hits: int = 0
     cache_misses: int = 0
+    
+    # Métriques cycle detection avancées (Étape 1.3)
+    direct_cycles: int = 0
+    indirect_cycles: int = 0
+    self_loops: int = 0
+    alternating_cycles: int = 0
+    depth_limit_hits: int = 0
+    memory_limit_hits: int = 0
+    warning_patterns: int = 0
 
 
 @dataclass
@@ -144,7 +153,7 @@ class DAGPathEnumerator:
     
     def _detect_cycle(self, node: Node) -> bool:
         """
-        Détecte cycle dans chemin courant
+        Détecte cycle dans chemin courant - Version basique
         
         Args:
             node: Node à vérifier pour cycle
@@ -153,6 +162,170 @@ class DAGPathEnumerator:
             bool: True si cycle détecté
         """
         return node.node_id in self.visited_nodes
+    
+    def _detect_complex_cycle_patterns(self, node: Node, depth: int) -> tuple[bool, str]:
+        """
+        Détection cycles complexes avec classification patterns
+        
+        Détecte différents types de cycles:
+        - Direct cycles: A → B → A
+        - Indirect cycles: A → B → C → A  
+        - Self-loops: A → A (même node)
+        - Multi-path cycles: A → B → D → A, A → C → D → A
+        
+        Args:
+            node: Node à vérifier pour cycles complexes
+            depth: Profondeur courante dans traversal
+            
+        Returns:
+            tuple[bool, str]: (cycle_detected, cycle_type)
+        """
+        if not node or not node.node_id:
+            return False, "no_cycle"
+        
+        node_id = node.node_id
+        
+        # Type 1: Self-loop detection
+        if depth == 1 and node_id in self.visited_nodes:
+            return True, "self_loop"
+        
+        # Type 2: Direct cycle (node déjà visité)
+        if node_id in self.visited_nodes:
+            # Calcul position dans chemin pour classifier
+            try:
+                position = next(i for i, n in enumerate(self.current_path) if n.node_id == node_id)
+                cycle_length = len(self.current_path) - position
+                
+                if cycle_length <= 2:
+                    return True, "direct_cycle"
+                elif cycle_length <= 5:
+                    return True, "short_indirect_cycle"
+                else:
+                    return True, "long_indirect_cycle"
+                    
+            except StopIteration:
+                return True, "unknown_cycle"
+        
+        # Type 3: Multi-path cycle detection (patterns répétitifs)
+        if len(self.current_path) >= 4:
+            # Recherche patterns répétitifs dans chemin
+            path_ids = [n.node_id for n in self.current_path]
+            
+            # Détection pattern A-B-A
+            if len(path_ids) >= 3:
+                for i in range(len(path_ids) - 2):
+                    if path_ids[i] == path_ids[i + 2] and node_id == path_ids[i]:
+                        return True, "alternating_cycle"
+        
+        return False, "no_cycle"
+    
+    def _advanced_cycle_prevention(self, node: Node, depth: int) -> bool:
+        """
+        Prévention cycles avancée avec heuristiques intelligentes
+        
+        Stratégies:
+        1. Limite profondeur adaptive basée sur taille DAG
+        2. Détection early warning avant cycle complet
+        3. Pattern recognition pour cycles probables
+        4. Resource protection (memory, time)
+        
+        Args:
+            node: Node candidat pour continuation traversal
+            depth: Profondeur courante
+            
+        Returns:
+            bool: True si continuation autorisée, False si blocked
+        """
+        if not node:
+            return False
+            
+        # Strategy 1: Adaptive depth limit basée sur complexity
+        adaptive_max_depth = min(50, self.max_paths // 100 + 10)
+        if depth > adaptive_max_depth:
+            self.logger.warning(f"Adaptive depth limit reached: {depth} > {adaptive_max_depth}")
+            self.stats.cycles_detected += 1
+            self.stats.depth_limit_hits += 1
+            return False
+        
+        # Strategy 2: Complex cycle detection
+        cycle_detected, cycle_type = self._detect_complex_cycle_patterns(node, depth)
+        if cycle_detected:
+            self.logger.debug(f"Complex cycle detected: {cycle_type} at node {node.node_id}")
+            self.stats.cycles_detected += 1
+            
+            # Mise à jour métriques détaillées
+            if cycle_type == "self_loop":
+                self.stats.self_loops += 1
+            elif cycle_type == "direct_cycle":
+                self.stats.direct_cycles += 1
+            elif cycle_type in ["short_indirect_cycle", "long_indirect_cycle"]:
+                self.stats.indirect_cycles += 1
+            elif cycle_type == "alternating_cycle":
+                self.stats.alternating_cycles += 1
+            
+            return False
+        
+        # Strategy 3: Resource protection - memory usage
+        current_memory_usage = len(self.current_path) * len(self.visited_nodes)
+        if current_memory_usage > 10000:  # Arbitrary but reasonable limit
+            self.logger.warning(f"Memory protection: usage {current_memory_usage} > 10000")
+            self.stats.early_terminations += 1
+            self.stats.memory_limit_hits += 1
+            return False
+        
+        # Strategy 4: Pattern-based early warning
+        if self._detect_cycle_warning_patterns(node, depth):
+            self.logger.debug(f"Cycle warning pattern detected at node {node.node_id}")
+            self.stats.cycles_detected += 1
+            self.stats.warning_patterns += 1
+            return False
+        
+        return True
+    
+    def _detect_cycle_warning_patterns(self, node: Node, depth: int) -> bool:
+        """
+        Détection patterns warning de cycles probables
+        
+        Patterns détectés:
+        - Oscillation: A → B → A → B (début de cycle alternant)
+        - Convergence: Multiples chemins vers même node
+        - Deep recursion: Profondeur excessive pour topology simple
+        
+        Args:
+            node: Node à analyser
+            depth: Profondeur courante
+            
+        Returns:
+            bool: True si pattern warning détecté
+        """
+        if not node or len(self.current_path) < 3:
+            return False
+        
+        node_id = node.node_id
+        path_ids = [n.node_id for n in self.current_path]
+        
+        # Pattern 1: Oscillation detection (A-B-A pattern)
+        if len(path_ids) >= 2:
+            if path_ids[-1] == node_id and path_ids[-2] != node_id:
+                # Recherche si node_id apparaît avant dans pattern alternant
+                alternation_count = 0
+                for i in range(len(path_ids) - 1, -1, -1):
+                    if path_ids[i] == node_id:
+                        alternation_count += 1
+                        if alternation_count >= 2:  # Node vu 2+ fois
+                            return True
+        
+        # Pattern 2: Convergence excessive
+        convergence_count = path_ids.count(node_id)
+        if convergence_count > 0:  # Node déjà visité
+            return True
+        
+        # Pattern 3: Deep recursion heuristic
+        if depth > 20 and len(set(path_ids)) < depth // 3:
+            # Trop de profondeur avec peu de nodes uniques = probable cycle
+            return True
+        
+        return False
     
     def enumerate_paths_from_transaction(self, transaction_edge: Edge, 
                                        transaction_num: int) -> Iterator[List[Node]]:
@@ -250,10 +423,12 @@ class DAGPathEnumerator:
             self.logger.warning(f"Early termination - max_paths {self.max_paths} reached")
             return
         
-        # Protection cycle avec node_id
-        if self._detect_cycle(current_node):
-            self.stats.cycles_detected += 1
-            self.logger.debug(f"Cycle detected at node: {current_node.node_id}")
+        # Calcul profondeur courante avant protection
+        current_depth = len(self.current_path) + 1  # +1 car on va ajouter current_node
+        
+        # Protection cycle avancée avec patterns complexes
+        if not self._advanced_cycle_prevention(current_node, current_depth):
+            # Cycle ou pattern dangereux détecté - arrêt traversal
             return
         
         # Ajout au chemin courant avec state management
@@ -261,7 +436,6 @@ class DAGPathEnumerator:
         self.current_path.append(current_node)
         
         # Mise à jour profondeur max atteinte
-        current_depth = len(self.current_path)
         self.stats.max_depth_reached = max(self.stats.max_depth_reached, current_depth)
         
         try:
