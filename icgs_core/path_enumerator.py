@@ -666,20 +666,45 @@ class DAGPathEnumerator:
     def convert_paths_to_words(self, paths: List[List[Node]], 
                               transaction_num: int) -> List[str]:
         """
-        Convertit batch chemins en mots via taxonomie
+        Convertit batch chemins en mots via taxonomie - Version améliorée
+        
+        Fonctionnalités améliorées Étape 1.5:
+        - Validation rigoureuse paths avant conversion
+        - Cache optimisé avec cleanup périodique
+        - Error handling granulaire par chemin
+        - Préservation ordre strict chemin→mot
+        - Statistics détaillées conversion
         
         Args:
-            paths: Liste chemins à convertir
-            transaction_num: Numéro transaction pour mapping taxonomy
+            paths: Liste chemins à convertir (ordre préservé)
+            transaction_num: Numéro transaction pour mapping taxonomy historique
             
         Returns:
-            List[str]: Mots correspondants aux chemins
+            List[str]: Mots correspondants aux chemins (même ordre)
         """
-        words = []
+        if not paths:
+            self.logger.debug("Empty paths list for conversion")
+            return []
         
-        for path in paths:
+        words = []
+        conversion_errors = 0
+        cache_cleanup_threshold = 1000
+        
+        # Cache cleanup périodique pour éviter memory leak
+        if len(self._word_cache) > cache_cleanup_threshold:
+            self._cleanup_word_cache()
+        
+        self.logger.debug(f"Converting {len(paths)} paths to words for transaction {transaction_num}")
+        
+        for path_index, path in enumerate(paths):
             try:
-                # Génération clé cache
+                # Validation path avant conversion
+                if not self._validate_path_for_conversion(path, path_index):
+                    words.append("")  # Fallback pour path invalide
+                    conversion_errors += 1
+                    continue
+                
+                # Génération clé cache optimisée
                 path_key = tuple(node.node_id for node in path)
                 cache_key = (path_key, transaction_num)
                 
@@ -687,20 +712,136 @@ class DAGPathEnumerator:
                     word = self._word_cache[cache_key]
                     self.stats.cache_hits += 1
                 else:
-                    # Conversion via taxonomy - utiliser node_id comme account_id
-                    word = self.taxonomy.convert_path_to_word(path, transaction_num)
-                    self._word_cache[cache_key] = word
-                    self.stats.cache_misses += 1
+                    # Conversion via taxonomy avec validation
+                    word = self._convert_single_path_to_word(path, transaction_num)
+                    
+                    if word is not None:  # Seulement cache si success
+                        self._word_cache[cache_key] = word
+                        self.stats.cache_misses += 1
+                    else:
+                        word = ""  # Fallback
+                        conversion_errors += 1
                 
                 words.append(word)
                 
             except Exception as e:
-                self.logger.error(f"Path conversion error for path length {len(path)}: {e}")
-                # Fallback - mot vide si conversion échoue
-                words.append("")
+                self.logger.error(f"Path conversion error at index {path_index} "
+                                f"(path length {len(path)}): {e}")
+                words.append("")  # Fallback pour préserver ordre
+                conversion_errors += 1
         
-        self.logger.debug(f"Converted {len(paths)} paths to words")
+        # Logging résultats conversion
+        success_rate = ((len(paths) - conversion_errors) / len(paths)) * 100 if paths else 100
+        self.logger.info(f"Conversion completed: {len(words)} words generated, "
+                        f"success rate: {success_rate:.1f}% "
+                        f"({conversion_errors} errors)")
+        
+        # Validation ordre préservé
+        assert len(words) == len(paths), "Word count mismatch - order not preserved"
+        
         return words
+    
+    def _validate_path_for_conversion(self, path: List[Node], path_index: int) -> bool:
+        """
+        Validation chemin avant conversion word
+        
+        Args:
+            path: Chemin à valider
+            path_index: Index chemin pour debugging
+            
+        Returns:
+            bool: True si path valid pour conversion
+        """
+        if not path:
+            self.logger.warning(f"Empty path at index {path_index}")
+            return False
+        
+        if len(path) > 1000:  # Limite raisonnable
+            self.logger.warning(f"Excessively long path at index {path_index}: {len(path)} nodes")
+            return False
+        
+        # Validation nodes dans path
+        for node_index, node in enumerate(path):
+            if not node:
+                self.logger.warning(f"None node at path[{path_index}][{node_index}]")
+                return False
+                
+            if not hasattr(node, 'node_id') or not node.node_id:
+                self.logger.warning(f"Node without node_id at path[{path_index}][{node_index}]")
+                return False
+        
+        return True
+    
+    def _convert_single_path_to_word(self, path: List[Node], transaction_num: int) -> Optional[str]:
+        """
+        Conversion single path vers word avec error handling robuste
+        
+        Args:
+            path: Chemin single à convertir
+            transaction_num: Transaction number pour historique
+            
+        Returns:
+            Optional[str]: Word généré ou None si erreur
+        """
+        try:
+            word = self.taxonomy.convert_path_to_word(path, transaction_num)
+            
+            # Validation word généré
+            if not isinstance(word, str):
+                self.logger.error(f"Taxonomy returned non-string: {type(word)}")
+                return None
+                
+            if len(word) > 10000:  # Limite raisonnable
+                self.logger.warning(f"Excessively long word generated: {len(word)} chars")
+                return word[:10000]  # Truncate
+            
+            return word
+            
+        except Exception as e:
+            self.logger.error(f"Taxonomy conversion failed: {e}")
+            return None
+    
+    def _cleanup_word_cache(self) -> None:
+        """
+        Nettoyage cache mots avec stratégie LRU approximative
+        """
+        initial_size = len(self._word_cache)
+        
+        if initial_size <= 500:  # Garde minimum
+            return
+        
+        # Strategy: Garder 70% des entrées (removal 30%)
+        target_size = int(initial_size * 0.7)
+        
+        # Simple cleanup: remove oldest entries (approximation LRU)
+        # Note: Vrai LRU nécessiterait OrderedDict, mais overhead pas justifié ici
+        cache_items = list(self._word_cache.items())
+        items_to_keep = cache_items[-target_size:] if target_size > 0 else []
+        
+        self._word_cache.clear()
+        self._word_cache.update(items_to_keep)
+        
+        cleaned_count = initial_size - len(self._word_cache)
+        self.logger.debug(f"Word cache cleanup: removed {cleaned_count} entries, "
+                        f"kept {len(self._word_cache)}")
+    
+    def get_conversion_statistics(self) -> Dict[str, Any]:
+        """
+        Statistiques détaillées conversion paths→words
+        
+        Returns:
+            Dict[str, Any]: Métriques conversion performance
+        """
+        total_cache_operations = self.stats.cache_hits + self.stats.cache_misses
+        cache_hit_rate = (self.stats.cache_hits / total_cache_operations * 100) if total_cache_operations > 0 else 0
+        
+        return {
+            'word_cache_size': len(self._word_cache),
+            'cache_hit_rate_percent': round(cache_hit_rate, 1),
+            'total_cache_hits': self.stats.cache_hits,
+            'total_cache_misses': self.stats.cache_misses,
+            'estimated_memory_kb': len(self._word_cache) * 0.1  # Rough estimate
+        }
     
     def enumerate_and_classify(self, transaction_edge: Edge, nfa: Any,
                               transaction_num: int) -> Dict[str, List[List[Node]]]:
