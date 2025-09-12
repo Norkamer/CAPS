@@ -167,14 +167,15 @@ class AccountTaxonomy:
         word_chars = []
         
         for node in path:
-            # Extraction account_id depuis node DAG
-            if not hasattr(node, 'account_id') or not node.account_id:
-                raise ValueError(f"Node without account_id in path: {node}")
+            # Extraction account_id depuis node DAG - utiliser node_id comme account_id
+            account_id = getattr(node, 'account_id', None) or getattr(node, 'node_id', None)
+            if not account_id:
+                raise ValueError(f"Node without account_id or node_id in path: {node}")
             
             # Récupération mapping historique
-            character = self.get_character_mapping(node.account_id, transaction_num)
+            character = self.get_character_mapping(account_id, transaction_num)
             if character is None:
-                raise ValueError(f"No character mapping found for account {node.account_id} at transaction {transaction_num}")
+                raise ValueError(f"No character mapping found for account {account_id} at transaction {transaction_num}")
             
             word_chars.append(character)
         

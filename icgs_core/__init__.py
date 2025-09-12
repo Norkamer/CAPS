@@ -24,10 +24,12 @@ from .linear_programming import (
     build_equality_constraint, create_simple_lp_problem, validate_economic_consistency
 )
 
+# Imports path enumeration
+from .path_enumerator import DAGPathEnumerator, EnumerationStatistics
+
 # TODO: Imports à activer au fur et à mesure de l'implémentation
 # from .simplex_solver import TripleValidationOrientedSimplex, MathematicallyRigorousPivotManager
 # from .dag import DAG
-# from .path_enumerator import DAGPathEnumerator
 
 __all__ = [
     'AccountTaxonomy',
@@ -47,8 +49,9 @@ __all__ = [
     'build_equality_constraint',
     'create_simple_lp_problem',
     'validate_economic_consistency',
+    'DAGPathEnumerator',
+    'EnumerationStatistics',
     # 'MathematicallyRigorousPivotManager',
     # 'TripleValidationOrientedSimplex',
-    # 'DAGPathEnumerator',
     # 'DAG'
 ]

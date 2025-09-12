@@ -265,6 +265,268 @@ class Edge:
         return hash(self.edge_id)
 
 
+@dataclass  
+class AccountBalance:
+    """Balance comptable avec validation invariants conservation"""
+    initial_balance: Decimal = Decimal('0.0')
+    current_balance: Decimal = Decimal('0.0')
+    total_credits: Decimal = Decimal('0.0')
+    total_debits: Decimal = Decimal('0.0')
+    transaction_count: int = 0
+    last_updated: float = field(default_factory=time.time)
+    
+    def __post_init__(self):
+        """Validation cohérence après création"""
+        if not isinstance(self.initial_balance, Decimal):
+            self.initial_balance = Decimal(str(self.initial_balance))
+        if not isinstance(self.current_balance, Decimal):
+            self.current_balance = Decimal(str(self.current_balance))
+        if not isinstance(self.total_credits, Decimal):
+            self.total_credits = Decimal(str(self.total_credits))
+        if not isinstance(self.total_debits, Decimal):
+            self.total_debits = Decimal(str(self.total_debits))
+    
+    def update_balance(self, amount: Decimal, is_credit: bool = True) -> None:
+        """Mise à jour balance avec validation conservation"""
+        if not isinstance(amount, Decimal):
+            amount = Decimal(str(amount))
+        
+        if amount < 0:
+            raise ValueError(f"Balance update amount must be non-negative: {amount}")
+        
+        if is_credit:
+            self.current_balance += amount
+            self.total_credits += amount
+        else:
+            self.current_balance -= amount  
+            self.total_debits += amount
+        
+        self.transaction_count += 1
+        self.last_updated = time.time()
+    
+    def validate_balance_equation(self) -> bool:
+        """Validation équation comptable: current = initial + credits - debits"""
+        computed_balance = self.initial_balance + self.total_credits - self.total_debits
+        return abs(computed_balance - self.current_balance) < Decimal('1e-10')
+    
+    def get_balance_info(self) -> Dict[str, Any]:
+        """Informations balance complètes"""
+        return {
+            'current_balance': str(self.current_balance),
+            'initial_balance': str(self.initial_balance),
+            'total_credits': str(self.total_credits),
+            'total_debits': str(self.total_debits),
+            'transaction_count': self.transaction_count,
+            'balance_equation_valid': self.validate_balance_equation(),
+            'last_updated': self.last_updated
+        }
+
+
+class Account:
+    """
+    Account comptable avec intégration DAG bidirectionnelle
+    
+    Fonctionnalités:
+    - Source/sink nodes pour flux entrants/sortants
+    - Balance tracking avec invariants conservation
+    - Bijection Account ↔ Node pairs  
+    - Metadata extensible pour domaines économiques
+    - Validation automatique cohérence comptable
+    """
+    
+    def __init__(self, account_id: str, initial_balance: Decimal = Decimal('0.0'), 
+                 metadata: Optional[Dict[str, Any]] = None):
+        self.account_id = account_id
+        self.uuid = str(uuid.uuid4())
+        self.metadata = metadata or {}
+        self.created_at = time.time()
+        
+        # Nœuds DAG associés
+        self.source_node = Node(f"{account_id}_source", {"account_id": account_id, "role": "source"})
+        self.sink_node = Node(f"{account_id}_sink", {"account_id": account_id, "role": "sink"})
+        
+        # Balance comptable
+        self.balance = AccountBalance(
+            initial_balance=initial_balance,
+            current_balance=initial_balance
+        )
+        
+        # Mapping bidirectionnel nodes ↔ account
+        self.source_node.metadata['account_reference'] = self
+        self.sink_node.metadata['account_reference'] = self
+        
+        # Statistiques tracking
+        self.stats = {
+            'incoming_transactions': 0,
+            'outgoing_transactions': 0,
+            'balance_updates': 0,
+            'validation_errors': 0
+        }
+    
+    def add_incoming_transaction(self, edge: Edge, amount: Decimal) -> None:
+        """
+        Ajoute transaction entrante avec mise à jour balance
+        
+        Flow: external_source → account.sink_node
+        Effect: Credit balance (+amount)
+        """
+        if not isinstance(amount, Decimal):
+            amount = Decimal(str(amount))
+        
+        if amount <= 0:
+            raise ValueError(f"Transaction amount must be positive: {amount}")
+        
+        # Validation edge cible correcte
+        if edge.target_node != self.sink_node:
+            raise ValueError(f"Edge target mismatch: expected {self.sink_node.node_id}")
+        
+        # Ajout edge au sink node
+        self.sink_node.add_incoming_edge(edge)
+        
+        # Mise à jour balance (crédit)
+        self.balance.update_balance(amount, is_credit=True)
+        
+        # Update metadata edge avec amount
+        edge.edge_metadata.context['transaction_amount'] = str(amount)
+        edge.edge_metadata.context['account_id'] = self.account_id
+        edge.edge_metadata.edge_type = EdgeType.TRANSACTION
+        
+        # Statistiques
+        self.stats['incoming_transactions'] += 1
+        self.stats['balance_updates'] += 1
+    
+    def add_outgoing_transaction(self, edge: Edge, amount: Decimal) -> None:
+        """
+        Ajoute transaction sortante avec mise à jour balance
+        
+        Flow: account.source_node → external_target  
+        Effect: Debit balance (-amount)
+        """
+        if not isinstance(amount, Decimal):
+            amount = Decimal(str(amount))
+        
+        if amount <= 0:
+            raise ValueError(f"Transaction amount must be positive: {amount}")
+        
+        # Validation edge source correcte
+        if edge.source_node != self.source_node:
+            raise ValueError(f"Edge source mismatch: expected {self.source_node.node_id}")
+        
+        # Validation balance suffisant (optionnel - peut être négatif selon règles)
+        if self.balance.current_balance < amount:
+            # Warning mais pas erreur (découvert autorisé selon contexte)
+            self.metadata['balance_warning'] = f"Insufficient balance: {self.balance.current_balance} < {amount}"
+        
+        # Ajout edge au source node
+        self.source_node.add_outgoing_edge(edge)
+        
+        # Mise à jour balance (débit)  
+        self.balance.update_balance(amount, is_credit=False)
+        
+        # Update metadata edge
+        edge.edge_metadata.context['transaction_amount'] = str(amount)
+        edge.edge_metadata.context['account_id'] = self.account_id
+        edge.edge_metadata.edge_type = EdgeType.TRANSACTION
+        
+        # Statistiques
+        self.stats['outgoing_transactions'] += 1
+        self.stats['balance_updates'] += 1
+    
+    def validate_account_integrity(self) -> List[str]:
+        """
+        Validation intégrité compte complète
+        
+        Invariants validés:
+        - Balance equation correcte
+        - Bijection nodes ↔ account coherente  
+        - Metadata consistency
+        - Edge amounts cohérentes avec balance
+        """
+        errors = []
+        
+        # Invariant 1: Balance equation
+        if not self.balance.validate_balance_equation():
+            errors.append(f"Balance equation violation: {self.balance.get_balance_info()}")
+        
+        # Invariant 2: Bijection nodes ↔ account
+        source_ref = self.source_node.metadata.get('account_reference')
+        sink_ref = self.sink_node.metadata.get('account_reference')
+        
+        if source_ref != self:
+            errors.append(f"Source node reference mismatch: {source_ref} != {self}")
+        if sink_ref != self:
+            errors.append(f"Sink node reference mismatch: {sink_ref} != {self}")
+        
+        # Invariant 3: Node IDs coherence
+        expected_source_id = f"{self.account_id}_source"
+        expected_sink_id = f"{self.account_id}_sink"
+        
+        if self.source_node.node_id != expected_source_id:
+            errors.append(f"Source node ID mismatch: {self.source_node.node_id} != {expected_source_id}")
+        if self.sink_node.node_id != expected_sink_id:
+            errors.append(f"Sink node ID mismatch: {self.sink_node.node_id} != {expected_sink_id}")
+        
+        # Invariant 4: Edge amounts consistency (approximative - basé sur metadata)
+        total_incoming_metadata = Decimal('0')
+        total_outgoing_metadata = Decimal('0')
+        
+        for edge in self.sink_node.incoming_edges.values():
+            amount_str = edge.edge_metadata.context.get('transaction_amount', '0')
+            total_incoming_metadata += Decimal(amount_str)
+        
+        for edge in self.source_node.outgoing_edges.values():
+            amount_str = edge.edge_metadata.context.get('transaction_amount', '0')
+            total_outgoing_metadata += Decimal(amount_str)
+        
+        # Tolérance pour comparaison
+        credit_diff = abs(total_incoming_metadata - self.balance.total_credits)
+        debit_diff = abs(total_outgoing_metadata - self.balance.total_debits)
+        tolerance = Decimal('1e-8')
+        
+        if credit_diff > tolerance:
+            errors.append(f"Credits metadata mismatch: {total_incoming_metadata} vs {self.balance.total_credits}")
+        if debit_diff > tolerance:
+            errors.append(f"Debits metadata mismatch: {total_outgoing_metadata} vs {self.balance.total_debits}")
+        
+        # Update error count
+        if errors:
+            self.stats['validation_errors'] += len(errors)
+        
+        return errors
+    
+    def get_account_summary(self) -> Dict[str, Any]:
+        """Résumé compte complet avec statistiques"""
+        return {
+            'account_id': self.account_id,
+            'uuid': self.uuid,
+            'balance_info': self.balance.get_balance_info(),
+            'connectivity': {
+                'source_node_id': self.source_node.node_id,
+                'sink_node_id': self.sink_node.node_id,
+                'incoming_edges_count': len(self.sink_node.incoming_edges),
+                'outgoing_edges_count': len(self.source_node.outgoing_edges)
+            },
+            'stats': self.stats.copy(),
+            'metadata': self.metadata.copy(),
+            'created_at': self.created_at,
+            'integrity_valid': len(self.validate_account_integrity()) == 0
+        }
+    
+    def __str__(self) -> str:
+        return f"Account({self.account_id}, balance={self.balance.current_balance}, in={len(self.sink_node.incoming_edges)}, out={len(self.source_node.outgoing_edges)})"
+    
+    def __repr__(self) -> str:
+        return self.__str__()
+    
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Account):
+            return False
+        return self.account_id == other.account_id
+    
+    def __hash__(self) -> int:
+        return hash(self.account_id)
+
+
 class CycleDetectionResult:
     """Résultat détection cycle avec path et diagnostique"""
     
