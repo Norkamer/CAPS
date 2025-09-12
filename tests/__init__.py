@@ -1,0 +1,1 @@
+"""Suite de tests académiques ICGS avec validation rigoureuse des invariants mathématiques"""
