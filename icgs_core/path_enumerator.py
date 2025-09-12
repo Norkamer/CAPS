@@ -194,11 +194,22 @@ class DAGPathEnumerator:
         try:
             # Démarrage énumération depuis target transaction (sink)
             start_node = transaction_edge.target_node
-            self.logger.debug(f"Starting enumeration from target: {start_node.node_id}")
             
-            # DFS reverse recursif avec limite
+            # Validation structure DAG avant énumération
+            if not self._validate_dag_structure(start_node):
+                self.logger.error("Invalid DAG structure for enumeration")
+                return
+            
+            self.logger.info(f"Starting reverse enumeration from target: {start_node.node_id}")
+            
+            # DFS reverse recursif avec limite et monitoring
             paths_found = []
-            yield from self._enumerate_recursive(start_node, paths_found)
+            for path in self._enumerate_recursive(start_node, paths_found):
+                yield path
+                
+                # Monitoring progress périodique
+                if len(paths_found) % 100 == 0:
+                    self.logger.debug(f"Enumeration progress: {len(paths_found)} paths found")
             
             # Stockage cache si pas trop de paths
             if len(paths_found) <= self.max_paths // 4:  # Cache seulement si reasonable
@@ -218,56 +229,104 @@ class DAGPathEnumerator:
     def _enumerate_recursive(self, current_node: Node, 
                            paths_found: List[List[Node]]) -> Iterator[List[Node]]:
         """
-        Énumération récursive DFS avec backtracking
+        Énumération récursive DFS avec backtracking - Version améliorée
+        
+        Algorithme DFS reverse optimisé:
+        1. Protection explosion et cycles
+        2. Traversal via incoming_edges (reverse direction)  
+        3. Yield chemins complets depuis sources DAG
+        4. Backtracking propre avec state cleanup
         
         Args:
-            current_node: Node courant dans traversal
+            current_node: Node courant dans traversal reverse
             paths_found: Liste accumulation chemins trouvés
         
         Yields:
-            List[Node]: Chemins complets trouvés
+            List[Node]: Chemins complets sink→source
         """
-        # Protection explosion
+        # Protection explosion globale
         if len(paths_found) >= self.max_paths:
             self.stats.early_terminations += 1
             self.logger.warning(f"Early termination - max_paths {self.max_paths} reached")
             return
         
-        # Protection cycle
+        # Protection cycle avec node_id
         if self._detect_cycle(current_node):
             self.stats.cycles_detected += 1
             self.logger.debug(f"Cycle detected at node: {current_node.node_id}")
             return
         
-        # Ajout au chemin courant
+        # Ajout au chemin courant avec state management
         self.visited_nodes.add(current_node.node_id)
         self.current_path.append(current_node)
         
-        # Mise à jour profondeur
+        # Mise à jour profondeur max atteinte
         current_depth = len(self.current_path)
         self.stats.max_depth_reached = max(self.stats.max_depth_reached, current_depth)
         
         try:
-            # Test si source (pas d'incoming edges)
+            # Test si source (pas d'incoming edges) - condition d'arrêt
             if self._is_source_node(current_node):
-                # Chemin complet trouvé - copie pour éviter modification
+                # Chemin complet trouvé depuis sink vers source
                 complete_path = self.current_path.copy()
                 paths_found.append(complete_path)
                 
                 self.logger.debug(f"Complete path found - length: {len(complete_path)}, "
-                                f"source: {current_node.node_id}")
+                                f"source: {current_node.node_id}, "
+                                f"path: {' -> '.join([n.node_id for n in complete_path])}")
                 
                 yield complete_path
             else:
-                # Continuer traversal via incoming edges
-                for edge in current_node.incoming_edges:
-                    # Recursion sur source node de l'edge
-                    yield from self._enumerate_recursive(edge.source_node, paths_found)
-                    
+                # Continuer traversal reverse via incoming edges
+                incoming_edges_list = list(current_node.incoming_edges.values())
+                
+                self.logger.debug(f"Exploring {len(incoming_edges_list)} incoming edges "
+                                f"from node: {current_node.node_id}")
+                
+                for edge in incoming_edges_list:
+                    # Validation edge avant recursion
+                    if edge.source_node and edge.source_node != current_node:
+                        # Recursion sur source node de l'edge (direction reverse)
+                        yield from self._enumerate_recursive(edge.source_node, paths_found)
+                    else:
+                        self.logger.warning(f"Invalid edge structure: {edge.edge_id}")
+                        
+        except Exception as e:
+            self.logger.error(f"Enumeration error at node {current_node.node_id}: {e}")
         finally:
-            # Backtracking - nettoyage état
-            self.current_path.pop()
-            self.visited_nodes.remove(current_node.node_id)
+            # Backtracking critique - nettoyage état pour eviter corruption
+            if self.current_path and self.current_path[-1] == current_node:
+                self.current_path.pop()
+            if current_node.node_id in self.visited_nodes:
+                self.visited_nodes.remove(current_node.node_id)
+            
+            self.logger.debug(f"Backtracked from node: {current_node.node_id}, "
+                            f"remaining path depth: {len(self.current_path)}")
+    
+    def _validate_dag_structure(self, start_node: Node) -> bool:
+        """
+        Validation structure DAG avant énumération
+        
+        Args:
+            start_node: Node de départ énumération
+            
+        Returns:
+            bool: True si structure DAG valide pour énumération
+        """
+        if not start_node:
+            self.logger.error("Start node is None")
+            return False
+        
+        if not hasattr(start_node, 'node_id') or not start_node.node_id:
+            self.logger.error("Start node missing node_id")
+            return False
+            
+        if not hasattr(start_node, 'incoming_edges'):
+            self.logger.error("Start node missing incoming_edges structure")
+            return False
+        
+        self.logger.debug(f"DAG structure validation passed for node: {start_node.node_id}")
+        return True
     
     def convert_paths_to_words(self, paths: List[List[Node]], 
                               transaction_num: int) -> List[str]:
