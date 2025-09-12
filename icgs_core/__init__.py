@@ -17,8 +17,14 @@ from .account_taxonomy import AccountTaxonomy
 from .weighted_nfa import WeightedNFA, RegexWeight, NFAState, NFATransition, TransitionType
 from .anchored_nfa import AnchoredWeightedNFA
 
+# Imports programmation linéaire
+from .linear_programming import (
+    LinearProgram, FluxVariable, LinearConstraint, ConstraintType,
+    build_source_constraint, build_target_constraint, build_secondary_constraint,
+    build_equality_constraint, create_simple_lp_problem, validate_economic_consistency
+)
+
 # TODO: Imports à activer au fur et à mesure de l'implémentation
-# from .linear_programming import LinearProgram, FluxVariable, LinearConstraint
 # from .simplex_solver import TripleValidationOrientedSimplex, MathematicallyRigorousPivotManager
 # from .dag import DAG
 # from .path_enumerator import DAGPathEnumerator
@@ -31,9 +37,16 @@ __all__ = [
     'NFAState',
     'NFATransition',
     'TransitionType',
-    # 'LinearProgram',
-    # 'FluxVariable',
-    # 'LinearConstraint',
+    'LinearProgram',
+    'FluxVariable',
+    'LinearConstraint',
+    'ConstraintType',
+    'build_source_constraint',
+    'build_target_constraint',
+    'build_secondary_constraint',
+    'build_equality_constraint',
+    'create_simple_lp_problem',
+    'validate_economic_consistency',
     # 'MathematicallyRigorousPivotManager',
     # 'TripleValidationOrientedSimplex',
     # 'DAGPathEnumerator',
