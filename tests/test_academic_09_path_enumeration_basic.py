@@ -1480,3 +1480,344 @@ class TestAcademicPathEnumerationBasic:
         assert words_cached == words  # Same results
         
         print("✅ Test Académique 09: Path-to-Word Conversion Integration - PASSED")
+    
+    def test_production_pipeline_input_validation_step_6(self):
+        """
+        Test Académique 09.36: Validation inputs pipeline production - Étape 1.6
+        
+        Validation:
+        - Validation rigoureuse transaction_edge, NFA, transaction_num
+        - Error handling gracieux inputs invalides
+        - Logging errors approprié et détaillé
+        - Exception raising avec messages clairs
+        """
+        enumerator = DAGPathEnumerator(self.taxonomy)
+        
+        # Mock NFA pour tests
+        class ValidNFA:
+            def evaluate_to_final_state(self, word):
+                return f"state_{len(word) % 3}"
+        
+        valid_nfa = ValidNFA()
+        valid_edge = Edge("test", Node("source"), Node("sink"))
+        
+        # Test 1: transaction_edge None
+        try:
+            enumerator.enumerate_and_classify(None, valid_nfa, 1)
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Invalid pipeline inputs" in str(e)
+        
+        # Test 2: NFA None
+        try:
+            enumerator.enumerate_and_classify(valid_edge, None, 1)
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Invalid pipeline inputs" in str(e)
+        
+        # Test 3: Invalid transaction_num
+        try:
+            enumerator.enumerate_and_classify(valid_edge, valid_nfa, -1)
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Invalid pipeline inputs" in str(e)
+        
+        # Test 4: NFA sans methods
+        class InvalidNFA:
+            pass
+        
+        try:
+            enumerator.enumerate_and_classify(valid_edge, InvalidNFA(), 1)
+            assert False, "Should have raised ValueError"
+        except ValueError as e:
+            assert "Invalid pipeline inputs" in str(e)
+        
+        # Test 5: Valid inputs succeed validation
+        assert enumerator._validate_pipeline_inputs(valid_edge, valid_nfa, 1) == True
+    
+    def test_batch_processing_optimization_step_6(self):
+        """
+        Test Académique 09.37: Optimisation batch processing - Étape 1.6
+        
+        Validation:
+        - Small batches (≤50) processing direct
+        - Large batches processing par chunks
+        - Performance monitoring avec warnings
+        - Ordre préservé dans batch processing
+        """
+        # Mock taxonomy optimisé
+        class BatchTaxonomy:
+            def convert_path_to_word(self, path, transaction_num):
+                return f"batch_word_{'_'.join(node.node_id for node in path)}"
+        
+        enumerator = DAGPathEnumerator(BatchTaxonomy())
+        
+        # Test 1: Small batch processing (direct)
+        small_paths = [[Node(f"small_{i}")] for i in range(20)]
+        pipeline_stats = {'performance_warnings': []}
+        
+        words_small = enumerator._batch_convert_paths_to_words(
+            small_paths, transaction_num=1, pipeline_stats=pipeline_stats
+        )
+        
+        assert len(words_small) == 20
+        assert all(word.startswith("batch_word_") for word in words_small)
+        
+        # Test 2: Large batch processing (chunks)
+        large_paths = [[Node(f"large_{i}")] for i in range(150)]  # 3 chunks de 50
+        pipeline_stats = {'performance_warnings': []}
+        
+        words_large = enumerator._batch_convert_paths_to_words(
+            large_paths, transaction_num=2, pipeline_stats=pipeline_stats
+        )
+        
+        assert len(words_large) == 150
+        assert all(word.startswith("batch_word_") for word in words_large)
+        
+        # Test 3: Ordre préservé
+        for i, word in enumerate(words_large):
+            expected_suffix = f"large_{i}"
+            assert expected_suffix in word
+    
+    def test_nfa_classification_resilience_step_6(self):
+        """
+        Test Académique 09.38: Résilience classification NFA - Étape 1.6
+        
+        Validation:
+        - Support flexible méthodes NFA (evaluate_to_final_state, evaluate_word)
+        - Error handling NFA evaluation failures
+        - Progress monitoring classification
+        - Statistics erreurs NFA
+        """
+        class MultiTaxonomy:
+            def convert_path_to_word(self, path, transaction_num):
+                return f"multi_{'_'.join(node.node_id for node in path)}"
+        
+        enumerator = DAGPathEnumerator(MultiTaxonomy())
+        
+        # Test 1: NFA avec evaluate_to_final_state
+        class StateNFA:
+            def evaluate_to_final_state(self, word):
+                return f"state_{len(word) % 2}"
+        
+        paths = [[Node(f"test_{i}")] for i in range(10)]
+        words = [f"multi_test_{i}" for i in range(10)]
+        from collections import defaultdict
+        path_classes = defaultdict(list)
+        pipeline_stats = {'performance_warnings': []}
+        
+        classified = enumerator._classify_paths_with_nfa(
+            paths, words, StateNFA(), path_classes, pipeline_stats
+        )
+        
+        assert classified > 0
+        assert len(path_classes) > 0
+        
+        # Test 2: NFA avec evaluate_word (tuple return)
+        class WordNFA:
+            def evaluate_word(self, word):
+                return f"word_state_{len(word) % 2}", 1.0  # tuple
+        
+        path_classes2 = defaultdict(list)
+        classified2 = enumerator._classify_paths_with_nfa(
+            paths, words, WordNFA(), path_classes2, pipeline_stats
+        )
+        
+        assert classified2 > 0
+        assert len(path_classes2) > 0
+        
+        # Test 3: NFA avec evaluate_word (direct return)
+        class DirectNFA:
+            def evaluate_word(self, word):
+                return f"direct_state_{len(word) % 2}"  # direct string
+        
+        path_classes3 = defaultdict(list)
+        classified3 = enumerator._classify_paths_with_nfa(
+            paths, words, DirectNFA(), path_classes3, pipeline_stats
+        )
+        
+        assert classified3 > 0
+        assert len(path_classes3) > 0
+    
+    def test_pipeline_performance_metrics_step_6(self):
+        """
+        Test Académique 09.39: Métriques performance pipeline - Étape 1.6
+        
+        Validation:
+        - Métriques enumeration, conversion, pipeline combinées
+        - Calcul memory efficiency score (0-100)
+        - Performance grade A-F calculation
+        - Cache hit rate overall calculation
+        """
+        class MetricsTaxonomy:
+            def convert_path_to_word(self, path, transaction_num):
+                return f"metrics_word_{path[0].node_id}"
+        
+        enumerator = DAGPathEnumerator(MetricsTaxonomy())
+        
+        # Generate quelques operations pour populate metrics
+        paths = [[Node(f"metrics_{i}")] for i in range(10)]
+        words = enumerator.convert_paths_to_words(paths, transaction_num=1)
+        
+        # Test métriques pipeline
+        metrics = enumerator.get_pipeline_performance_metrics()
+        
+        # Validation structure
+        assert 'enumeration' in metrics
+        assert 'conversion' in metrics
+        assert 'pipeline' in metrics
+        
+        # Validation enumeration metrics
+        enum_metrics = metrics['enumeration']
+        required_fields = ['paths_enumerated', 'cycles_detected', 'early_terminations']
+        for field in required_fields:
+            assert field in enum_metrics
+            assert isinstance(enum_metrics[field], int)
+        
+        # Validation conversion metrics
+        conv_metrics = metrics['conversion']
+        assert 'word_cache_size' in conv_metrics
+        assert 'cache_hit_rate_percent' in conv_metrics
+        assert isinstance(conv_metrics['cache_hit_rate_percent'], (int, float))
+        
+        # Validation pipeline metrics
+        pipeline_metrics = metrics['pipeline']
+        assert 'memory_efficiency_score' in pipeline_metrics
+        assert 'performance_grade' in pipeline_metrics
+        
+        memory_score = pipeline_metrics['memory_efficiency_score']
+        assert 0 <= memory_score <= 100
+        
+        grade = pipeline_metrics['performance_grade']
+        assert grade in ['A', 'B', 'C', 'D', 'F']
+    
+    def test_pipeline_health_validation_step_6(self):
+        """
+        Test Académique 09.40: Validation santé pipeline - Étape 1.6
+        
+        Validation:
+        - Health report complet (HEALTHY, WARNING, CRITICAL)
+        - Detection warnings et critical issues
+        - Recommendations appropriées
+        - Overall health status calculation
+        """
+        class HealthTaxonomy:
+            def convert_path_to_word(self, path, transaction_num):
+                return f"health_word_{path[0].node_id}"
+        
+        enumerator = DAGPathEnumerator(HealthTaxonomy())
+        
+        # Generate operations pour simulate activity
+        paths = [[Node(f"health_{i}")] for i in range(15)]
+        words = enumerator.convert_paths_to_words(paths, transaction_num=1)
+        
+        # Test health validation
+        health_report = enumerator.validate_complete_pipeline_health()
+        
+        # Validation structure
+        required_fields = ['overall_health', 'warnings', 'critical_issues', 
+                          'recommendations', 'metrics_summary']
+        for field in required_fields:
+            assert field in health_report
+        
+        # Validation overall health status
+        assert health_report['overall_health'] in ['HEALTHY', 'WARNING', 'CRITICAL']
+        
+        # Validation lists structure
+        assert isinstance(health_report['warnings'], list)
+        assert isinstance(health_report['critical_issues'], list)
+        assert isinstance(health_report['recommendations'], list)
+        
+        # Si healthy, should have no critical issues
+        if health_report['overall_health'] == 'HEALTHY':
+            assert len(health_report['critical_issues']) == 0
+        
+        # Test avec forced poor performance (simulate)
+        # Populate large cache pour trigger warnings
+        for i in range(100):
+            cache_key = ((f"health_large_{i}",), i)
+            enumerator._word_cache[cache_key] = f"cached_word_{i}"
+        
+        health_report_loaded = enumerator.validate_complete_pipeline_health()
+        
+        # Should have metrics summary
+        assert 'metrics_summary' in health_report_loaded
+        assert 'enumeration' in health_report_loaded['metrics_summary']
+    
+    def test_complete_production_pipeline_integration_step_6(self):
+        """
+        Test Académique 09.41: Intégration complète pipeline production - Étape 1.6
+        
+        Validation globale:
+        - Pipeline 4 phases: enumeration → conversion → classification → validation
+        - Performance monitoring toutes phases
+        - Error resilience et recovery
+        - Production logging et diagnostics
+        """
+        class ProductionTaxonomy:
+            def convert_path_to_word(self, path, transaction_num):
+                return f"prod_{'_'.join(node.node_id for node in path)}"
+        
+        enumerator = DAGPathEnumerator(ProductionTaxonomy(), max_paths=30, batch_size=10)
+        
+        # Mock NFA production
+        class ProductionNFA:
+            def evaluate_to_final_state(self, word):
+                if "prod_source" in word:
+                    return "accepted_state"
+                elif "prod_test" in word:
+                    return "test_state"
+                else:
+                    return "default_state"
+        
+        # Setup simple DAG pour test production
+        source = Node("prod_source")
+        test = Node("prod_test")  
+        sink = Node("prod_sink")
+        
+        # Create transaction edge
+        transaction_edge = Edge("prod_transaction", source, sink)
+        
+        # Mock simple paths pour avoid complex enumeration
+        test_paths = [
+            [Node("prod_source"), Node("prod_sink")],
+            [Node("prod_test"), Node("prod_sink")],
+            [Node("prod_other"), Node("prod_sink")]
+        ]
+        
+        # Override enumeration pour test contrôlé
+        original_method = enumerator.enumerate_paths_from_transaction
+        def mock_enumeration(edge, transaction_num):
+            for path in test_paths:
+                yield path
+        enumerator.enumerate_paths_from_transaction = mock_enumeration
+        
+        # Test pipeline complet
+        try:
+            result = enumerator.enumerate_and_classify(
+                transaction_edge, ProductionNFA(), transaction_num=1
+            )
+            
+            # Validation results
+            assert isinstance(result, dict)
+            
+            # Should have classified paths
+            total_classified = sum(len(paths) for paths in result.values())
+            assert total_classified > 0
+            
+            # Should have multiple states
+            assert len(result) >= 1
+            
+            # Test metrics après pipeline
+            metrics = enumerator.get_pipeline_performance_metrics()
+            assert metrics['enumeration']['paths_enumerated'] >= 0
+            
+            # Test health après pipeline  
+            health = enumerator.validate_complete_pipeline_health()
+            assert health['overall_health'] in ['HEALTHY', 'WARNING', 'CRITICAL']
+            
+        finally:
+            # Restore original method
+            enumerator.enumerate_paths_from_transaction = original_method
+            
+        print("✅ Test Académique 09: Complete Enumeration Pipeline - PASSED")

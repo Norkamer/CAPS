@@ -846,7 +846,14 @@ class DAGPathEnumerator:
     def enumerate_and_classify(self, transaction_edge: Edge, nfa: Any,
                               transaction_num: int) -> Dict[str, List[List[Node]]]:
         """
-        Pipeline complet: enumeration → words → NFA → classification
+        Pipeline complet enumeration → conversion → classification - Version Production Étape 1.6
+        
+        Pipeline Enhanced Features:
+        - Validation complète inputs/outputs
+        - Batch processing optimisé large datasets
+        - Statistics détaillées toutes phases
+        - Error resilience avec fallbacks gracieux
+        - Performance monitoring temps réel
         
         Args:
             transaction_edge: Edge transaction à valider
@@ -855,46 +862,432 @@ class DAGPathEnumerator:
             
         Returns:
             Dict[str, List[List[Node]]]: Mapping state_id → chemins correspondants
+            
+        Raises:
+            ValueError: Si inputs invalides
+            RuntimeError: Si pipeline échoue complètement
         """
+        # Validation inputs rigoureuse
+        if not self._validate_pipeline_inputs(transaction_edge, nfa, transaction_num):
+            raise ValueError("Invalid pipeline inputs")
+            
+        start_time = time.time()
+        pipeline_stats = {
+            'enumeration_time': 0,
+            'conversion_time': 0, 
+            'classification_time': 0,
+            'paths_enumerated': 0,
+            'words_generated': 0,
+            'paths_classified': 0,
+            'classification_rate': 0,
+            'performance_warnings': []
+        }
+        
         path_classes = defaultdict(list)
         all_paths = []
         
         try:
-            # 1. Énumération chemins
-            self.logger.debug("Starting path enumeration and classification")
+            self.logger.info(f"Starting production pipeline for transaction {transaction_num}")
+            
+            # PHASE 1: Énumération avec monitoring performance
+            enum_start = time.time()
+            self.logger.debug("Phase 1: Path enumeration starting")
             
             for path in self.enumerate_paths_from_transaction(transaction_edge, transaction_num):
                 all_paths.append(path)
+                
+                # Performance monitoring énumération
+                if len(all_paths) % 100 == 0:
+                    elapsed = time.time() - enum_start
+                    if elapsed > 5.0:  # Warning si > 5s pour 100 paths
+                        pipeline_stats['performance_warnings'].append(
+                            f"Enumeration slow: {len(all_paths)} paths in {elapsed:.1f}s"
+                        )
+            
+            pipeline_stats['enumeration_time'] = time.time() - enum_start
+            pipeline_stats['paths_enumerated'] = len(all_paths)
             
             if not all_paths:
-                self.logger.warning("No paths found during enumeration")
-                return dict(path_classes)
+                self.logger.warning("No paths found during enumeration - pipeline termination")
+                return self._finalize_pipeline_results(dict(path_classes), pipeline_stats, start_time)
             
-            # 2. Conversion en mots
-            words = self.convert_paths_to_words(all_paths, transaction_num)
+            self.logger.info(f"Phase 1 complete: {len(all_paths)} paths enumerated in "
+                           f"{pipeline_stats['enumeration_time']:.2f}s")
             
-            # 3. Évaluation NFA et classification
-            for path, word in zip(all_paths, words):
-                if word:  # Ignorer mots vides (conversion échouée)
-                    # Évaluation NFA pour obtenir état final
-                    final_state_id = nfa.evaluate_to_final_state(word)
-                    
-                    if final_state_id:
-                        path_classes[final_state_id].append(path)
-                        self.logger.debug(f"Path classified to state: {final_state_id}")
-                    else:
-                        self.logger.debug(f"Path rejected by NFA: word='{word[:20]}...'")
+            # PHASE 2: Conversion batch processing optimisé  
+            conv_start = time.time()
+            self.logger.debug("Phase 2: Word conversion starting")
             
-            # 4. Statistiques classification
-            total_classified = sum(len(paths) for paths in path_classes.values())
-            classification_rate = (total_classified / len(all_paths)) * 100 if all_paths else 0
+            words = self._batch_convert_paths_to_words(all_paths, transaction_num, pipeline_stats)
             
-            self.logger.info(f"Classification completed - {len(path_classes)} classes, "
-                           f"{total_classified}/{len(all_paths)} paths classified "
-                           f"({classification_rate:.1f}%)")
+            pipeline_stats['conversion_time'] = time.time() - conv_start
+            pipeline_stats['words_generated'] = len([w for w in words if w])
             
-            return dict(path_classes)
+            self.logger.info(f"Phase 2 complete: {pipeline_stats['words_generated']}/{len(words)} "
+                           f"words generated in {pipeline_stats['conversion_time']:.2f}s")
+            
+            # PHASE 3: Classification avec validation NFA
+            class_start = time.time()
+            self.logger.debug("Phase 3: NFA classification starting")
+            
+            classified_count = self._classify_paths_with_nfa(
+                all_paths, words, nfa, path_classes, pipeline_stats
+            )
+            
+            pipeline_stats['classification_time'] = time.time() - class_start
+            pipeline_stats['paths_classified'] = classified_count
+            pipeline_stats['classification_rate'] = (
+                (classified_count / len(all_paths)) * 100 if all_paths else 0
+            )
+            
+            self.logger.info(f"Phase 3 complete: {classified_count}/{len(all_paths)} paths classified "
+                           f"({pipeline_stats['classification_rate']:.1f}%) in "
+                           f"{pipeline_stats['classification_time']:.2f}s")
+            
+            # PHASE 4: Validation output et finalisation
+            validated_results = self._validate_and_finalize_results(
+                dict(path_classes), pipeline_stats, start_time
+            )
+            
+            return validated_results
             
         except Exception as e:
-            self.logger.error(f"Enumeration and classification error: {e}")
-            raise
+            self.logger.error(f"Pipeline critical error at transaction {transaction_num}: {e}")
+            self._log_pipeline_failure_diagnostics(pipeline_stats, start_time)
+            raise RuntimeError(f"Pipeline failed: {e}") from e
+    
+    def _validate_pipeline_inputs(self, transaction_edge: Edge, nfa: Any, 
+                                 transaction_num: int) -> bool:
+        """
+        Validation rigoureuse inputs pipeline - Étape 1.6
+        
+        Returns:
+            bool: True si tous inputs valides
+        """
+        if not transaction_edge or not hasattr(transaction_edge, 'target_node'):
+            self.logger.error("Invalid transaction_edge: missing or no target_node")
+            return False
+            
+        if not nfa:
+            self.logger.error("Invalid NFA: None or missing")
+            return False
+            
+        if not hasattr(nfa, 'evaluate_to_final_state') and not hasattr(nfa, 'evaluate_word'):
+            self.logger.error("Invalid NFA: missing evaluation methods")
+            return False
+            
+        if not isinstance(transaction_num, int) or transaction_num < 0:
+            self.logger.error(f"Invalid transaction_num: {transaction_num} (must be int >= 0)")
+            return False
+            
+        return True
+    
+    def _batch_convert_paths_to_words(self, all_paths: List[List[Node]], 
+                                     transaction_num: int, 
+                                     pipeline_stats: Dict[str, Any]) -> List[str]:
+        """
+        Conversion batch optimisée avec monitoring - Étape 1.6
+        
+        Returns:
+            List[str]: Words générés (même ordre que paths)
+        """
+        if len(all_paths) <= 50:  # Small batch - conversion directe
+            return self.convert_paths_to_words(all_paths, transaction_num)
+        
+        # Large batch - processing par chunks avec monitoring
+        words = []
+        chunk_size = 50
+        total_chunks = (len(all_paths) + chunk_size - 1) // chunk_size
+        
+        self.logger.debug(f"Batch conversion: {len(all_paths)} paths in {total_chunks} chunks")
+        
+        for chunk_idx in range(0, len(all_paths), chunk_size):
+            chunk_start = time.time()
+            chunk_paths = all_paths[chunk_idx:chunk_idx + chunk_size]
+            chunk_words = self.convert_paths_to_words(chunk_paths, transaction_num)
+            words.extend(chunk_words)
+            
+            chunk_time = time.time() - chunk_start
+            if chunk_time > 2.0:  # Warning si chunk > 2s
+                pipeline_stats['performance_warnings'].append(
+                    f"Conversion chunk {chunk_idx//chunk_size + 1}/{total_chunks} slow: {chunk_time:.1f}s"
+                )
+        
+        return words
+    
+    def _classify_paths_with_nfa(self, all_paths: List[List[Node]], words: List[str],
+                                nfa: Any, path_classes: Dict[str, List[List[Node]]],
+                                pipeline_stats: Dict[str, Any]) -> int:
+        """
+        Classification NFA avec validation et monitoring - Étape 1.6
+        
+        Returns:
+            int: Nombre paths successfully classified
+        """
+        classified_count = 0
+        nfa_errors = 0
+        
+        for path_idx, (path, word) in enumerate(zip(all_paths, words)):
+            if not word:  # Skip conversion failures
+                continue
+                
+            try:
+                # Flexible NFA evaluation (support both method types)
+                if hasattr(nfa, 'evaluate_to_final_state'):
+                    final_state_id = nfa.evaluate_to_final_state(word)
+                elif hasattr(nfa, 'evaluate_word'):
+                    result = nfa.evaluate_word(word)
+                    final_state_id = result[0] if isinstance(result, tuple) else result
+                else:
+                    self.logger.error("NFA has no supported evaluation method")
+                    break
+                
+                if final_state_id:
+                    path_classes[final_state_id].append(path)
+                    classified_count += 1
+                    
+                    if classified_count % 100 == 0:  # Progress logging
+                        self.logger.debug(f"Classified {classified_count}/{len(all_paths)} paths")
+                else:
+                    self.logger.debug(f"Path {path_idx} rejected by NFA: word='{word[:20]}...'")
+                    
+            except Exception as e:
+                nfa_errors += 1
+                self.logger.warning(f"NFA evaluation error for path {path_idx}: {e}")
+                
+                if nfa_errors > 10:  # Too many NFA errors
+                    pipeline_stats['performance_warnings'].append(
+                        f"Excessive NFA errors: {nfa_errors} failures"
+                    )
+        
+        if nfa_errors > 0:
+            self.logger.warning(f"NFA classification completed with {nfa_errors} evaluation errors")
+            
+        return classified_count
+    
+    def _validate_and_finalize_results(self, path_classes: Dict[str, List[List[Node]]],
+                                      pipeline_stats: Dict[str, Any], 
+                                      start_time: float) -> Dict[str, List[List[Node]]]:
+        """
+        Validation finale et logging résultats pipeline - Étape 1.6
+        """
+        total_time = time.time() - start_time
+        
+        # Validation results
+        if not path_classes:
+            self.logger.warning("Pipeline completed but no paths were classified")
+        
+        total_classified = sum(len(paths) for paths in path_classes.values())
+        
+        # Logging performance summary
+        self.logger.info(
+            f"PIPELINE COMPLETE - Total: {total_time:.2f}s | "
+            f"Enum: {pipeline_stats['enumeration_time']:.2f}s | "
+            f"Conv: {pipeline_stats['conversion_time']:.2f}s | "
+            f"Class: {pipeline_stats['classification_time']:.2f}s | "
+            f"Rate: {pipeline_stats['classification_rate']:.1f}%"
+        )
+        
+        # Performance warnings summary
+        if pipeline_stats['performance_warnings']:
+            for warning in pipeline_stats['performance_warnings']:
+                self.logger.warning(f"Performance: {warning}")
+        
+        # Update global statistics
+        self.stats.paths_enumerated += pipeline_stats['paths_enumerated']
+        
+        return path_classes
+    
+    def _log_pipeline_failure_diagnostics(self, pipeline_stats: Dict[str, Any], 
+                                         start_time: float) -> None:
+        """
+        Logging diagnostique en cas échec pipeline - Étape 1.6
+        """
+        failure_time = time.time() - start_time
+        self.logger.error(f"Pipeline failure after {failure_time:.2f}s")
+        self.logger.error(f"Stats at failure: {pipeline_stats}")
+        
+        # Diagnostic state
+        self.logger.error(f"Enumerator state: max_paths={self.max_paths}, "
+                        f"batch_size={self.batch_size}")
+        self.logger.error(f"Cache sizes: path={len(self._path_cache)}, "
+                        f"word={len(self._word_cache)}")
+        
+    def _finalize_pipeline_results(self, path_classes: Dict[str, List[List[Node]]],
+                                  pipeline_stats: Dict[str, Any], 
+                                  start_time: float) -> Dict[str, List[List[Node]]]:
+        """
+        Finalisation résultats pipeline (cas early termination) - Étape 1.6
+        """
+        total_time = time.time() - start_time
+        self.logger.info(f"Pipeline early termination after {total_time:.2f}s")
+        return path_classes
+    
+    def get_pipeline_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Métriques performance pipeline production - Étape 1.6
+        
+        Returns:
+            Dict[str, Any]: Métriques complètes toutes phases pipeline
+        """
+        # Combine enumeration stats + conversion stats
+        enum_stats = self.get_enumeration_statistics()
+        conversion_stats = self.get_conversion_statistics()
+        
+        # Pipeline-specific metrics
+        total_cache_operations = enum_stats.cache_hits + enum_stats.cache_misses
+        overall_cache_hit_rate = (
+            (enum_stats.cache_hits / total_cache_operations * 100) 
+            if total_cache_operations > 0 else 0
+        )
+        
+        return {
+            # Enumeration Performance
+            'enumeration': {
+                'paths_enumerated': enum_stats.paths_enumerated,
+                'cycles_detected': enum_stats.cycles_detected,
+                'early_terminations': enum_stats.early_terminations,
+                'enumeration_time_ms': enum_stats.enumeration_time_ms,
+                'max_depth_reached': enum_stats.max_depth_reached,
+                'explosion_preventions': getattr(enum_stats, 'explosion_preventions', 0),
+                'graceful_terminations': getattr(enum_stats, 'graceful_terminations', 0)
+            },
+            
+            # Conversion Performance  
+            'conversion': {
+                'word_cache_size': conversion_stats['word_cache_size'],
+                'cache_hit_rate_percent': conversion_stats['cache_hit_rate_percent'],
+                'total_cache_hits': conversion_stats['total_cache_hits'],
+                'total_cache_misses': conversion_stats['total_cache_misses'],
+                'estimated_memory_kb': conversion_stats['estimated_memory_kb']
+            },
+            
+            # Overall Pipeline Metrics
+            'pipeline': {
+                'overall_cache_hit_rate_percent': round(overall_cache_hit_rate, 1),
+                'total_cache_operations': total_cache_operations,
+                'memory_efficiency_score': self._calculate_memory_efficiency_score(
+                    conversion_stats, enum_stats
+                ),
+                'performance_grade': self._calculate_performance_grade(
+                    enum_stats, conversion_stats
+                )
+            }
+        }
+    
+    def _calculate_memory_efficiency_score(self, conversion_stats: Dict[str, Any], 
+                                          enum_stats: Any) -> float:
+        """
+        Score efficacité mémoire pipeline (0-100) - Étape 1.6
+        """
+        base_score = 100.0
+        
+        # Penalty pour cache sizes excessifs
+        if conversion_stats['word_cache_size'] > 1000:
+            base_score -= min(20, (conversion_stats['word_cache_size'] - 1000) / 100)
+        
+        # Bonus pour good cache hit rates
+        if conversion_stats['cache_hit_rate_percent'] > 70:
+            base_score += min(10, (conversion_stats['cache_hit_rate_percent'] - 70) / 3)
+        
+        # Penalty pour excessive memory usage
+        if conversion_stats['estimated_memory_kb'] > 1000:  # > 1MB
+            base_score -= min(15, (conversion_stats['estimated_memory_kb'] - 1000) / 200)
+        
+        return max(0, min(100, base_score))
+    
+    def _calculate_performance_grade(self, enum_stats: Any, 
+                                   conversion_stats: Dict[str, Any]) -> str:
+        """
+        Grade performance pipeline A-F - Étape 1.6
+        """
+        memory_score = self._calculate_memory_efficiency_score(conversion_stats, enum_stats)
+        cache_hit_rate = conversion_stats['cache_hit_rate_percent']
+        
+        # Calculate composite score
+        composite_score = (memory_score * 0.4) + (cache_hit_rate * 0.6)
+        
+        if composite_score >= 90:
+            return "A"
+        elif composite_score >= 80:
+            return "B" 
+        elif composite_score >= 70:
+            return "C"
+        elif composite_score >= 60:
+            return "D"
+        else:
+            return "F"
+    
+    def validate_complete_pipeline_health(self) -> Dict[str, Any]:
+        """
+        Validation santé complète pipeline production - Étape 1.6
+        
+        Returns:
+            Dict[str, Any]: Rapport santé avec recommendations
+        """
+        metrics = self.get_pipeline_performance_metrics()
+        health_report = {
+            'overall_health': 'HEALTHY',
+            'warnings': [],
+            'critical_issues': [],
+            'recommendations': [],
+            'metrics_summary': metrics
+        }
+        
+        # Check enumeration health
+        enum_metrics = metrics['enumeration']
+        if enum_metrics['explosion_preventions'] > 0:
+            health_report['warnings'].append(
+                f"Path explosion preventions: {enum_metrics['explosion_preventions']}"
+            )
+            health_report['recommendations'].append(
+                "Consider reducing max_paths or improving DAG structure"
+            )
+        
+        if enum_metrics['cycles_detected'] > enum_metrics['paths_enumerated'] * 0.1:
+            health_report['warnings'].append(
+                f"High cycle detection rate: {enum_metrics['cycles_detected']} cycles"
+            )
+            health_report['recommendations'].append(
+                "Review DAG structure for excessive cycles"
+            )
+        
+        # Check conversion health
+        conv_metrics = metrics['conversion']
+        if conv_metrics['cache_hit_rate_percent'] < 30:
+            health_report['warnings'].append(
+                f"Low cache hit rate: {conv_metrics['cache_hit_rate_percent']}%"
+            )
+            health_report['recommendations'].append(
+                "Review path patterns - low cache efficiency detected"
+            )
+        
+        if conv_metrics['estimated_memory_kb'] > 5000:  # > 5MB
+            health_report['critical_issues'].append(
+                f"High memory usage: {conv_metrics['estimated_memory_kb']} KB"
+            )
+            health_report['recommendations'].append(
+                "Implement more aggressive cache cleanup or reduce batch sizes"
+            )
+        
+        # Check pipeline health
+        pipeline_metrics = metrics['pipeline']
+        performance_grade = pipeline_metrics['performance_grade']
+        if performance_grade in ['D', 'F']:
+            health_report['critical_issues'].append(
+                f"Poor performance grade: {performance_grade}"
+            )
+            health_report['overall_health'] = 'CRITICAL'
+        elif performance_grade == 'C':
+            health_report['warnings'].append(
+                f"Below average performance: {performance_grade}"
+            )
+            health_report['overall_health'] = 'WARNING'
+        
+        # Set overall health status
+        if health_report['critical_issues']:
+            health_report['overall_health'] = 'CRITICAL'
+        elif health_report['warnings']:
+            health_report['overall_health'] = 'WARNING'
+        
+        return health_report
