@@ -728,10 +728,318 @@ def validate_dag_topology(nodes: List[Node]) -> CycleDetectionResult:
     return validator.validate_no_cycles(nodes)
 
 
+@dataclass
+class DAGValidationResult:
+    """Résultat validation complète structure DAG"""
+    is_valid: bool
+    cycle_detection: CycleDetectionResult
+    connectivity_issues: List[str]
+    integrity_violations: List[str]
+    orphaned_nodes: List[Node]
+    statistics: Dict[str, Any]
+    validation_time_ms: float
+    
+    def get_summary(self) -> str:
+        """Résumé validation lisible"""
+        if self.is_valid:
+            return f"✅ DAG Valid - {self.statistics.get('total_nodes', 0)} nodes, {self.statistics.get('total_edges', 0)} edges"
+        else:
+            issues = len(self.cycle_detection.cycle_path) + len(self.connectivity_issues) + len(self.integrity_violations)
+            return f"❌ DAG Invalid - {issues} issues detected"
+
+
+class DAGStructureValidator:
+    """
+    Validateur structure DAG production - Étape 2.1
+    
+    Validation complète:
+    - Topologie anti-cycle (DFS)
+    - Connectivité et intégrité nodes/edges
+    - Orphaned nodes detection
+    - Edge weight consistency
+    - Account balance coherence
+    - Performance monitoring
+    """
+    
+    def __init__(self):
+        self.cycle_validator = AntiCycleValidator()
+        self.validation_stats = {
+            'validations_performed': 0,
+            'total_validation_time_ms': 0,
+            'issues_detected_total': 0,
+            'cycle_detections': 0,
+            'connectivity_violations': 0,
+            'integrity_violations': 0
+        }
+    
+    def validate_complete_dag_structure(self, nodes: List[Node], 
+                                       edges: List[Edge],
+                                       accounts: Optional[List[Account]] = None) -> DAGValidationResult:
+        """
+        Validation structure DAG complète - Production ready
+        
+        Phases validation:
+        1. Topologie anti-cycle via DFS
+        2. Connectivité bidirectionnelle coherence
+        3. Edge-Node consistency validation
+        4. Orphaned nodes detection
+        5. Account balance coherence (si fourni)
+        6. Performance statistics collection
+        
+        Args:
+            nodes: Liste tous nœuds DAG
+            edges: Liste toutes arêtes DAG  
+            accounts: Liste comptes pour validation balance (optionnel)
+            
+        Returns:
+            DAGValidationResult: Résultats validation complets
+        """
+        start_time = time.time()
+        self.validation_stats['validations_performed'] += 1
+        
+        # Phase 1: Cycle Detection
+        cycle_result = self.cycle_validator.validate_no_cycles(nodes)
+        if cycle_result.has_cycle:
+            self.validation_stats['cycle_detections'] += 1
+        
+        # Phase 2: Connectivity Validation  
+        connectivity_issues = self._validate_connectivity_coherence(nodes, edges)
+        if connectivity_issues:
+            self.validation_stats['connectivity_violations'] += len(connectivity_issues)
+        
+        # Phase 3: Integrity Validation
+        integrity_violations = self._validate_nodes_edges_integrity(nodes, edges)
+        if integrity_violations:
+            self.validation_stats['integrity_violations'] += len(integrity_violations)
+        
+        # Phase 4: Orphaned Nodes Detection
+        orphaned_nodes = self._detect_orphaned_nodes(nodes)
+        
+        # Phase 5: Account Balance Validation (si applicable)
+        account_issues = []
+        if accounts:
+            account_issues = self._validate_accounts_coherence(accounts, nodes)
+            integrity_violations.extend(account_issues)
+        
+        # Phase 6: Statistics Collection
+        statistics = self._collect_dag_statistics(nodes, edges, accounts)
+        
+        # Calcul temps validation
+        validation_time = (time.time() - start_time) * 1000
+        self.validation_stats['total_validation_time_ms'] += validation_time
+        
+        # Détermination validité globale
+        total_issues = (len(connectivity_issues) + len(integrity_violations) + 
+                       len(orphaned_nodes))
+        if cycle_result.has_cycle:
+            total_issues += 1
+            
+        is_valid = (not cycle_result.has_cycle and total_issues == 0)
+        
+        if not is_valid:
+            self.validation_stats['issues_detected_total'] += total_issues
+        
+        return DAGValidationResult(
+            is_valid=is_valid,
+            cycle_detection=cycle_result,
+            connectivity_issues=connectivity_issues,
+            integrity_violations=integrity_violations,
+            orphaned_nodes=orphaned_nodes,
+            statistics=statistics,
+            validation_time_ms=validation_time
+        )
+    
+    def _validate_connectivity_coherence(self, nodes: List[Node], 
+                                        edges: List[Edge]) -> List[str]:
+        """
+        Validation cohérence connectivité bidirectionnelle
+        """
+        issues = []
+        
+        # Mapping edges par ID pour lookups efficaces
+        edge_map = {edge.edge_id: edge for edge in edges}
+        
+        # Validation 1: Chaque edge dans nodes doit exister dans edges list
+        for node in nodes:
+            for edge_id, edge in node.incoming_edges.items():
+                if edge_id not in edge_map:
+                    issues.append(f"Node {node.node_id} references non-existent incoming edge {edge_id}")
+                elif edge.target_node != node:
+                    issues.append(f"Incoming edge {edge_id} target mismatch: {edge.target_node.node_id} != {node.node_id}")
+            
+            for edge_id, edge in node.outgoing_edges.items():
+                if edge_id not in edge_map:
+                    issues.append(f"Node {node.node_id} references non-existent outgoing edge {edge_id}")
+                elif edge.source_node != node:
+                    issues.append(f"Outgoing edge {edge_id} source mismatch: {edge.source_node.node_id} != {node.node_id}")
+        
+        # Validation 2: Chaque edge doit être référencé par ses source/target nodes
+        for edge in edges:
+            source_node = edge.source_node
+            target_node = edge.target_node
+            
+            if edge.edge_id not in source_node.outgoing_edges:
+                issues.append(f"Edge {edge.edge_id} not found in source node {source_node.node_id} outgoing edges")
+            
+            if edge.edge_id not in target_node.incoming_edges:
+                issues.append(f"Edge {edge.edge_id} not found in target node {target_node.node_id} incoming edges")
+        
+        return issues
+    
+    def _validate_nodes_edges_integrity(self, nodes: List[Node], 
+                                       edges: List[Edge]) -> List[str]:
+        """
+        Validation intégrité interne nodes et edges
+        """
+        violations = []
+        
+        # Node integrity checks
+        node_ids_seen = set()
+        for node in nodes:
+            # Node ID uniqueness
+            if node.node_id in node_ids_seen:
+                violations.append(f"Duplicate node ID detected: {node.node_id}")
+            node_ids_seen.add(node.node_id)
+            
+            # Node type cache coherence
+            try:
+                computed_type = node._compute_node_type()
+                if node.get_node_type() != computed_type:
+                    violations.append(f"Node {node.node_id} type cache inconsistency")
+            except Exception as e:
+                violations.append(f"Node {node.node_id} type computation error: {e}")
+        
+        # Edge integrity checks
+        edge_ids_seen = set()
+        for edge in edges:
+            # Edge ID uniqueness
+            if edge.edge_id in edge_ids_seen:
+                violations.append(f"Duplicate edge ID detected: {edge.edge_id}")
+            edge_ids_seen.add(edge.edge_id)
+            
+            # Edge weight validation
+            if edge.weight < 0:
+                violations.append(f"Edge {edge.edge_id} has negative weight: {edge.weight}")
+            
+            # Edge metadata coherence
+            if edge.edge_metadata.weight != edge.weight:
+                violations.append(f"Edge {edge.edge_id} metadata weight mismatch: {edge.edge_metadata.weight} != {edge.weight}")
+        
+        return violations
+    
+    def _detect_orphaned_nodes(self, nodes: List[Node]) -> List[Node]:
+        """
+        Détection nœuds orphelins (isolated nodes)
+        """
+        orphaned = []
+        for node in nodes:
+            if node.get_node_type() == NodeType.ISOLATED:
+                orphaned.append(node)
+        return orphaned
+    
+    def _validate_accounts_coherence(self, accounts: List[Account], 
+                                   nodes: List[Node]) -> List[str]:
+        """
+        Validation cohérence comptes avec structure DAG
+        """
+        issues = []
+        
+        # Mapping nodes par ID
+        node_map = {node.node_id: node for node in nodes}
+        
+        for account in accounts:
+            # Validation account integrity interne
+            account_errors = account.validate_account_integrity()
+            for error in account_errors:
+                issues.append(f"Account {account.account_id}: {error}")
+            
+            # Validation nodes existence dans DAG
+            source_id = account.source_node.node_id
+            sink_id = account.sink_node.node_id
+            
+            if source_id not in node_map:
+                issues.append(f"Account {account.account_id} source node {source_id} not found in DAG")
+            if sink_id not in node_map:
+                issues.append(f"Account {account.account_id} sink node {sink_id} not found in DAG")
+        
+        return issues
+    
+    def _collect_dag_statistics(self, nodes: List[Node], edges: List[Edge],
+                               accounts: Optional[List[Account]]) -> Dict[str, Any]:
+        """
+        Collection statistiques structure DAG
+        """
+        # Nodes statistics
+        node_types = defaultdict(int)
+        total_incoming = 0
+        total_outgoing = 0
+        
+        for node in nodes:
+            node_types[node.get_node_type().value] += 1
+            total_incoming += len(node.incoming_edges)
+            total_outgoing += len(node.outgoing_edges)
+        
+        # Edges statistics  
+        edge_types = defaultdict(int)
+        total_weight = Decimal('0')
+        
+        for edge in edges:
+            edge_types[edge.edge_metadata.edge_type.value] += 1
+            total_weight += edge.weight
+        
+        # Account statistics (si applicable)
+        account_stats = {}
+        if accounts:
+            total_balance = sum(acc.balance.current_balance for acc in accounts)
+            account_stats = {
+                'total_accounts': len(accounts),
+                'total_balance': str(total_balance),
+                'accounts_with_errors': sum(1 for acc in accounts if len(acc.validate_account_integrity()) > 0)
+            }
+        
+        return {
+            'total_nodes': len(nodes),
+            'total_edges': len(edges),
+            'node_types': dict(node_types),
+            'edge_types': dict(edge_types),
+            'connectivity': {
+                'total_incoming_connections': total_incoming,
+                'total_outgoing_connections': total_outgoing,
+                'avg_node_degree': (total_incoming + total_outgoing) / len(nodes) if nodes else 0
+            },
+            'weights': {
+                'total_weight': str(total_weight),
+                'avg_edge_weight': str(total_weight / len(edges)) if edges else '0'
+            },
+            **account_stats
+        }
+    
+    def get_validation_performance_stats(self) -> Dict[str, Any]:
+        """
+        Statistiques performance validations
+        """
+        avg_time = 0
+        if self.validation_stats['validations_performed'] > 0:
+            avg_time = (self.validation_stats['total_validation_time_ms'] / 
+                       self.validation_stats['validations_performed'])
+        
+        return {
+            'validations_performed': self.validation_stats['validations_performed'],
+            'avg_validation_time_ms': round(avg_time, 3),
+            'total_issues_detected': self.validation_stats['issues_detected_total'],
+            'cycle_detection_stats': self.cycle_validator.get_validation_stats(),
+            'issue_breakdown': {
+                'cycle_detections': self.validation_stats['cycle_detections'],
+                'connectivity_violations': self.validation_stats['connectivity_violations'],
+                'integrity_violations': self.validation_stats['integrity_violations']
+            }
+        }
+
+
 # Export classes principales
 __all__ = [
-    'Node', 'Edge', 'NodeType', 'EdgeType', 'EdgeMetadata',
-    'CycleDetectionResult', 'AntiCycleValidator',
-    'create_node', 'create_edge', 'connect_nodes', 'disconnect_nodes',
-    'validate_dag_topology'
+    'Node', 'Edge', 'NodeType', 'EdgeType', 'EdgeMetadata', 'Account',
+    'CycleDetectionResult', 'AntiCycleValidator', 'DAGStructureValidator', 
+    'DAGValidationResult', 'create_node', 'create_edge', 'connect_nodes', 
+    'disconnect_nodes', 'validate_dag_topology'
 ]
