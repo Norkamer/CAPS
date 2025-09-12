@@ -12,11 +12,12 @@ Composants principaux du système ICGS avec garanties mathématiques absolues:
 __version__ = "1.0.0"
 __author__ = "Norkamer"
 
-# Exports principaux selon blueprint - modules disponibles seulement
+# Exports principaux selon blueprint - modules disponibles
 from .account_taxonomy import AccountTaxonomy
+from .weighted_nfa import WeightedNFA, RegexWeight, NFAState, NFATransition, TransitionType
+from .anchored_nfa import AnchoredWeightedNFA
 
 # TODO: Imports à activer au fur et à mesure de l'implémentation
-# from .anchored_nfa import AnchoredWeightedNFA, WeightedNFA
 # from .linear_programming import LinearProgram, FluxVariable, LinearConstraint
 # from .simplex_solver import TripleValidationOrientedSimplex, MathematicallyRigorousPivotManager
 # from .dag import DAG
@@ -24,8 +25,12 @@ from .account_taxonomy import AccountTaxonomy
 
 __all__ = [
     'AccountTaxonomy',
-    # 'WeightedNFA',
-    # 'AnchoredWeightedNFA', 
+    'WeightedNFA',
+    'AnchoredWeightedNFA',
+    'RegexWeight',
+    'NFAState',
+    'NFATransition',
+    'TransitionType',
     # 'LinearProgram',
     # 'FluxVariable',
     # 'LinearConstraint',
