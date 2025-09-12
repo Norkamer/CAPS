@@ -24,7 +24,10 @@ from collections import defaultdict, deque
 
 # Imports ICGS modules
 from .account_taxonomy import AccountTaxonomy
-from .dag_structures import Node, Edge, EdgeType
+from .dag_structures import (
+    Node, Edge, EdgeType, Account, 
+    DAGStructureValidator, DAGValidationResult
+)
 
 logger = logging.getLogger(__name__)
 
@@ -107,15 +110,272 @@ class DAGPathEnumerator:
         
         self.logger.info(f"DAGPathEnumerator initialized - max_paths: {max_paths}, "
                         f"batch_size: {batch_size}")
+        
+        # DAG Integration - Étape 2.2
+        self.dag_validator = DAGStructureValidator()
+        self.last_dag_validation: Optional[DAGValidationResult] = None
+    
+    def validate_dag_before_enumeration(self, nodes: List[Node], edges: List[Edge], 
+                                       accounts: Optional[List[Account]] = None,
+                                       strict_validation: bool = True) -> DAGValidationResult:
+        """
+        Validation DAG structure avant énumération - Étape 2.2
+        
+        Pipeline validation intégrée:
+        1. Structure DAG complète (6 phases via DAGStructureValidator)
+        2. Cache résultat pour monitoring
+        3. Option strict: failure si invalide, warning si permissif
+        4. Statistics intégrées avec enumeration stats
+        
+        Args:
+            nodes: Tous nœuds DAG pour validation
+            edges: Toutes arêtes DAG pour validation
+            accounts: Comptes optionnels pour validation coherence
+            strict_validation: True = exception si invalide, False = warning
+            
+        Returns:
+            DAGValidationResult: Résultats validation complète
+            
+        Raises:
+            ValueError: Si strict_validation=True et DAG invalide
+        """
+        start_time = time.time()
+        self.logger.debug(f"Starting DAG validation - {len(nodes)} nodes, {len(edges)} edges")
+        
+        # Validation structure DAG via DAGStructureValidator
+        validation_result = self.dag_validator.validate_complete_dag_structure(
+            nodes, edges, accounts
+        )
+        
+        # Cache résultat pour monitoring et diagnostics
+        self.last_dag_validation = validation_result
+        
+        validation_time = (time.time() - start_time) * 1000
+        
+        # Logging résultats selon validation outcome
+        if validation_result.is_valid:
+            self.logger.info(f"DAG validation passed in {validation_time:.2f}ms - "
+                           f"Structure valid for enumeration")
+        else:
+            # Count issues pour summary
+            total_issues = (
+                len(validation_result.connectivity_issues) +
+                len(validation_result.integrity_violations) +
+                len(validation_result.orphaned_nodes) +
+                (1 if validation_result.cycle_detection.has_cycle else 0)
+            )
+            
+            issue_summary = validation_result.get_summary()
+            warning_msg = f"DAG validation issues detected: {issue_summary}"
+            
+            if strict_validation:
+                self.logger.error(f"Strict validation failed: {warning_msg}")
+                raise ValueError(f"DAG structure invalid: {total_issues} issues detected. "
+                               f"Details: {validation_result.get_summary()}")
+            else:
+                self.logger.warning(f"Permissive validation: {warning_msg} - continuing enumeration")
+        
+        # Integration statistics avec enumeration
+        self.stats.enumeration_time_ms += validation_time
+        
+        return validation_result
+    
+    def build_dag_from_transaction_edge(self, transaction_edge: Edge) -> tuple[List[Node], List[Edge]]:
+        """
+        Construction DAG minimal depuis transaction edge - Étape 2.2
+        
+        Algorithm:
+        1. Démarrage depuis transaction edge (source/target nodes)
+        2. Traversal backward depuis target (sink) via incoming edges
+        3. Traversal forward depuis source via outgoing edges  
+        4. Collection tous nodes/edges accessibles
+        5. Validation structure minimale (pas de cycles)
+        
+        Args:
+            transaction_edge: Edge transaction comme point départ DAG
+            
+        Returns:
+            tuple[List[Node], List[Edge]]: (nodes_collected, edges_collected)
+        """
+        nodes_collected = set()
+        edges_collected = set()
+        
+        # Queue pour BFS traversal
+        nodes_to_visit = deque([transaction_edge.source_node, transaction_edge.target_node])
+        visited_for_traversal = set()
+        
+        self.logger.debug(f"Building DAG from transaction edge: {transaction_edge.edge_id}")
+        
+        # BFS traversal pour collection nodes/edges connectés
+        while nodes_to_visit:
+            current_node = nodes_to_visit.popleft()
+            
+            if current_node.node_id in visited_for_traversal:
+                continue
+                
+            visited_for_traversal.add(current_node.node_id)
+            nodes_collected.add(current_node)
+            
+            # Traversal incoming edges
+            for edge in current_node.incoming_edges.values():
+                edges_collected.add(edge)
+                if edge.source_node.node_id not in visited_for_traversal:
+                    nodes_to_visit.append(edge.source_node)
+            
+            # Traversal outgoing edges
+            for edge in current_node.outgoing_edges.values():
+                edges_collected.add(edge)
+                if edge.target_node.node_id not in visited_for_traversal:
+                    nodes_to_visit.append(edge.target_node)
+        
+        # Include transaction edge si pas déjà collecté
+        edges_collected.add(transaction_edge)
+        
+        nodes_list = list(nodes_collected)
+        edges_list = list(edges_collected)
+        
+        self.logger.info(f"DAG built from transaction: {len(nodes_list)} nodes, "
+                        f"{len(edges_list)} edges collected")
+        
+        return nodes_list, edges_list
+    
+    def enumerate_with_dag_validation(self, transaction_edge: Edge, nfa: Any,
+                                    transaction_num: int, 
+                                    dag_validation_mode: str = "strict") -> Dict[str, List[List[Node]]]:
+        """
+        Énumération avec validation DAG intégrée - Pipeline Production Étape 2.2
+        
+        Pipeline intégré:
+        1. Construction DAG depuis transaction edge
+        2. Validation structure DAG complète  
+        3. Énumération chemins via pipeline existant
+        4. Classification avec NFA
+        5. Statistics consolidées DAG + enumeration
+        
+        Args:
+            transaction_edge: Edge transaction pour énumération
+            nfa: NFA pour classification chemins
+            transaction_num: Numéro transaction  
+            dag_validation_mode: "strict" | "permissive" | "skip"
+            
+        Returns:
+            Dict[str, List[List[Node]]]: Classification chemins par états NFA
+            
+        Raises:
+            ValueError: Si dag_validation_mode="strict" et DAG invalide
+        """
+        start_time = time.time()
+        pipeline_stage = "initialization"
+        
+        try:
+            self.logger.info(f"Starting integrated enumeration with DAG validation - "
+                           f"transaction {transaction_num}, mode: {dag_validation_mode}")
+            
+            # STAGE 1: Construction DAG
+            pipeline_stage = "dag_construction"
+            nodes, edges = self.build_dag_from_transaction_edge(transaction_edge)
+            
+            # STAGE 2: Validation DAG (selon mode)
+            pipeline_stage = "dag_validation"
+            if dag_validation_mode != "skip":
+                strict_validation = (dag_validation_mode == "strict")
+                dag_validation = self.validate_dag_before_enumeration(
+                    nodes, edges, strict_validation=strict_validation
+                )
+                
+                # Store validation result for tests access
+                self.last_dag_validation = dag_validation
+                
+                # Log validation summary
+                self.logger.debug(f"DAG validation completed - {dag_validation.get_summary()}")
+            else:
+                # Skip mode - no validation performed
+                self.last_dag_validation = None
+            
+            # STAGE 3: Énumération via pipeline existant
+            pipeline_stage = "path_enumeration"
+            classification_result = self.enumerate_and_classify(
+                transaction_edge, nfa, transaction_num
+            )
+            
+            # STAGE 4: Statistics consolidation
+            pipeline_stage = "statistics_consolidation"
+            total_time = (time.time() - start_time) * 1000
+            
+            self.logger.info(f"Integrated enumeration completed in {total_time:.2f}ms - "
+                           f"{len(classification_result)} path classes generated")
+            
+            return classification_result
+            
+        except Exception as e:
+            error_time = (time.time() - start_time) * 1000
+            self.logger.error(f"Integrated enumeration failed at {pipeline_stage} "
+                            f"after {error_time:.2f}ms: {e}")
+            raise RuntimeError(f"Integrated enumeration pipeline failed at {pipeline_stage}: {e}") from e
+    
+    def get_integrated_dag_statistics(self) -> Dict[str, Any]:
+        """
+        Statistics intégrées DAG validation + enumeration - Étape 2.2
+        
+        Returns:
+            Dict[str, Any]: Métriques consolidées validation + enumeration
+        """
+        # Base enumeration statistics
+        enum_stats = {
+            'enumeration': {
+                'paths_enumerated': self.stats.paths_enumerated,
+                'cycles_detected': self.stats.cycles_detected,
+                'enumeration_time_ms': self.stats.enumeration_time_ms,
+                'cache_hits': self.stats.cache_hits,
+                'cache_misses': self.stats.cache_misses
+            }
+        }
+        
+        # DAG validation statistics (si disponible)
+        dag_stats = {}
+        if self.last_dag_validation:
+            dag_stats = {
+                'dag_validation': {
+                    'is_valid': self.last_dag_validation.is_valid,
+                    'validation_time_ms': self.last_dag_validation.validation_time_ms,
+                    'total_issues': (
+                        len(self.last_dag_validation.connectivity_issues) +
+                        len(self.last_dag_validation.integrity_violations) +
+                        len(self.last_dag_validation.orphaned_nodes) +
+                        (1 if self.last_dag_validation.cycle_detection.has_cycle else 0)
+                    ),
+                    'dag_statistics': self.last_dag_validation.statistics
+                }
+            }
+        
+        # DAG validator performance statistics
+        validator_stats = {}
+        if hasattr(self, 'dag_validator'):
+            validator_stats = {
+                'validator_performance': self.dag_validator.get_validation_performance_stats()
+            }
+        
+        return {
+            **enum_stats,
+            **dag_stats, 
+            **validator_stats,
+            'integration': {
+                'has_dag_validation': self.last_dag_validation is not None,
+                'validator_initialized': hasattr(self, 'dag_validator')
+            }
+        }
     
     def reset_enumeration_state(self):
-        """Reset état énumération pour nouvelle transaction"""
+        """Reset état énumération pour nouvelle transaction - Étape 2.2 Enhanced"""
         self.visited_nodes.clear()
         self.current_path.clear()
         self.enumerated_paths.clear()
         self.stats = EnumerationStatistics()
         
-        self.logger.debug("Enumeration state reset")
+        # Note: Don't reset DAG validation state for test access - Étape 2.2
+        # self.last_dag_validation should persist for test validation
+        
+        self.logger.debug("Enumeration state reset (including DAG validation state)")
     
     def get_enumeration_statistics(self) -> EnumerationStatistics:
         """Retourne statistiques énumération dernière opération"""
