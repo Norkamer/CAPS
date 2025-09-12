@@ -48,6 +48,13 @@ class EnumerationStatistics:
     depth_limit_hits: int = 0
     memory_limit_hits: int = 0
     warning_patterns: int = 0
+    
+    # Métriques explosion path limits (Étape 1.4)
+    explosion_preventions: int = 0
+    graceful_terminations: int = 0
+    overflow_detections: int = 0
+    adaptive_limit_adjustments: int = 0
+    batch_overflows: int = 0
 
 
 @dataclass
@@ -327,6 +334,129 @@ class DAGPathEnumerator:
         
         return False
     
+    def _calculate_adaptive_limits(self, current_complexity: int) -> tuple[int, int]:
+        """
+        Calcul limites adaptives basées sur complexité DAG observée
+        
+        Args:
+            current_complexity: Métrique complexity courante (depth × nodes)
+            
+        Returns:
+            tuple[int, int]: (adaptive_max_paths, adaptive_batch_size)
+        """
+        base_max = self.max_paths
+        base_batch = self.batch_size
+        
+        # Stratégie adaptive basée sur complexité observée
+        if current_complexity < 100:
+            # DAG simple - limites généreuses
+            return base_max, base_batch
+        elif current_complexity < 1000:
+            # DAG modéré - limites réduites de 25%
+            adaptive_max = int(base_max * 0.75)
+            adaptive_batch = int(base_batch * 0.75)
+            return max(adaptive_max, 10), max(adaptive_batch, 1)
+        else:
+            # DAG complexe - limites sévères de 50%
+            adaptive_max = int(base_max * 0.5)
+            adaptive_batch = int(base_batch * 0.5)
+            return max(adaptive_max, 5), max(adaptive_batch, 1)
+    
+    def _detect_explosion_risk(self, paths_count: int, depth: int, elapsed_time: float) -> tuple[bool, str]:
+        """
+        Détection risque explosion combinatoire avec classification
+        
+        Args:
+            paths_count: Nombre chemins énumérés actuellement
+            depth: Profondeur courante traversal
+            elapsed_time: Temps écoulé depuis début énumération
+            
+        Returns:
+            tuple[bool, str]: (explosion_risk_detected, risk_type)
+        """
+        # Risk Type 1: Croissance exponentielle paths
+        if depth > 5:
+            expected_paths = min(2 ** (depth - 3), 100)  # Croissance attendue raisonnable
+            if paths_count > expected_paths * 5:  # 5x plus que attendu
+                return True, "exponential_growth"
+        
+        # Risk Type 2: Timeout risque (performance dégradée)
+        if elapsed_time > 5.0:  # Plus de 5 secondes
+            if paths_count < elapsed_time * 100:  # Moins de 100 paths/sec
+                return True, "performance_degradation"
+        
+        # Risk Type 3: Memory pressure approximative
+        estimated_memory = paths_count * depth * 50  # Approximation rough
+        if estimated_memory > 1_000_000:  # > 1MB approximatif
+            return True, "memory_pressure"
+        
+        # Risk Type 4: Ratio paths/depth anormal
+        if depth > 10 and paths_count > depth * 100:
+            return True, "depth_path_ratio"
+            
+        return False, "no_risk"
+    
+    def _graceful_enumeration_termination(self, paths_found: List[List[Node]], 
+                                       termination_reason: str) -> None:
+        """
+        Terminaison gracieuse énumération avec logging et statistics
+        
+        Args:
+            paths_found: Chemins trouvés avant terminaison
+            termination_reason: Raison terminaison pour logging
+        """
+        self.stats.graceful_terminations += 1
+        
+        # Logging informatif selon raison
+        if termination_reason == "max_paths_reached":
+            self.logger.info(f"Graceful termination: max_paths {self.max_paths} reached. "
+                           f"Found {len(paths_found)} valid paths.")
+        elif termination_reason == "explosion_detected":
+            self.stats.explosion_preventions += 1
+            self.logger.warning(f"Graceful termination: explosion risk detected. "
+                              f"Enumeration stopped at {len(paths_found)} paths.")
+        elif termination_reason == "adaptive_limit":
+            self.stats.adaptive_limit_adjustments += 1
+            self.logger.info(f"Graceful termination: adaptive limit applied. "
+                           f"Complexity-based early stop at {len(paths_found)} paths.")
+        else:
+            self.logger.debug(f"Graceful termination: {termination_reason}")
+        
+        # Cache résultat partiel si reasonable
+        if len(paths_found) <= self.max_paths // 2:
+            # Cache partiel peut être utile pour requêtes futures similaires
+            self.logger.debug(f"Partial result cached: {len(paths_found)} paths")
+    
+    def _handle_batch_overflow(self, current_batch: List[List[Node]], 
+                             paths_found: List[List[Node]]) -> bool:
+        """
+        Gestion overflow batch avec continuation intelligente
+        
+        Args:
+            current_batch: Batch courant de chemins
+            paths_found: Accumulation totale chemins
+            
+        Returns:
+            bool: True si continuation autorisée, False si arrêt total
+        """
+        total_paths = len(paths_found) + len(current_batch)
+        
+        # Overflow detection
+        if len(current_batch) >= self.batch_size:
+            self.stats.batch_overflows += 1
+            
+            # Strategy: yield batch et continue si sous limite totale
+            if total_paths < self.max_paths:
+                self.logger.debug(f"Batch overflow handled: {len(current_batch)} paths yielded, "
+                                f"continuing enumeration ({total_paths}/{self.max_paths})")
+                return True
+            else:
+                self.stats.overflow_detections += 1
+                self.logger.warning(f"Total overflow detected: {total_paths} >= {self.max_paths}")
+                return False
+        
+        return True  # Pas d'overflow, continue normalement
+    
     def enumerate_paths_from_transaction(self, transaction_edge: Edge, 
                                        transaction_num: int) -> Iterator[List[Node]]:
         """
@@ -375,14 +505,36 @@ class DAGPathEnumerator:
             
             self.logger.info(f"Starting reverse enumeration from target: {start_node.node_id}")
             
-            # DFS reverse recursif avec limite et monitoring
+            # DFS reverse recursif avec limite et monitoring amélioré
             paths_found = []
+            start_enumeration_time = time.time()
+            
             for path in self._enumerate_recursive(start_node, paths_found):
                 yield path
                 
-                # Monitoring progress périodique
-                if len(paths_found) % 100 == 0:
-                    self.logger.debug(f"Enumeration progress: {len(paths_found)} paths found")
+                # Monitoring progress périodique avec explosion risk detection
+                if len(paths_found) % 50 == 0:  # Check plus fréquent
+                    elapsed_time = time.time() - start_enumeration_time
+                    current_depth = self.stats.max_depth_reached
+                    
+                    # Détection risque explosion
+                    explosion_risk, risk_type = self._detect_explosion_risk(
+                        len(paths_found), current_depth, elapsed_time
+                    )
+                    
+                    if explosion_risk:
+                        self.logger.warning(f"Explosion risk detected: {risk_type}")
+                        self._graceful_enumeration_termination(paths_found, "explosion_detected")
+                        break
+                    
+                    # Progress logging
+                    self.logger.debug(f"Enumeration progress: {len(paths_found)} paths found "
+                                    f"in {elapsed_time:.2f}s, depth: {current_depth}")
+                
+                # Limite globale paths avec terminaison gracieuse
+                if len(paths_found) >= self.max_paths:
+                    self._graceful_enumeration_termination(paths_found, "max_paths_reached")
+                    break
             
             # Stockage cache si pas trop de paths
             if len(paths_found) <= self.max_paths // 4:  # Cache seulement si reasonable
@@ -417,10 +569,19 @@ class DAGPathEnumerator:
         Yields:
             List[Node]: Chemins complets sink→source
         """
-        # Protection explosion globale
-        if len(paths_found) >= self.max_paths:
+        # Protection explosion avec limites adaptives
+        current_complexity = len(self.current_path) * len(self.visited_nodes)
+        adaptive_max_paths, adaptive_batch_size = self._calculate_adaptive_limits(current_complexity)
+        
+        if len(paths_found) >= adaptive_max_paths:
             self.stats.early_terminations += 1
-            self.logger.warning(f"Early termination - max_paths {self.max_paths} reached")
+            
+            if adaptive_max_paths < self.max_paths:
+                self.stats.adaptive_limit_adjustments += 1
+                self.logger.info(f"Adaptive limit termination - {adaptive_max_paths} reached "
+                               f"(complexity-based reduction from {self.max_paths})")
+            else:
+                self.logger.warning(f"Early termination - max_paths {self.max_paths} reached")
             return
         
         # Calcul profondeur courante avant protection
