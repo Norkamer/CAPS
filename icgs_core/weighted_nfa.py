@@ -302,20 +302,55 @@ class WeightedNFA:
         
         # Combinaison états finaux des deux méthodes
         final_state_ids = final_states_found | {
-            state_id for state_id in current_states 
+            state_id for state_id in current_states
             if self.states[state_id].is_final
         }
-        
+
+        # EXTENSION CHARACTER-CLASS: Support patterns character-class hybride
+        character_class_finals = self._evaluate_character_class_patterns(word)
+        final_state_ids = final_state_ids | character_class_finals
+
         return final_state_ids
     
+    def _evaluate_character_class_patterns(self, word: str) -> Set[str]:
+        """
+        EXTENSION CHARACTER-CLASS: Évalue patterns character-class compiled
+
+        Recherche États avec attribut compiled_patterns (créés par character-class support)
+        et test le mot contre ces patterns pré-compilés pour performance optimisée.
+
+        Args:
+            word: Mot à évaluer
+
+        Returns:
+            Set[str]: États finaux character-class matchés
+        """
+        matched_finals = set()
+
+        # Recherche États avec compiled_patterns character-class
+        for state in self.states.values():
+            if hasattr(state, 'compiled_patterns') and state.compiled_patterns:
+                # Test chaque pattern compilé dans cet état
+                for pattern_info in state.compiled_patterns:
+                    try:
+                        compiled_pattern = pattern_info.get('compiled')
+                        if compiled_pattern and compiled_pattern.match(word):
+                            matched_finals.add(state.state_id)
+                            break  # Premier match suffit pour cet état
+                    except (AttributeError, re.error):
+                        # Pattern corrompu ou malformé - ignore silencieusement
+                        continue
+
+        return matched_finals
+
     def _matches_regex_pattern(self, word: str, pattern: str) -> bool:
         """
         Teste si mot matche pattern regex complet
-        
+
         Args:
             word: Mot à tester
             pattern: Pattern regex complet
-            
+
         Returns:
             True si match, False sinon
         """
