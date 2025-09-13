@@ -24,6 +24,13 @@ from icgs_core import (
 )
 # PathEnumerationNotReadyError removed - PHASE 2.9 ACTIVATED
 
+# Import diagnostic API usage pour tests académiques
+from tests.academic_api_diagnostics import (
+    diagnose_nfa_evaluation,
+    diagnose_pipeline_classify_paths_simulation,
+    print_session_api_summary
+)
+
 
 class TestAcademic16Fixed(unittest.TestCase):
     """
@@ -139,11 +146,15 @@ class TestAcademic16Fixed(unittest.TestCase):
             raise
 
     def _execute_transaction_with_fallback(self, transaction: Transaction) -> tuple[bool, bool]:
-        """Helper: Exécute transaction avec gestion exceptions contrôlées"""
+        """Helper: Exécute transaction avec gestion exceptions contrôlées + diagnostic API"""
         try:
             result = self.dag.add_transaction(transaction)
             if result:
                 print(f"✅ Transaction {transaction.transaction_id} succeeded completely")
+
+                # 🔍 DIAGNOSTIC API NFA : Après succès transaction
+                self._diagnose_underlying_nfa_apis(transaction)
+
                 return (True, True)
             else:
                 print(f"❌ Transaction {transaction.transaction_id} failed with uncontrolled error")
@@ -152,6 +163,56 @@ class TestAcademic16Fixed(unittest.TestCase):
         except Exception as e:
             print(f"❌ Transaction {transaction.transaction_id} failed with error: {e}")
             return (False, False)
+
+    def _diagnose_underlying_nfa_apis(self, transaction: Transaction):
+        """
+        DIAGNOSTIC API : Examine les NFAs sous-jacents utilisés par le pipeline
+
+        Après exécution réussie transaction, examine les NFAs créés par le DAG
+        et teste mots exemple pour identifier usage API primaire vs fallback.
+        """
+        try:
+            # Accès NFAs via path_enumerator (architecture ICGS)
+            path_enumerator = getattr(self.dag, '_path_enumerator', None)
+            if path_enumerator:
+                # Recherche NFA actuel via path_enumerator
+                current_nfa = getattr(path_enumerator, 'current_nfa', None) or getattr(path_enumerator, '_nfa', None)
+
+                if current_nfa:
+                    # Test mots basés sur taxonomy mappings
+                    test_words = ["B", "D", "H", "L", "P"]  # Caractères patterns FIXED
+
+                    print(f"   🔍 NFA API DIAGNOSTIC for {transaction.transaction_id}:")
+
+                    for word in test_words:
+                        diagnostics = diagnose_nfa_evaluation(
+                            current_nfa, word,
+                            f"TEST16_{transaction.transaction_id}_{word}",
+                            verbose=False
+                        )
+
+                        # Résumé compact
+                        api_used = "PRIMARY" if diagnostics['results'].get('primary_api') is not None else "FALLBACK"
+                        arch_status = "UNIFIED" if diagnostics['unified_architecture'] else "STANDARD"
+
+                        print(f"      Word '{word}': {api_used} API, {arch_status} Architecture")
+                    return
+
+            # Fallback: Recherche NFAs via attributs DAG directs
+            for attr_name in ['main_nfa', 'target_nfa', 'current_nfa']:
+                nfa = getattr(self.dag, attr_name, None)
+                if nfa:
+                    print(f"   🎯 Found {attr_name} for diagnostic")
+                    # Test simple
+                    diagnostics = diagnose_nfa_evaluation(nfa, "B", f"TEST16_{transaction.transaction_id}", verbose=False)
+                    arch_status = "UNIFIED" if diagnostics['unified_architecture'] else "STANDARD"
+                    print(f"   📊 {attr_name}: {arch_status} Architecture")
+                    return
+
+            print(f"   ⚠️  No accessible NFAs found for {transaction.transaction_id}")
+
+        except Exception as e:
+            print(f"   ⚠️  NFA diagnostic failed: {e}")
 
     def test_01_simple_transaction_fixed_patterns(self):
         """
@@ -365,7 +426,7 @@ class TestAcademic16Fixed(unittest.TestCase):
             self.test_metrics['accounts_created'] += 2
 
     def tearDown(self):
-        """Nettoyage avec résumé métriques test FIXED"""
+        """Nettoyage avec résumé métriques test FIXED + diagnostic API session"""
         print(f"\n=== Test Academic 16 FIXED Summary ===")
         print(f"Test metrics: {self.test_metrics}")
 
@@ -377,6 +438,13 @@ class TestAcademic16Fixed(unittest.TestCase):
         if total_tested > 0:
             success_rate = total_successful / total_tested
             print(f"FIXED Success rate: {success_rate:.2%}")
+
+        # 📊 RÉSUMÉ SESSION API - Test 16 FIXED
+        print(f"\n🔍 API USAGE DIAGNOSTIC SUMMARY - Test 16:")
+        try:
+            print_session_api_summary()
+        except Exception as e:
+            print(f"⚠️ API summary failed: {e}")
 
 
 if __name__ == '__main__':
