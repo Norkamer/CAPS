@@ -58,8 +58,12 @@ class AccountTaxonomy:
         import time
         
         # Validation numéro transaction croissant pour cohérence historique
-        if self.taxonomy_history and transaction_num <= self.taxonomy_history[-1].transaction_num:
-            raise ValueError(f"Transaction number must be strictly increasing: {transaction_num} <= {self.taxonomy_history[-1].transaction_num}")
+        # Exception: Permet transaction -1 pour initialisation si liste vide
+        if self.taxonomy_history:
+            if transaction_num <= self.taxonomy_history[-1].transaction_num:
+                raise ValueError(f"Transaction number must be strictly increasing: {transaction_num} <= {self.taxonomy_history[-1].transaction_num}")
+        elif transaction_num < -1:
+            raise ValueError(f"Invalid initialization transaction number: {transaction_num} (must be >= -1)")
         
         # Récupération mapping précédent pour héritage SEULEMENT des comptes existants
         previous_mapping = {}
@@ -228,8 +232,16 @@ class AccountTaxonomy:
     def _auto_assign_character(self, used_chars: Set[str]) -> str:
         """
         Auto-assignment caractère avec évitement collisions
-        CORRECTION: Version simplifiée et correcte
+        CORRECTION: Utilise caractère neutre 'N' pour comptes selon demande utilisateur
         """
+        # CORRECTION CRITIQUE: Caractère neutre pour comptes (pas d'effet regex)
+        # Utilise 'N' comme caractère neutre qui n'affecte pas la plupart des regex
+        neutral_char = 'N'
+        
+        if neutral_char not in used_chars:
+            return neutral_char
+        
+        # Fallback: auto-assignment séquentiel si 'N' déjà utilisé
         while True:
             candidate = chr(self.next_character)
             self.next_character += 1

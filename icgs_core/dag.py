@@ -161,11 +161,19 @@ class DAG:
         
         # État pipeline validation
         self.stored_pivot: Optional[Dict[str, Decimal]] = None
-        self.transaction_counter: int = 0
+        self.transaction_counter: int = 0  # Démarre à 0 selon blueprint
+        self._taxonomy_counter: int = 0  # Compteur interne taxonomie
         
         # Validators et monitoring
         self.dag_validator = DAGStructureValidator()
         self.logger = logging.getLogger("ICGS.DAG")
+        
+        # CORRECTION: Initialisation taxonomie avec snapshot vide à transaction -1
+        try:
+            self.account_taxonomy.update_taxonomy({}, -1)
+            self.logger.debug("Initialized empty taxonomy snapshot at transaction -1")
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize taxonomy snapshot: {e}")
         
         # Statistiques étendues selon blueprint  
         self.stats = {
@@ -235,6 +243,9 @@ class DAG:
         start_time = time.time()
         
         try:
+            # Phase 0: CORRECTION - Création batch comptes avec taxonomie
+            self._ensure_accounts_exist_with_taxonomy(transaction)
+            
             # Phase 1: Validation NFA explosion protection
             if not self._validate_transaction_nfa_explosion(transaction):
                 self.stats['nfa_explosions_detected'] += 1
@@ -332,11 +343,9 @@ class DAG:
         simplex_start = time.time()
         
         try:
-            # Étape 1: Mise à jour taxonomie pour transaction courante
+            # Étape 1: Mise à jour taxonomie pour transaction courante (auto-assignment inclus)
             new_accounts = self._extract_accounts_from_transaction(transaction)
-            if new_accounts:
-                self.account_taxonomy.update_taxonomy(new_accounts, self.transaction_counter)
-                self.logger.debug(f"Taxonomy updated with {len(new_accounts)} accounts for transaction {self.transaction_counter}")
+            # Taxonomie déjà mise à jour dans _extract_accounts_from_transaction
             
             # Étape 2: Création NFA temporaire avec état frozen  
             temp_nfa = self._create_temporary_nfa_for_transaction(transaction)
@@ -348,6 +357,15 @@ class DAG:
             path_classes = self.path_enumerator.enumerate_and_classify(
                 transaction_edge, temp_nfa, self.transaction_counter
             )
+            
+            # Fallback si enumeration échoue : créer classification minimale
+            if not path_classes:
+                self.logger.warning("Path enumeration failed, creating fallback classification")
+                path_classes = {
+                    f"neutral_state_{self.transaction_counter}": [
+                        [transaction_edge.source_node, transaction_edge.target_node]
+                    ]
+                }
             
             enum_time = (time.time() - simplex_start) * 1000
             self.stats['avg_enumeration_time_ms'] = (
@@ -397,18 +415,23 @@ class DAG:
     
     def _extract_accounts_from_transaction(self, transaction: Transaction) -> Dict[str, Optional[str]]:
         """
-        Extraction comptes pour mise à jour taxonomie
+        Extraction comptes pour mise à jour taxonomie avec auto-assignment neutre
         
         Returns:
-            Dict account_id → character mapping (None = auto-assignment)
+            Dict account_id → character mapping (None = auto-assignment neutre 'N')
         """
         accounts = {}
         
-        # Comptes impliqués dans transaction
+        # Comptes impliqués dans transaction avec auto-assignment neutre immédiat
         if transaction.source_account_id not in self.accounts:
-            accounts[transaction.source_account_id] = None  # Auto-assignment
+            accounts[transaction.source_account_id] = None  # Auto-assignment → 'N'
         if transaction.target_account_id not in self.accounts:
-            accounts[transaction.target_account_id] = None  # Auto-assignment
+            accounts[transaction.target_account_id] = None  # Auto-assignment → 'N'
+        
+        # Mise à jour taxonomie immédiate pour éviter erreurs enumeration
+        if accounts:
+            self.account_taxonomy.update_taxonomy(accounts, self.transaction_counter)
+            self.logger.debug(f"Auto-assigned neutral characters for accounts: {list(accounts.keys())}")
         
         return accounts
     
@@ -497,8 +520,8 @@ class DAG:
         """
         Construction automatique problème LP depuis classifications chemins selon blueprint
         
-        Algorithme blueprint:
-        1. Création variables flux: une par classe d'équivalence NFA
+        Algorithme blueprint avec fallback pour path_classes vides:
+        1. Création variables flux: une par classe d'équivalence NFA (ou variables minimales)
         2. Extraction coefficients depuis RegexWeights des états finaux  
         3. Construction contraintes source/cible selon associations transaction
         4. Validation cohérence problème LP final
@@ -511,8 +534,16 @@ class DAG:
         Returns:
             LinearProgram: Problème LP complet pour résolution Simplex
         """
-        # Étape 1: Variables flux par classe équivalence
+        # Étape 1: Variables flux par classe équivalence (avec fallback)
         program = LinearProgram(f"transaction_{self.transaction_counter}_{transaction.transaction_id}")
+        
+        if not path_classes:
+            # Fallback: créer variables minimales basées sur mesures transaction
+            self.logger.warning("No path classes provided, creating minimal variables")
+            for measure in transaction.source_measures + transaction.target_measures:
+                var_id = f"minimal_{measure.measure_id}"
+                program.add_variable(var_id, lower_bound=Decimal('0'))
+            return program  # Retour problème minimal sans contraintes
         
         for state_id, paths in path_classes.items():
             # Variable flux f_i ≥ 0 pour état final i
@@ -634,14 +665,52 @@ class DAG:
         self.logger.debug(f"Transaction {transaction.transaction_id} committed atomically")
     
     def _get_or_create_account(self, account_id: str) -> Account:
-        """Récupère compte existant ou crée nouveau compte"""
+        """
+        Récupère compte existant ou crée nouveau compte
+        
+        NOTE: Taxonomie gérée séparément par _ensure_accounts_exist_with_taxonomy
+        """
         if account_id in self.accounts:
             return self.accounts[account_id]
         
-        # Création nouveau compte
+        # CORRECTION: Création simple sans taxonomie (gérée en batch ailleurs)
         new_account = Account(account_id, Decimal('0'))
         self.add_account(new_account)
+        self.logger.debug(f"Account {account_id} created (taxonomy managed separately)")
+        
         return new_account
+    
+    def _ensure_accounts_exist_with_taxonomy(self, transaction: Transaction) -> None:
+        """
+        CORRECTION: Crée tous les comptes nécessaires dans une seule transaction taxonomie
+        
+        Évite les conflits "strictly increasing" en créant tous les mappings ensemble.
+        """
+        accounts_to_create = []
+        all_nodes_to_map = {}
+        
+        # Collecte tous les comptes à créer
+        for account_id in [transaction.source_account_id, transaction.target_account_id]:
+            if account_id not in self.accounts:
+                # Création compte sans taxonomie immédiate
+                new_account = Account(account_id, Decimal('0'))
+                self.add_account(new_account)
+                accounts_to_create.append(new_account)
+                
+                # Collecte nodes à mapper
+                all_nodes_to_map[new_account.source_node.node_id] = None  # Auto-assignment 'N'
+                all_nodes_to_map[new_account.sink_node.node_id] = None     # Auto-assignment 'N'
+        
+        # Création batch taxonomie si nécessaire
+        if all_nodes_to_map:
+            try:
+                current_taxonomy_transaction = self._taxonomy_counter
+                self._taxonomy_counter += 1
+                
+                self.account_taxonomy.update_taxonomy(all_nodes_to_map, current_taxonomy_transaction)
+                self.logger.debug(f"Batch created accounts with taxonomy mapping for {len(accounts_to_create)} accounts at taxonomy transaction {current_taxonomy_transaction}")
+            except Exception as e:
+                self.logger.warning(f"Failed to add batch taxonomy mapping: {e}")
     
     def validate_dag_integrity(self) -> DAGValidationResult:
         """

@@ -143,6 +143,7 @@ class LinearConstraint:
         lhs_value = self.evaluate(variables)
         
         if self.constraint_type == ConstraintType.LEQ:
+            # CORRECTION: Pour LEQ, violation si LHS > bound
             return lhs_value <= self.bound + self.tolerance
         elif self.constraint_type == ConstraintType.GEQ:
             return lhs_value >= self.bound - self.tolerance  

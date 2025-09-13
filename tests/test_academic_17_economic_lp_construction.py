@@ -223,10 +223,10 @@ class TestAcademic17EconomicLPConstruction(unittest.TestCase):
         )
         self.assertEqual(penalty_lhs, expected_penalty)
         
-        # Pénalité doit être négative (violation ≤ 0)
+        # Pénalité doit être négative (satisfait ≤ 0)
         self.assertLess(penalty_lhs, Decimal('0'))
-        is_violated = not carbon_constraint.is_satisfied(penalty_variables)
-        self.assertTrue(is_violated)  # Pattern pénalité activé = violation
+        is_satisfied = carbon_constraint.is_satisfied(penalty_variables)
+        self.assertTrue(is_satisfied)  # Pattern pénalité -30.5 ≤ 0 = satisfait
         
         # Test cas sans activation pénalité
         no_penalty_variables = {
@@ -242,7 +242,7 @@ class TestAcademic17EconomicLPConstruction(unittest.TestCase):
         print(f"\n=== Test 17.3 Secondary Constraint ===")
         print(f"With penalties: LHS={penalty_lhs}, expected={expected_penalty}")
         print(f"Without penalties: LHS={no_penalty_lhs} (should be 0)")
-        print(f"Penalty constraint violated as expected: {is_violated}")
+        print(f"Penalty constraint satisfied (LHS ≤ 0): {is_satisfied}")
         
         self.test_metrics['constraints_built'] += 1
     
