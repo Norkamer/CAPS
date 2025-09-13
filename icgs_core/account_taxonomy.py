@@ -1,11 +1,16 @@
 """
-AccountTaxonomy - Fonction taxonomique historisée avec UTF-32 - VERSION CORRIGÉE
+AccountTaxonomy - Fonction taxonomique historisée avec Character-Sets Support
 
 Module implémentant la fonction de classification historisée selon blueprint ICGS:
 f(compte_id, transaction_number) → caractère UTF-32
 
+EXTENSION: Support character-sets nommés pour résolution limitation multi-agents
+- Character-sets par secteur économique avec allocation automatique
+- Configuration figée après première transaction
+- Backward compatibility totale avec architecture existante
+
 Propriétés mathématiques garanties:
-- Historisation: évolution temporelle de classification des comptes  
+- Historisation: évolution temporelle de classification des comptes
 - Alphabet UTF-32: évite collisions jusqu'à 1M+ comptes
 - Déterminisme: même état DAG → même mapping
 - Complexité: O(log n) récupération, O(n×t) stockage
@@ -15,6 +20,9 @@ from typing import Dict, List, Set, Optional, Tuple
 import bisect
 from decimal import Decimal
 from dataclasses import dataclass
+
+# Import character-set manager pour support secteurs économiques
+from .character_set_manager import NamedCharacterSetManager
 
 
 @dataclass
@@ -32,22 +40,34 @@ class TaxonomySnapshot:
 class AccountTaxonomy:
     """
     Fonction taxonomique historisée: f(compte_id, transaction_number) → caractère
-    
-    CORRECTION: Version simplifiée et robuste des algorithmes
+
+    EXTENSION: Support character-sets nommés pour résolution multi-agents limitation
+    - Mode classique: allocation séquentielle UTF-32 (backward compatibility)
+    - Mode character-sets: allocation automatique par secteur économique
     """
-    
-    def __init__(self, start_character: int = 0x41):  # Commence à 'A'
+
+    def __init__(self, character_set_manager: Optional[NamedCharacterSetManager] = None,
+                 start_character: int = 0x41):  # Commence à 'A'
+        # Architecture existante préservée (backward compatibility)
         self.taxonomy_history: List[TaxonomySnapshot] = []
         self.account_registry: Set[str] = set()
         self.next_character: int = start_character
-        
-        # Métriques performance et validation
+
+        # NOUVEAU: Support character-sets nommés
+        self.character_set_manager = character_set_manager
+        self.use_character_sets = character_set_manager is not None
+
+        # Métriques performance et validation étendues
         self.stats = {
             'updates_count': 0,
             'queries_count': 0,
             'collisions_resolved': 0,
             'auto_assignments': 0,
-            'max_accounts_per_transaction': 0
+            'max_accounts_per_transaction': 0,
+            # Nouvelles métriques character-sets
+            'sector_allocations': 0,
+            'character_set_mode': self.use_character_sets,
+            'freeze_transaction': None
         }
     
     def update_taxonomy(self, accounts: Dict[str, Optional[str]], transaction_num: int) -> Dict[str, str]:
@@ -121,6 +141,87 @@ class AccountTaxonomy:
         # CORRECTION: Retourner seulement mappings des comptes de cette transaction
         result_mapping = {account_id: new_mapping[account_id] for account_id in accounts.keys()}
         return result_mapping
+
+    def update_taxonomy_with_sectors(self,
+                                   accounts_with_sectors: Dict[str, str],
+                                   transaction_num: int) -> Dict[str, str]:
+        """
+        NOUVEAU: Mise à jour taxonomie avec secteurs économiques (character-sets)
+
+        Args:
+            accounts_with_sectors: Mapping account_id → secteur
+                {
+                    'ALICE_sink': 'AGRICULTURE',
+                    'BOB_sink': 'INDUSTRY',
+                    'CHARLIE_sink': 'INDUSTRY'  # Même secteur, caractère différent
+                }
+            transaction_num: Numéro transaction pour historisation
+
+        Returns:
+            Mapping account_id → caractère alloué
+
+        Raises:
+            RuntimeError: Si mode character-sets non activé
+            ValueError: Si secteur non défini ou capacité dépassée
+        """
+        if not self.use_character_sets:
+            # Fallback vers méthode classique
+            accounts_mapping = {account_id: None for account_id in accounts_with_sectors.keys()}
+            return self.update_taxonomy(accounts_mapping, transaction_num)
+
+        import time
+
+        # Validation numéro transaction croissant
+        if self.taxonomy_history:
+            if transaction_num <= self.taxonomy_history[-1].transaction_num:
+                raise ValueError(f"Transaction number must be strictly increasing: {transaction_num}")
+
+        # Récupération mapping précédent pour héritage
+        previous_mapping = {}
+        if self.taxonomy_history:
+            previous_mapping = self.taxonomy_history[-1].account_mappings.copy()
+
+        new_mapping = previous_mapping.copy()  # Héritage comptes précédents
+
+        # Phase 1: Allocation automatique avec character-sets
+        allocated_mappings = {}
+        for account_id, sector_name in accounts_with_sectors.items():
+            self.account_registry.add(account_id)
+
+            if account_id not in new_mapping:  # Nouveau compte
+                try:
+                    allocated_char = self.character_set_manager.allocate_character_for_sector(sector_name)
+                    new_mapping[account_id] = allocated_char
+                    allocated_mappings[account_id] = allocated_char
+                    self.stats['sector_allocations'] += 1
+
+                except (ValueError, RuntimeError) as e:
+                    raise ValueError(f"Échec allocation secteur '{sector_name}' pour compte '{account_id}': {e}")
+
+        # Phase 2: Freeze après première transaction (transaction_num == 0)
+        if transaction_num == 0 and self.character_set_manager:
+            self.character_set_manager.freeze()
+            self.stats['freeze_transaction'] = transaction_num
+
+        # Phase 3: Création snapshot historique
+        snapshot = TaxonomySnapshot(
+            transaction_num=transaction_num,
+            account_mappings=new_mapping,
+            timestamp=time.time()
+        )
+
+        # Insertion ordonnée pour recherche dichotomique
+        bisect.insort(self.taxonomy_history, snapshot)
+
+        # Mise à jour métriques
+        self.stats['updates_count'] += 1
+        self.stats['max_accounts_per_transaction'] = max(
+            self.stats['max_accounts_per_transaction'],
+            len(accounts_with_sectors)
+        )
+
+        # Retourner seulement mappings des comptes de cette transaction
+        return {account_id: new_mapping[account_id] for account_id in accounts_with_sectors.keys()}
     
     def get_character_mapping(self, account_id: str, transaction_num: int) -> Optional[str]:
         """
