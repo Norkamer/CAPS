@@ -98,6 +98,7 @@ class TestAcademicAnchoringFrozen:
         
         for word, expected_measure in complete_matches:
             result_state = self.nfa.evaluate_to_final_state(word)
+            print(f"   🎯 PRIMARY API: evaluate_to_final_state('{word}') → {'MATCH' if result_state else 'NO_MATCH'}")
             assert result_state is not None, f"Complete match '{word}' should be accepted"
             
             # Vérification classification correcte
@@ -114,6 +115,7 @@ class TestAcademicAnchoringFrozen:
         
         for word in rejected_matches:
             result_state = self.nfa.evaluate_to_final_state(word)
+            print(f"   🎯 PRIMARY API: evaluate_to_final_state('{word}') → {'REJECTED' if not result_state else 'UNEXPECTED_MATCH'}")
             assert result_state is None, f"Word '{word}' should be rejected with anchoring"
         
     def test_frozen_state_coherence(self):
@@ -154,6 +156,7 @@ class TestAcademicAnchoringFrozen:
         # Test évaluations avec état figé
         word_test = "test_pattern1_suffix"
         result_frozen = self.nfa.evaluate_to_final_state(word_test)
+        print(f"   🎯 PRIMARY API (FROZEN): evaluate_to_final_state('{word_test}') → {'MATCH' if result_frozen else 'NO_MATCH'}")
         
         # Vérification statistiques frozen
         assert self.nfa.stats['frozen_evaluations'] > 0
@@ -236,6 +239,7 @@ class TestAcademicAnchoringFrozen:
             
             # Évaluation avec ancrage
             anchored_result = self.nfa.evaluate_to_final_state(word)
+            print(f"   🎯 PRIMARY API (ANCHORED): evaluate_to_final_state('{word}') → {'MATCH' if anchored_result else 'NO_MATCH'}")
             
             # L'ancrage doit être plus restrictif pour certains cas
             if anchored_result is not None:
@@ -400,6 +404,7 @@ class TestAcademicAnchoringFrozen:
         pre_freeze_results = {}
         for account, expected_measure in test_accounts:
             result = self.nfa.evaluate_to_final_state(account)
+            print(f"   🎯 PRIMARY API (PRE-FREEZE): evaluate_to_final_state('{account}') → {'MATCH' if result else 'NO_MATCH'}")
             pre_freeze_results[account] = result
         
         # Figement pour énumération
@@ -408,6 +413,7 @@ class TestAcademicAnchoringFrozen:
         # Test évaluations avec état figé - résultats identiques
         for account, expected_result in pre_freeze_results.items():
             frozen_result = self.nfa.evaluate_to_final_state(account)
+            print(f"   🎯 PRIMARY API (POST-FREEZE): evaluate_to_final_state('{account}') → {'MATCH' if frozen_result else 'NO_MATCH'}")
             # Note: En mode figé, l'évaluation utilise les snapshots frozen
             # Les résultats peuvent différer selon l'implémentation
         

@@ -115,6 +115,7 @@ class TestAcademicNFADeterminism:
         accepted_words = ["ab"]
         for word in accepted_words:
             final_states = nfa.evaluate_word(word)
+            print(f"   🔄 FALLBACK API: evaluate_word('{word}') → {len(final_states)} states")
             assert len(final_states) == 1, f"Word '{word}' should reach exactly 1 final state, got {len(final_states)}"
             assert "q2" in final_states, f"Word '{word}' should reach state q2, got {final_states}"
         
@@ -122,6 +123,7 @@ class TestAcademicNFADeterminism:
         rejected_words = ["", "a", "b", "ba", "abc", "abb", "aab"]
         for word in rejected_words:
             final_states = nfa.evaluate_word(word)
+            print(f"   🔄 FALLBACK API: evaluate_word('{word}') → {len(final_states)} states (rejected)")
             assert len(final_states) == 0, f"Word '{word}' should be rejected, but reached {final_states}"
         
         # Vérification métriques évaluation
@@ -310,6 +312,7 @@ class TestAcademicNFADeterminism:
         # Test évaluation avec frozen state
         word_test = "somepattern1"
         result_frozen = anchored_nfa.evaluate_to_final_state(word_test)
+        print(f"   🎯 PRIMARY API: evaluate_to_final_state('{word_test}') → {result_frozen}")
         
         # Unfreeze et vérification état restauré
         anchored_nfa.unfreeze()
@@ -352,6 +355,8 @@ class TestAcademicNFADeterminism:
         
         for word, should_match in test_cases:
             result = nfa.evaluate_to_final_state(word)
+            match_status = "MATCH" if result is not None else "NO_MATCH"
+            print(f"   🎯 PRIMARY API: evaluate_to_final_state('{word}') → {match_status}")
             if should_match:
                 assert result is not None, f"Word '{word}' should match but didn't"
             else:
