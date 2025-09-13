@@ -14,7 +14,7 @@ Tests:
 
 import unittest
 from decimal import Decimal
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Any
 import time
 
 # Import modules à tester
@@ -97,6 +97,11 @@ class TestUnifiedNFACompatibility(unittest.TestCase):
         """
         TEST 3: Fonctionnalité Extension Character-Class
         Nouveaux patterns character-class doivent fonctionner correctement
+
+        FALLBACK API USAGE: Ce test utilise evaluate_word() (FALLBACK API) pour valider
+        spécifiquement l'architecture unifiée character-class. L'API fallback est le point
+        d'entrée unifié qui combine patterns standards + character-class automatiquement,
+        testant ainsi l'intégration complète de l'extension.
         """
         nfa = AnchoredWeightedNFA("character_class_test")
 
@@ -120,6 +125,7 @@ class TestUnifiedNFACompatibility(unittest.TestCase):
 
         for word in words_should_match:
             result = nfa.evaluate_word(word)
+            print(f"   🧪 CHARACTER-CLASS TEST: '{word}' → {result}")
             self.assertGreater(len(result), 0, f"Character-class should match {word}")
 
         for word in words_should_not_match:
@@ -167,6 +173,11 @@ class TestUnifiedNFACompatibility(unittest.TestCase):
         """
         TEST 5: Intégration Pipeline ICGS Transparente
         Simulation du pipeline path_enumerator.enumerate_and_classify
+
+        DUAL API USAGE: Ce test utilise BOTH APIs pour simuler le comportement pipeline ICGS :
+        - evaluate_to_final_state() (PRIMARY API) : Utilisée en priorité par le pipeline
+        - evaluate_word() (FALLBACK API) : Utilisée si l'API primaire échoue
+        Ceci valide que l'architecture unifiée garantit compatibilité complète pipeline.
         """
         # Setup comme dans pipeline ICGS
         char_manager = create_default_character_set_manager()
@@ -198,6 +209,9 @@ class TestUnifiedNFACompatibility(unittest.TestCase):
         for agent_id, allocated_char in mapping.items():
             test_word = f"X{allocated_char}Y"
 
+            # DIAGNOSTIC COMPLET API USAGE
+            diagnostics = diagnose_api_usage(nfa, test_word, f"PIPELINE-{agent_id}")
+
             # Simulation classify_paths_with_nfa logic
             final_state_id = None
 
@@ -212,6 +226,10 @@ class TestUnifiedNFACompatibility(unittest.TestCase):
 
             # Validation: agent INDUSTRY doit être classifié
             self.assertIsNotNone(final_state_id, f"Agent {agent_id} word '{test_word}' should be classified")
+
+            # Validation diagnostic
+            self.assertTrue(diagnostics['unified_architecture'],
+                           f"Pipeline test should use unified architecture for {agent_id}")
 
     def test_performance_no_regression(self):
         """
@@ -321,6 +339,78 @@ class TestUnifiedNFACompatibility(unittest.TestCase):
             # Modifications à nouveau autorisées
             final_state = nfa.add_weighted_regex("post_unfreeze", ".*E.*", Decimal('1.0'))
             self.assertIsNotNone(final_state)
+
+
+def diagnose_api_usage(nfa, word: str, test_context: str = "UNKNOWN") -> Dict[str, Any]:
+    """
+    Diagnostic détaillé utilisation APIs avec indication fallback
+
+    Args:
+        nfa: Instance NFA à tester
+        word: Mot de test
+        test_context: Contexte du test
+
+    Returns:
+        Dict avec résultats et métriques API usage
+    """
+    diagnostics = {
+        'context': test_context,
+        'word': word,
+        'api_calls': {},
+        'results': {},
+        'fallback_used': False,
+        'unified_architecture': False
+    }
+
+    print(f"📊 API DIAGNOSTIC [{test_context}]: Testing word '{word}'")
+
+    # Test API primaire evaluate_to_final_state
+    if hasattr(nfa, 'evaluate_to_final_state'):
+        try:
+            result = nfa.evaluate_to_final_state(word)
+            diagnostics['api_calls']['evaluate_to_final_state'] = 'SUCCESS'
+            diagnostics['results']['primary_api'] = result
+            print(f"   🎯 PRIMARY API: evaluate_to_final_state('{word}') → {result}")
+        except Exception as e:
+            diagnostics['api_calls']['evaluate_to_final_state'] = f'ERROR: {e}'
+            diagnostics['fallback_used'] = True
+            print(f"   ❌ PRIMARY API FAILED: {e}")
+
+    # Test API fallback evaluate_word
+    if hasattr(nfa, 'evaluate_word'):
+        try:
+            result = nfa.evaluate_word(word)
+            diagnostics['api_calls']['evaluate_word'] = 'SUCCESS'
+            diagnostics['results']['fallback_api'] = result
+            print(f"   🔄 FALLBACK API: evaluate_word('{word}') → {result}")
+
+            # Détection architecture unifiée (character-class support)
+            if hasattr(nfa, '_evaluate_character_class_patterns_direct'):
+                char_class_result = nfa._evaluate_character_class_patterns_direct(word)
+                diagnostics['results']['character_class_direct'] = char_class_result
+                diagnostics['unified_architecture'] = True
+                print(f"   🎨 CHARACTER-CLASS DIRECT: '{word}' → {char_class_result}")
+
+        except Exception as e:
+            diagnostics['api_calls']['evaluate_word'] = f'ERROR: {e}'
+            print(f"   ❌ FALLBACK API FAILED: {e}")
+
+    # Performance stats si disponible
+    if hasattr(nfa, 'get_performance_stats'):
+        try:
+            stats = nfa.get_performance_stats()
+            diagnostics['performance_stats'] = stats
+            cache_hit_rate = stats.get('cache', {}).get('hit_rate', 0)
+            print(f"   📈 PERFORMANCE: Cache hit rate {cache_hit_rate:.1%}")
+        except:
+            pass
+
+    # Résumé diagnostic
+    api_status = "✅ UNIFIED" if diagnostics['unified_architecture'] else "⚠️ FALLBACK" if diagnostics['fallback_used'] else "🎯 PRIMARY"
+    print(f"   📋 STATUS: {api_status} Architecture")
+    print(f"   ─────────────────────────────────")
+
+    return diagnostics
 
 
 def run_compatibility_tests():

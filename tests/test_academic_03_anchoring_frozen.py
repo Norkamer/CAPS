@@ -81,6 +81,11 @@ class TestAcademicAnchoringFrozen:
         """
         PROPRIÉTÉ 2: Élimination Matches Partiels
         Ancrage garantit match complet uniquement
+
+        PRIMARY API USAGE: Ce test utilise evaluate_to_final_state() (PRIMARY API) car l'ancrage
+        automatique est une fonctionnalité spécialisée de AnchoredWeightedNFA optimisée pour
+        le pipeline ICGS. L'API primaire intègre nativement la logique d'ancrage ".*$",
+        tandis que l'API fallback evaluate_word() pourrait contourner ces optimisations.
         """
         # Ajout patterns avec ancrage automatique
         self.nfa.add_weighted_regex("agriculture", "agri", Decimal('1.0'))  # .*agri$ 

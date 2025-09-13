@@ -107,6 +107,11 @@ class TestAcademicNFADeterminism:
         """
         PROPRIÉTÉ 3: Évaluation Correcte
         Algorithme NFA standard avec gestion non-déterminisme
+
+        FALLBACK API USAGE: Ce test utilise evaluate_word() (FALLBACK API) pour valider
+        le comportement fondamental de l'évaluation NFA. L'API fallback est appropriée ici
+        car elle teste directement la logique interne de navigation états/transitions,
+        indépendamment des optimisations pipeline de l'API primaire evaluate_to_final_state().
         """
         # NFA de test: q0 -'a'-> q1 -'b'-> q2(final)
         nfa = create_simple_test_nfa()
@@ -282,6 +287,11 @@ class TestAcademicNFADeterminism:
         """
         PROPRIÉTÉ 8: Mécanisme Frozen State
         Cohérence temporelle avec freeze/unfreeze
+
+        PRIMARY API USAGE: Ce test utilise evaluate_to_final_state() (PRIMARY API) car c'est
+        l'API optimisée pour le pipeline ICGS qui gère nativement les frozen states.
+        L'API primaire utilise les snapshots frozen pour cohérence temporelle, tandis que
+        l'API fallback evaluate_word() ne garantit pas cette cohérence lors énumération.
         """
         anchored_nfa = AnchoredWeightedNFA("frozen_test")
         
