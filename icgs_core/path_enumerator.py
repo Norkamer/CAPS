@@ -2240,6 +2240,19 @@ class DAGPathEnumerator:
         # Validation inputs rigoureuse
         if not self._validate_pipeline_inputs(transaction_edge, nfa, transaction_num):
             raise ValueError("Invalid pipeline inputs")
+        
+        # PHASE 2.9: PRÉ-CONDITION STRICTE - Taxonomie configurée pour transaction_num
+        assert len(self.taxonomy.taxonomy_history) > 0, (
+            f"Taxonomy history is empty for transaction_num={transaction_num}. "
+            f"Must configure taxonomy with update_taxonomy() before path enumeration."
+        )
+        
+        max_configured_tx = max(snapshot.transaction_num for snapshot in self.taxonomy.taxonomy_history)
+        assert transaction_num <= max_configured_tx, (
+            f"Taxonomy not configured for transaction_num={transaction_num}. "
+            f"Latest configured transaction_num={max_configured_tx}. "
+            f"Must configure taxonomy up to transaction_num before path enumeration."
+        )
             
         start_time = time.time()
         pipeline_stats = {

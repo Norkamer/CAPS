@@ -380,8 +380,9 @@ class Account:
         if edge.target_node != self.sink_node:
             raise ValueError(f"Edge target mismatch: expected {self.sink_node.node_id}")
         
-        # Ajout edge au sink node
-        self.sink_node.add_incoming_edge(edge)
+        # Ajout edge au sink node (si pas déjà présente)
+        if edge.edge_id not in self.sink_node.incoming_edges:
+            self.sink_node.add_incoming_edge(edge)
         
         # Mise à jour balance (crédit)
         self.balance.update_balance(amount, is_credit=True)
@@ -417,8 +418,9 @@ class Account:
             # Warning mais pas erreur (découvert autorisé selon contexte)
             self.metadata['balance_warning'] = f"Insufficient balance: {self.balance.current_balance} < {amount}"
         
-        # Ajout edge au source node
-        self.source_node.add_outgoing_edge(edge)
+        # Ajout edge au source node (si pas déjà présente)
+        if edge.edge_id not in self.source_node.outgoing_edges:
+            self.source_node.add_outgoing_edge(edge)
         
         # Mise à jour balance (débit)  
         self.balance.update_balance(amount, is_credit=False)

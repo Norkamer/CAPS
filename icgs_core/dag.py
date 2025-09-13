@@ -753,17 +753,21 @@ class DAG:
     def _commit_transaction_atomic(self, transaction: Transaction) -> None:
         """
         Commit atomique transaction avec création arête permanente
-        
+
         Finalise transaction validée en créant structures DAG permanentes
         et mise à jour balances comptes.
         """
+        self.logger.debug(f"COMMIT DEBUG: Starting commit for transaction {transaction.transaction_id}")
         # Récupération comptes source/target
         source_account = self._get_or_create_account(transaction.source_account_id)
         target_account = self._get_or_create_account(transaction.target_account_id)
         
         # Création arête transaction permanente
+        edge_id = f"transaction_{transaction.transaction_id}"
+        self.logger.debug(f"COMMIT DEBUG: Creating transaction edge {edge_id}")
+
         transaction_edge = Edge(
-            edge_id=f"transaction_{transaction.transaction_id}",
+            edge_id=edge_id,
             source_node=source_account.source_node,
             target_node=target_account.sink_node,
             weight=transaction.amount,
@@ -778,14 +782,24 @@ class DAG:
             }
         )
         
-        # Ajout edge au DAG (éviter doublons)
-        if transaction_edge.edge_id not in self.edges:
-            self.edges[transaction_edge.edge_id] = transaction_edge
+        # Ajout edge au DAG (éviter doublons complets)
+        edge_exists_in_dag = transaction_edge.edge_id in self.edges
+        edge_exists_in_source = transaction_edge.edge_id in source_account.source_node.outgoing_edges
+        edge_exists_in_target = transaction_edge.edge_id in target_account.sink_node.incoming_edges
 
-            # Connection bidirectionnelle nodes
-            connect_nodes(source_account.source_node, target_account.sink_node, transaction_edge)
+        if edge_exists_in_dag or edge_exists_in_source or edge_exists_in_target:
+            self.logger.debug(f"Transaction edge {transaction_edge.edge_id} already exists (DAG:{edge_exists_in_dag}, Source:{edge_exists_in_source}, Target:{edge_exists_in_target}), skipping creation")
         else:
-            self.logger.warning(f"Transaction edge {transaction_edge.edge_id} already exists, skipping creation")
+            # Connection défensive avec gestion complète erreurs
+            try:
+                self.edges[transaction_edge.edge_id] = transaction_edge
+                connect_nodes(source_account.source_node, target_account.sink_node, transaction_edge)
+                self.logger.debug(f"Transaction edge {transaction_edge.edge_id} created successfully")
+            except ValueError as e:
+                # Edge déjà existe dans les nœuds - nettoyer edge du DAG et skip silencieusement
+                if transaction_edge.edge_id in self.edges:
+                    del self.edges[transaction_edge.edge_id]
+                self.logger.debug(f"Transaction edge {transaction_edge.edge_id} connection failed (edge already exists), skipping: {e}")
         
         # Mise à jour balances comptes
         source_account.add_outgoing_transaction(transaction_edge, transaction.amount)

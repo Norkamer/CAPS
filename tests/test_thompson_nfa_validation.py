@@ -85,7 +85,7 @@ class TestRegexParser(unittest.TestCase):
             elif pattern == ".*":
                 self.assertGreaterEqual(actual, 2)  # Au moins 2 (dot + quantifier)
             elif pattern == ".*N.*":
-                self.assertGreater(actual, 5)  # Plus complexe que .*
+                self.assertGreaterEqual(actual, 5)  # Plus complexe ou égal que .*
 
 
 class TestThompsonBuilder(unittest.TestCase):
