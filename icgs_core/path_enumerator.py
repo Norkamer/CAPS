@@ -123,6 +123,16 @@ class DAGPathEnumerator:
             'metadata_validation_time_ms': 0.0,
             'total_processing_time_ms': 0.0
         }
+        
+        # Multi-Source Path Enumeration - Étape 2.4
+        self.multi_source_stats = {
+            'sources_processed': 0,
+            'total_paths_enumerated': 0,
+            'path_overlaps_detected': 0,
+            'coordination_time_ms': 0.0,
+            'merge_operations': 0,
+            'parallel_efficiency': 0.0
+        }
     
     def validate_dag_before_enumeration(self, nodes: List[Node], edges: List[Edge], 
                                        accounts: Optional[List[Account]] = None,
@@ -372,7 +382,8 @@ class DAGPathEnumerator:
                 'has_dag_validation': self.last_dag_validation is not None,
                 'validator_initialized': hasattr(self, 'dag_validator')
             },
-            'transaction_processing': self.transaction_processor_stats.copy()
+            'transaction_processing': self.transaction_processor_stats.copy(),
+            'multi_source_enumeration': self.multi_source_stats.copy()
         }
     
     # Step 2.3: Transaction Edge Processing - Production Methods
@@ -885,6 +896,584 @@ class DAGPathEnumerator:
             
         except Exception:
             return False
+    
+    # Step 2.4: Multi-Source Path Enumeration - Production Methods
+    
+    def enumerate_from_multiple_sources(self, source_nodes: List[Node], 
+                                      target_edge: Edge, nfa: Any, transaction_num: int,
+                                      coordination_mode: str = "parallel") -> Dict[str, Any]:
+        """
+        Enumeration coordonnée depuis multiples sources - Étape 2.4
+        
+        Pipeline Multi-Source:
+        1. Validation et préparation sources multiples
+        2. Coordination enumeration (parallel/sequential/adaptive)
+        3. Detection et handling path overlaps
+        4. Merge intelligent des résultats avec deduplication
+        5. Statistics consolidation multi-source
+        
+        Args:
+            source_nodes: List nodes sources pour enumeration
+            target_edge: Edge transaction target commune
+            nfa: NFA pour classification paths
+            transaction_num: Numéro transaction
+            coordination_mode: "parallel" | "sequential" | "adaptive"
+            
+        Returns:
+            Dict[str, Any]: Résultats multi-source avec analytics détaillées
+        """
+        import time
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        start_time = time.time()
+        coordination_start = time.time()
+        
+        try:
+            self.logger.info(f"Starting multi-source enumeration - {len(source_nodes)} sources, "
+                           f"mode: {coordination_mode}")
+            
+            # Phase 1: Validation sources et target
+            valid_sources = self._validate_multiple_sources(source_nodes, target_edge)
+            if not valid_sources:
+                return {
+                    'enumeration_results': {},
+                    'coordination_summary': {
+                        'sources_attempted': len(source_nodes),
+                        'valid_sources': 0,
+                        'enumeration_performed': False,
+                        'error': 'No valid sources for enumeration'
+                    }
+                }
+            
+            # Phase 2: Coordination enumeration selon mode
+            source_results, actual_mode_used = self.coordinate_source_enumeration(
+                valid_sources, target_edge, nfa, transaction_num, coordination_mode
+            )
+            
+            coordination_time = (time.time() - coordination_start) * 1000
+            self.multi_source_stats['coordination_time_ms'] += coordination_time
+            
+            # Phase 3: Detection path overlaps
+            overlap_analysis = self.detect_path_overlaps(source_results)
+            
+            # Phase 4: Merge résultats avec deduplication intelligente
+            merged_results = self.merge_enumeration_results(
+                source_results, overlap_analysis, deduplication=True
+            )
+            
+            # Phase 5: Statistics consolidation
+            total_time = (time.time() - start_time) * 1000
+            
+            self.multi_source_stats['sources_processed'] += len(valid_sources)
+            self.multi_source_stats['total_paths_enumerated'] += merged_results['total_unique_paths']
+            self.multi_source_stats['path_overlaps_detected'] += overlap_analysis['total_overlaps']
+            
+            # Calculate parallel efficiency
+            if coordination_mode == "parallel" and len(valid_sources) > 1:
+                sequential_time_estimate = sum(result.get('enumeration_time_ms', 0) 
+                                             for result in source_results.values())
+                if sequential_time_estimate > 0:
+                    efficiency = sequential_time_estimate / total_time
+                    self.multi_source_stats['parallel_efficiency'] = efficiency
+            
+            # Get actual coordination mode used (from coordinate_source_enumeration)
+            actual_coordination_mode = actual_mode_used
+            
+            coordination_summary = {
+                'sources_attempted': len(source_nodes),
+                'valid_sources': len(valid_sources),
+                'enumeration_performed': True,
+                'coordination_mode': actual_coordination_mode,
+                'total_time_ms': total_time,
+                'coordination_time_ms': coordination_time,
+                'parallel_efficiency': self.multi_source_stats['parallel_efficiency']
+            }
+            
+            self.logger.info(f"Multi-source enumeration completed - "
+                           f"{merged_results['total_unique_paths']} unique paths from "
+                           f"{len(valid_sources)} sources in {total_time:.2f}ms")
+            
+            return {
+                'enumeration_results': merged_results,
+                'source_individual_results': source_results,
+                'overlap_analysis': overlap_analysis,
+                'coordination_summary': coordination_summary
+            }
+            
+        except Exception as e:
+            error_time = (time.time() - start_time) * 1000
+            self.logger.error(f"Multi-source enumeration failed after {error_time:.2f}ms: {e}")
+            raise RuntimeError(f"Multi-source enumeration failed: {e}") from e
+    
+    def coordinate_source_enumeration(self, source_nodes: List[Node], target_edge: Edge,
+                                    nfa: Any, transaction_num: int, 
+                                    coordination_mode: str = "parallel") -> tuple[Dict[str, Dict], str]:
+        """
+        Coordination enumeration entre sources multiples - Étape 2.4
+        
+        Coordination Modes:
+        - parallel: Enumeration simultanée avec ThreadPoolExecutor
+        - sequential: Enumeration séquentielle avec shared state
+        - adaptive: Selection automatique selon source count et complexity
+        
+        Args:
+            source_nodes: Sources validées pour enumeration
+            target_edge: Edge target commune
+            nfa: NFA pour classification
+            transaction_num: Numéro transaction
+            coordination_mode: Mode coordination
+            
+        Returns:
+            tuple[Dict[str, Dict], str]: (Résultats par source avec métriques, mode_utilisé)
+        """
+        import time
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        source_results = {}
+        
+        try:
+            if coordination_mode == "adaptive":
+                # Adaptive selection: parallel si >2 sources, sinon sequential
+                coordination_mode = "parallel" if len(source_nodes) > 2 else "sequential"
+                self.logger.info(f"Adaptive coordination selected: {coordination_mode}")
+            
+            if coordination_mode == "parallel":
+                # Parallel enumeration avec ThreadPoolExecutor
+                with ThreadPoolExecutor(max_workers=min(len(source_nodes), 4)) as executor:
+                    # Submit enumeration tasks
+                    future_to_source = {}
+                    for source in source_nodes:
+                        future = executor.submit(
+                            self._enumerate_single_source,
+                            source, target_edge, nfa, transaction_num
+                        )
+                        future_to_source[future] = source
+                    
+                    # Collect results as completed
+                    for future in as_completed(future_to_source):
+                        source = future_to_source[future]
+                        try:
+                            result = future.result()
+                            source_results[source.node_id] = result
+                        except Exception as e:
+                            self.logger.warning(f"Source {source.node_id} enumeration failed: {e}")
+                            source_results[source.node_id] = {
+                                'classification_result': {},
+                                'error': str(e),
+                                'enumeration_time_ms': 0
+                            }
+            
+            elif coordination_mode == "sequential":
+                # Sequential enumeration avec state preservation
+                for source in source_nodes:
+                    source_start = time.time()
+                    try:
+                        result = self._enumerate_single_source(
+                            source, target_edge, nfa, transaction_num
+                        )
+                        source_results[source.node_id] = result
+                    except Exception as e:
+                        self.logger.warning(f"Source {source.node_id} enumeration failed: {e}")
+                        source_results[source.node_id] = {
+                            'classification_result': {},
+                            'error': str(e),
+                            'enumeration_time_ms': (time.time() - source_start) * 1000
+                        }
+            
+            return source_results, coordination_mode
+            
+        except Exception as e:
+            self.logger.error(f"Source coordination failed: {e}")
+            raise RuntimeError(f"Source enumeration coordination failed: {e}") from e
+    
+    def merge_enumeration_results(self, source_results: Dict[str, Dict], 
+                                overlap_analysis: Dict[str, Any],
+                                deduplication: bool = True) -> Dict[str, Any]:
+        """
+        Fusion intelligente résultats multi-source avec deduplication - Étape 2.4
+        
+        Merge Strategy:
+        - Classification state aggregation avec priority source
+        - Path deduplication basée path signatures
+        - Overlap resolution avec source preference
+        - Metadata consolidation pour analytics
+        
+        Args:
+            source_results: Résultats par source
+            overlap_analysis: Analysis overlaps détectés
+            deduplication: Flag deduplication activation
+            
+        Returns:
+            Dict[str, Any]: Résultats mergés avec analytics
+        """
+        from collections import defaultdict
+        
+        try:
+            merged_classifications = defaultdict(list)
+            path_signatures = set()
+            total_paths_before_merge = 0
+            source_contributions = {}
+            
+            # Phase 1: Aggregation classifications par état NFA
+            for source_id, source_result in source_results.items():
+                classification_result = source_result.get('classification_result', {})
+                source_path_count = 0
+                
+                for nfa_state, paths in classification_result.items():
+                    for path in paths:
+                        total_paths_before_merge += 1
+                        source_path_count += 1
+                        
+                        if deduplication:
+                            # Generate path signature pour deduplication
+                            path_signature = self._generate_path_signature(path)
+                            
+                            if path_signature not in path_signatures:
+                                path_signatures.add(path_signature)
+                                merged_classifications[nfa_state].append(path)
+                        else:
+                            merged_classifications[nfa_state].append(path)
+                
+                source_contributions[source_id] = source_path_count
+            
+            # Phase 2: Convert defaultdict to regular dict
+            final_classifications = dict(merged_classifications)
+            
+            # Phase 3: Calculate merge statistics
+            total_unique_paths = sum(len(paths) for paths in final_classifications.values())
+            deduplication_efficiency = 0
+            
+            if total_paths_before_merge > 0:
+                deduplication_efficiency = (total_paths_before_merge - total_unique_paths) / total_paths_before_merge
+            
+            self.multi_source_stats['merge_operations'] += 1
+            
+            merge_summary = {
+                'total_paths_before_merge': total_paths_before_merge,
+                'total_unique_paths': total_unique_paths,
+                'deduplication_enabled': deduplication,
+                'deduplication_efficiency': deduplication_efficiency,
+                'source_contributions': source_contributions,
+                'nfa_states_populated': len(final_classifications),
+                'overlaps_resolved': overlap_analysis.get('total_overlaps', 0)
+            }
+            
+            return {
+                'merged_classifications': final_classifications,
+                'total_unique_paths': total_unique_paths,
+                'merge_summary': merge_summary
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Result merging failed: {e}")
+            raise RuntimeError(f"Enumeration result merging failed: {e}") from e
+    
+    def detect_path_overlaps(self, source_results: Dict[str, Dict]) -> Dict[str, Any]:
+        """
+        Detection overlaps entre chemins de sources différentes - Étape 2.4
+        
+        Overlap Detection:
+        - Path intersection analysis par paires de sources
+        - Node sequence overlap detection
+        - Shared sub-path identification
+        - Overlap significance scoring
+        
+        Args:
+            source_results: Résultats enumeration par source
+            
+        Returns:
+            Dict[str, Any]: Analysis complète overlaps détectés
+        """
+        try:
+            overlap_analysis = {
+                'pairwise_overlaps': {},
+                'shared_nodes': {},
+                'overlap_significance': {},
+                'total_overlaps': 0
+            }
+            
+            source_ids = list(source_results.keys())
+            
+            # Phase 1: Pairwise overlap analysis
+            for i, source_a in enumerate(source_ids):
+                for j, source_b in enumerate(source_ids[i+1:], i+1):
+                    overlap_key = f"{source_a}_{source_b}"
+                    
+                    paths_a = self._extract_all_paths_from_result(source_results[source_a])
+                    paths_b = self._extract_all_paths_from_result(source_results[source_b])
+                    
+                    # Detect overlapping nodes dans paths
+                    overlap_nodes = self._find_overlapping_nodes(paths_a, paths_b)
+                    overlap_count = len(overlap_nodes)
+                    
+                    if overlap_count > 0:
+                        overlap_analysis['pairwise_overlaps'][overlap_key] = {
+                            'overlapping_nodes': overlap_nodes,
+                            'overlap_count': overlap_count,
+                            'source_a_paths': len(paths_a),
+                            'source_b_paths': len(paths_b)
+                        }
+                        
+                        # Calculate overlap significance
+                        total_paths = len(paths_a) + len(paths_b)
+                        significance = overlap_count / total_paths if total_paths > 0 else 0
+                        overlap_analysis['overlap_significance'][overlap_key] = significance
+                        
+                        overlap_analysis['total_overlaps'] += overlap_count
+            
+            # Phase 2: Global shared nodes analysis
+            from collections import defaultdict
+            all_node_occurrences = defaultdict(list)
+            
+            for source_id, source_result in source_results.items():
+                paths = self._extract_all_paths_from_result(source_result)
+                for path in paths:
+                    for node in path:
+                        all_node_occurrences[node.node_id].append(source_id)
+            
+            # Identify nodes shared across multiple sources
+            shared_nodes = {
+                node_id: sources for node_id, sources in all_node_occurrences.items()
+                if len(set(sources)) > 1  # Node appears in paths from multiple sources
+            }
+            
+            overlap_analysis['shared_nodes'] = shared_nodes
+            
+            return overlap_analysis
+            
+        except Exception as e:
+            self.logger.error(f"Path overlap detection failed: {e}")
+            return {
+                'error': f"Overlap detection failed: {e}",
+                'total_overlaps': 0
+            }
+    
+    def optimize_multi_source_performance(self, source_nodes: List[Node], 
+                                        target_edge: Edge) -> Dict[str, Any]:
+        """
+        Optimizations performance pour multi-source enumeration - Étape 2.4
+        
+        Optimizations:
+        - Source prioritization basée complexity analysis
+        - Load balancing intelligent entre sources
+        - Early termination strategies pour large datasets
+        - Memory usage optimization avec streaming results
+        
+        Args:
+            source_nodes: Sources à optimiser
+            target_edge: Edge target pour analysis
+            
+        Returns:
+            Dict[str, Any]: Configuration optimisée et metrics
+        """
+        try:
+            optimization_result = {
+                'optimized_order': [],
+                'load_balancing': {},
+                'performance_estimates': {},
+                'optimization_strategies': []
+            }
+            
+            # Phase 1: Source complexity analysis
+            source_complexities = {}
+            for source in source_nodes:
+                complexity_score = self._estimate_source_complexity(source, target_edge)
+                source_complexities[source.node_id] = complexity_score
+            
+            # Phase 2: Source prioritization (simple first, complex last)
+            sorted_sources = sorted(source_nodes, 
+                                  key=lambda s: source_complexities[s.node_id])
+            optimization_result['optimized_order'] = [s.node_id for s in sorted_sources]
+            
+            # Phase 3: Load balancing recommendations
+            total_complexity = sum(source_complexities.values())
+            if total_complexity > 0:
+                for source in source_nodes:
+                    complexity_fraction = source_complexities[source.node_id] / total_complexity
+                    optimization_result['load_balancing'][source.node_id] = {
+                        'complexity_score': source_complexities[source.node_id],
+                        'complexity_fraction': complexity_fraction,
+                        'recommended_priority': 1.0 - complexity_fraction  # Inverse priority
+                    }
+            
+            # Phase 4: Performance estimates
+            estimated_sequential_time = sum(
+                complexity * 10 for complexity in source_complexities.values()  # 10ms per complexity unit
+            )
+            estimated_parallel_time = max(source_complexities.values()) * 10 if source_complexities else 0
+            
+            optimization_result['performance_estimates'] = {
+                'estimated_sequential_ms': estimated_sequential_time,
+                'estimated_parallel_ms': estimated_parallel_time,
+                'parallelization_benefit': estimated_sequential_time - estimated_parallel_time,
+                'recommended_mode': 'parallel' if len(source_nodes) > 2 else 'sequential'
+            }
+            
+            # Phase 5: Optimization strategies
+            strategies = []
+            if len(source_nodes) > 4:
+                strategies.append('batch_processing')
+            if max(source_complexities.values()) > 50:
+                strategies.append('early_termination')
+            if total_complexity > 200:
+                strategies.append('memory_streaming')
+            
+            optimization_result['optimization_strategies'] = strategies
+            
+            return optimization_result
+            
+        except Exception as e:
+            self.logger.error(f"Multi-source performance optimization failed: {e}")
+            return {
+                'error': f"Performance optimization failed: {e}",
+                'optimized_order': [node.node_id for node in source_nodes]
+            }
+    
+    # Step 2.4: Helper Methods
+    
+    def _validate_multiple_sources(self, source_nodes: List[Node], target_edge: Edge) -> List[Node]:
+        """Validation sources multiples pour enumeration - Étape 2.4"""
+        valid_sources = []
+        
+        for source in source_nodes:
+            try:
+                # Validation source node existence et connectivity
+                if not source or not hasattr(source, 'node_id'):
+                    continue
+                
+                # Validation connectivity vers target (via outgoing edges)
+                has_connectivity = False
+                if hasattr(source, 'outgoing_edges') and source.outgoing_edges:
+                    has_connectivity = True
+                elif hasattr(source, 'incoming_edges') and source.incoming_edges:
+                    has_connectivity = True
+                
+                if has_connectivity:
+                    valid_sources.append(source)
+                else:
+                    self.logger.warning(f"Source {source.node_id} has no connectivity")
+                    
+            except Exception as e:
+                self.logger.warning(f"Source validation failed for {getattr(source, 'node_id', 'unknown')}: {e}")
+                continue
+        
+        return valid_sources
+    
+    def _enumerate_single_source(self, source_node: Node, target_edge: Edge, 
+                                nfa: Any, transaction_num: int) -> Dict[str, Any]:
+        """Enumeration single source avec metrics - Étape 2.4"""
+        import time
+        
+        start_time = time.time()
+        
+        try:
+            # Create edge from source to target for enumeration
+            temp_edge = Edge(
+                f"temp_{source_node.node_id}_to_{target_edge.target_node.node_id}",
+                source_node, target_edge.target_node,
+                target_edge.edge_metadata.weight,
+                target_edge.edge_metadata.edge_type,
+                target_edge.edge_metadata
+            )
+            
+            # Use existing enumeration pipeline
+            classification_result = self.enumerate_and_classify(temp_edge, nfa, transaction_num)
+            
+            enumeration_time = (time.time() - start_time) * 1000
+            
+            return {
+                'classification_result': classification_result,
+                'enumeration_time_ms': enumeration_time,
+                'source_id': source_node.node_id,
+                'path_count': sum(len(paths) for paths in classification_result.values())
+            }
+            
+        except Exception as e:
+            enumeration_time = (time.time() - start_time) * 1000
+            self.logger.error(f"Single source enumeration failed for {source_node.node_id}: {e}")
+            return {
+                'classification_result': {},
+                'enumeration_time_ms': enumeration_time,
+                'source_id': source_node.node_id,
+                'error': str(e),
+                'path_count': 0
+            }
+    
+    def _generate_path_signature(self, path: List[Node]) -> str:
+        """Generate signature unique pour path deduplication - Étape 2.4"""
+        try:
+            # Create signature based on node IDs sequence
+            node_sequence = [node.node_id for node in path]
+            return "_".join(node_sequence)
+        except Exception:
+            # Fallback signature
+            return f"path_{hash(str(path))}"
+    
+    def _extract_all_paths_from_result(self, source_result: Dict[str, Any]) -> List[List[Node]]:
+        """Extract tous paths depuis résultat source - Étape 2.4"""
+        all_paths = []
+        
+        try:
+            classification_result = source_result.get('classification_result', {})
+            
+            for nfa_state, paths in classification_result.items():
+                all_paths.extend(paths)
+            
+            return all_paths
+            
+        except Exception as e:
+            self.logger.warning(f"Path extraction failed: {e}")
+            return []
+    
+    def _find_overlapping_nodes(self, paths_a: List[List[Node]], 
+                               paths_b: List[List[Node]]) -> List[str]:
+        """Find nodes overlapping entre deux ensembles de paths - Étape 2.4"""
+        try:
+            # Collect all node IDs from paths_a
+            nodes_a = set()
+            for path in paths_a:
+                for node in path:
+                    nodes_a.add(node.node_id)
+            
+            # Collect all node IDs from paths_b
+            nodes_b = set()
+            for path in paths_b:
+                for node in path:
+                    nodes_b.add(node.node_id)
+            
+            # Find intersection
+            overlapping_nodes = nodes_a.intersection(nodes_b)
+            return list(overlapping_nodes)
+            
+        except Exception as e:
+            self.logger.warning(f"Overlap detection failed: {e}")
+            return []
+    
+    def _estimate_source_complexity(self, source_node: Node, target_edge: Edge) -> int:
+        """Estimate complexity pour source node - Étape 2.4"""
+        try:
+            complexity_score = 1  # Base complexity
+            
+            # Factor 1: Outgoing edges count
+            if hasattr(source_node, 'outgoing_edges'):
+                complexity_score += len(source_node.outgoing_edges)
+            
+            # Factor 2: Incoming edges count  
+            if hasattr(source_node, 'incoming_edges'):
+                complexity_score += len(source_node.incoming_edges)
+            
+            # Factor 3: Node type complexity
+            if hasattr(source_node, 'get_node_type'):
+                node_type = source_node.get_node_type()
+                if node_type.name == 'INTERMEDIATE':
+                    complexity_score += 2
+                elif node_type.name == 'SOURCE':
+                    complexity_score += 1
+            
+            return max(complexity_score, 1)  # Minimum complexity of 1
+            
+        except Exception:
+            return 1  # Default complexity
     
     def reset_enumeration_state(self):
         """Reset état énumération pour nouvelle transaction - Étape 2.2 Enhanced"""
