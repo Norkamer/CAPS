@@ -41,11 +41,12 @@ class TestAcademicTaxonomyInvariants:
         INVARIANT 1: Monotonie Temporelle
         ∀ i,j : transaction_num[i] < transaction_num[j] ⟹ i inserted before j
         """
-        # Séquence transactions croissante valide
+        # Séquence transactions croissante valide avec mappings explicites
         valid_sequence = [1, 5, 10, 15, 20]
-        
-        for tx_num in valid_sequence:
-            accounts = {f"account_{tx_num}": None}  # Auto-assignment
+        explicit_chars = ['A', 'B', 'C', 'D', 'E']
+
+        for i, tx_num in enumerate(valid_sequence):
+            accounts = {f"account_{tx_num}": explicit_chars[i]}  # Mapping explicite
             result = self.taxonomy.update_taxonomy(accounts, tx_num)
             assert len(result) == 1
             
@@ -64,8 +65,8 @@ class TestAcademicTaxonomyInvariants:
         INVARIANT 2: Déterminisme
         ∀ account_id, tx_num : f(account_id, tx_num) déterministe et reproductible
         """
-        # Création état initial
-        accounts_t1 = {"alice": "A", "bob": "B", "charlie": None}
+        # Création état initial avec mappings explicites
+        accounts_t1 = {"alice": "A", "bob": "B", "charlie": "C"}
         mapping_t1 = self.taxonomy.update_taxonomy(accounts_t1, 1)
         
         # Requêtes multiples doivent retourner résultats identiques
@@ -75,7 +76,7 @@ class TestAcademicTaxonomyInvariants:
             assert self.taxonomy.get_character_mapping("charlie", 1) == mapping_t1["charlie"]
             
         # Extension état et vérification préservation mappings précédents
-        accounts_t2 = {"david": None}
+        accounts_t2 = {"david": "D"}
         mapping_t2 = self.taxonomy.update_taxonomy(accounts_t2, 2)
         
         # Mappings t1 préservés à t2
@@ -88,12 +89,12 @@ class TestAcademicTaxonomyInvariants:
         INVARIANT 3: Historisation Complète
         Tous snapshots préservés avec accès temporal exact
         """
-        # Création séquence historique
+        # Création séquence historique avec mappings explicites
         historical_sequence = [
             (1, {"alice": "A"}),
-            (5, {"bob": "B", "charlie": None}),
-            (10, {"david": None, "eve": "E"}),
-            (15, {"frank": None})
+            (5, {"bob": "B", "charlie": "C"}),
+            (10, {"david": "D", "eve": "E"}),
+            (15, {"frank": "F"})
         ]
         
         mappings_by_tx = {}
@@ -120,8 +121,8 @@ class TestAcademicTaxonomyInvariants:
         INVARIANT 4: Consistance UTF-32
         Tous caractères dans plage UTF-32 valide définie par blueprint
         """
-        # Test auto-assignment génère caractères UTF-32 valides
-        large_account_set = {f"account_{i}": None for i in range(100)}
+        # Test caractères UTF-32 explicites valides
+        large_account_set = {f"account_{i}": chr(0x41 + i) for i in range(26)}  # A-Z
         mapping = self.taxonomy.update_taxonomy(large_account_set, 1)
         
         for account_id, character in mapping.items():
@@ -149,13 +150,13 @@ class TestAcademicTaxonomyInvariants:
                 "bob": "A"  # Collision intentionnelle
             }, 1)
             
-        # Test absence collision avec auto-assignment + explicit
+        # Test absence collision avec mappings tous explicites
         mixed_accounts = {
             "explicit_1": "X",
-            "explicit_2": "Y", 
-            "auto_1": None,
-            "auto_2": None,
-            "explicit_3": "Z"
+            "explicit_2": "Y",
+            "explicit_3": "M",
+            "explicit_4": "N",
+            "explicit_5": "Z"
         }
         mapping = self.taxonomy.update_taxonomy(mixed_accounts, 1)
         
@@ -183,9 +184,10 @@ class TestAcademicTaxonomyInvariants:
             # Reset taxonomy pour test isolé
             taxonomy = AccountTaxonomy()
             
-            # Création snapshots nombreux
+            # Création snapshots nombreux avec mappings explicites
             for i in range(size):
-                taxonomy.update_taxonomy({f"account_{i}": None}, i * 10)
+                char_idx = i % 26
+                taxonomy.update_taxonomy({f"account_{i}": chr(0x41 + char_idx)}, i * 10)
                 
             # Mesure temps queries multiples pour moyenne stable
             start_time = time.perf_counter()
@@ -210,12 +212,12 @@ class TestAcademicTaxonomyInvariants:
         META-INVARIANT: Validation cohérence globale système
         Utilise méthode validate_historical_consistency() pour détection violations
         """
-        # Création état complexe multi-transaction
+        # Création état complexe multi-transaction avec mappings explicites
         complex_sequence = [
-            (1, {"alice": "A", "bob": None}),
-            (3, {"charlie": "C", "david": None}),
-            (7, {"eve": None, "frank": "F"}),
-            (10, {"george": None})
+            (1, {"alice": "A", "bob": "B"}),
+            (3, {"charlie": "C", "david": "D"}),
+            (7, {"eve": "E", "frank": "F"}),
+            (10, {"george": "G"})
         ]
         
         for tx_num, accounts in complex_sequence:
@@ -237,19 +239,19 @@ class TestAcademicTaxonomyInvariants:
         errors = self.taxonomy.validate_historical_consistency()
         assert len(errors) == 0
         
-        # Test transaction numéro zéro et négatif
-        self.taxonomy.update_taxonomy({"account_0": None}, 0)
+        # Test transaction numéro zéro avec mapping explicite
+        self.taxonomy.update_taxonomy({"account_0": "Z"}, 0)
         
         with pytest.raises(ValueError):
-            self.taxonomy.update_taxonomy({"invalid": None}, -1)
+            self.taxonomy.update_taxonomy({"invalid": "I"}, -1)
             
-        # Test comptes avec noms edge cases
+        # Test comptes avec noms edge cases et mappings explicites
         edge_accounts = {
-            "": None,  # Nom vide
-            "a" * 1000: None,  # Nom très long
-            "🚀_account": None,  # Unicode dans nom
-            "account.with.dots": None,
-            "account-with-dashes": None
+            "": "E",  # Nom vide
+            "a" * 1000: "L",  # Nom très long
+            "🚀_account": "U",  # Unicode dans nom
+            "account.with.dots": "D",
+            "account-with-dashes": "H"
         }
         
         # Devrait fonctionner sans erreur
@@ -275,15 +277,16 @@ class TestAcademicTaxonomyInvariants:
         word = self.taxonomy.convert_path_to_word(path, 1)
         assert word == "SIT"
         
-        # Test avec auto-assignments
-        auto_accounts = {"node1": None, "node2": None, "node3": None}
-        mapping = self.taxonomy.update_taxonomy(auto_accounts, 2)
+        # Test avec mappings explicites
+        explicit_accounts = {"node1": "X", "node2": "Y", "node3": "Z"}
+        mapping = self.taxonomy.update_taxonomy(explicit_accounts, 2)
         
-        auto_path = [Node("node1"), Node("node2"), Node("node3")]
-        auto_word = self.taxonomy.convert_path_to_word(auto_path, 2)
+        explicit_path = [Node("node1"), Node("node2"), Node("node3")]
+        explicit_word = self.taxonomy.convert_path_to_word(explicit_path, 2)
+        assert explicit_word == "XYZ"
         
         expected_word = mapping["node1"] + mapping["node2"] + mapping["node3"]
-        assert auto_word == expected_word
+        assert explicit_word == expected_word
         
         # Test erreur nœud sans account_id
         invalid_node = Node(None)

@@ -116,47 +116,49 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
         Pattern strategy: Pour patterns ".*N.*", tous les nodes contiennent 'N'
         dans différentes positions pour éviter les collisions.
         """
-        # Mappings uniques pour Test 16 avec patterns ".*N.*" 
-        # CORRECTION: Path enumeration retourne seulement bob_factory_sink (1 node)
-        # Donc bob_factory_sink doit directement contenir 'N' pour matcher
+        # Mappings UNIQUES alignés sur patterns - CORRECTION Test 16
+        # Stratégie: caractères ASCII uniques + patterns alignés
         explicit_mappings = {
-            # Alice farm - pas de collision avec bob_factory_sink
-            "alice_farm_source": "A",   # Source = A pour patterns agriculture  
-            "alice_farm_sink": "Z",     # Sink = Z
-            
-            # Bob factory - sink = N car c'est le seul node dans path enumeration !
-            "bob_factory_source": "B",  # Source = B 
-            "bob_factory_sink": "N",    # Sink = N pour pattern industry match (word = 'N' matches '.*N.*')
-            
-            # Accounts additionnels pour autres tests
-            "account_alpha_source": "D",
-            "account_alpha_sink": "E",
-            "account_beta_source": "F", 
-            "account_beta_sink": "G",
-            "complex_farm_source": "H",
-            "complex_farm_sink": "I",
-            
-            # Patterns génériques
-            "alice_source": "J",
-            "alice_sink": "K",
-            "bob_source": "L",
-            "bob_sink": "M",
-            "charlie_source": "O",
-            "charlie_sink": "P",
+            # Alice farm - patterns ".*N.*" alignés
+            "alice_farm_source": "A",
+            "alice_farm_sink": "N",
 
-            # Comptes séquentiels pour test_03
-            "account_source_0_source": "Q",
-            "account_source_0_sink": "R",
-            "account_target_0_source": "S",
-            "account_target_0_sink": "T",
+            # Bob factory - patterns ".*M.*" alignés
+            "bob_factory_source": "B",
+            "bob_factory_sink": "M",
+
+            # Accounts additionnels pour tests 6-7
+            "account_alpha_source": "α",  # α (alpha grec)
+            "account_alpha_sink": "λ",    # λ (lambda)
+            "account_beta_source": "β",   # β (beta grec)
+            "account_beta_sink": "ε",     # ε (epsilon)
+            "complex_farm_source": "C",
+            "complex_farm_sink": "F",
+
+            # Patterns génériques Test 7 - caractères uniques
+            "alice_source": "Ⱥ",          # Ⱥ (A barré)
+            "alice_sink": "Ł",           # Ł (L barré)
+            "bob_source": "Ɓ",           # Ɓ (B crochet)
+            "bob_sink": "Ø",             # Ø (O barré)
+            "charlie_source": "Ȼ",        # Ȼ (C cédille)
+            "charlie_sink": "Ħ",         # Ħ (H barré)
+
+            # Comptes séquentiels pour test_03 - ALIGNEMENT SIMPLE
+            # Transaction 0: patterns .*S0/.T0 → sources S, targets T
+            "account_source_0_source": "S",  # Source 0 → S pour pattern .*S
+            "account_source_0_sink": "s",   # Sink minuscule
+            "account_target_0_source": "T",  # Target 0 → T pour pattern .*T
+            "account_target_0_sink": "t",   # Sink minuscule
+            # Transaction 1: patterns .*U/.V → sources U, targets V
             "account_source_1_source": "U",
-            "account_source_1_sink": "V",
-            "account_target_1_source": "W",
-            "account_target_1_sink": "X",
-            "account_source_2_source": "Y",
-            "account_source_2_sink": "α",
-            "account_target_2_source": "β",
-            "account_target_2_sink": "γ"
+            "account_source_1_sink": "u",
+            "account_target_1_source": "V",
+            "account_target_1_sink": "v",
+            # Transaction 2: patterns .*W/.X → sources W, targets X
+            "account_source_2_source": "W",
+            "account_source_2_sink": "w",
+            "account_target_2_source": "X",
+            "account_target_2_sink": "x"
         }
         
         try:
@@ -170,18 +172,23 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
             else:
                 config_tx_num = 0
             
-            # Configuration avec numéro de transaction approprié (celui que le DAG va utiliser)
-            self.dag.account_taxonomy.update_taxonomy(explicit_mappings, config_tx_num)
-            print(f"PHASE 2.9: Configured explicit taxonomy with {len(explicit_mappings)} mappings at transaction_num={config_tx_num}")
+            # Configuration taxonomie pour TOUTES les transactions séquentielles
+            # Pas d'auto-extend - configuration complète dès le début
+            for tx_num in range(10):  # Configure jusqu'à 10 transactions
+                self.dag.account_taxonomy.update_taxonomy(explicit_mappings, tx_num)
+            print(f"PHASE 2.9: Configured explicit taxonomy with {len(explicit_mappings)} mappings for transactions 0-9")
             
             # Le transaction_counter reste synchronisé avec la configuration taxonomie 
             print(f"PHASE 2.9: DAG transaction_counter={self.dag.transaction_counter} matches taxonomy config_tx_num={config_tx_num}")
             
-            # Vérification mappings configurés pour cette transaction
+            # Vérification mappings configurés pour transaction 0
+            print("Verifying taxonomy mappings for transaction 0:")
             for node_id, expected_char in explicit_mappings.items():
-                actual_char = self.dag.account_taxonomy.get_character_mapping(node_id, config_tx_num)
+                actual_char = self.dag.account_taxonomy.get_character_mapping(node_id, 0)
                 if actual_char != expected_char:
                     print(f"WARNING: {node_id} mapping mismatch: expected '{expected_char}', got '{actual_char}'")
+                else:
+                    print(f"✅ {node_id}: '{actual_char}'")
                     
         except Exception as e:
             print(f"Failed to configure explicit taxonomy: {e}")
@@ -229,16 +236,16 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
         source_measure = TransactionMeasure(
             measure_id="agriculture_debit",
             account_id="alice_farm",
-            primary_regex_pattern=".*N.*",  # Pattern compatible auto-assignment
+            primary_regex_pattern="N.*",  # CORRIGÉ: N prefix pour ancrage CAPS (alice_farm_sink = N)
             primary_regex_weight=Decimal('1.2'),
             acceptable_value=Decimal('1000'),  # Alice peut débiter jusqu'à 1000€
             secondary_patterns=[]
         )
-        
+
         target_measure = TransactionMeasure(
-            measure_id="industry_credit", 
+            measure_id="industry_credit",
             account_id="bob_factory",
-            primary_regex_pattern=".*N.*",  # Pattern compatible auto-assignment
+            primary_regex_pattern="M.*",  # CORRIGÉ: M prefix pour ancrage CAPS (bob_factory_sink = M)
             primary_regex_weight=Decimal('0.9'),
             acceptable_value=Decimal('0'),  # Pas de limite crédit
             required_value=Decimal('100'),  # Bob doit recevoir au moins 100€
@@ -332,19 +339,23 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
         transactions = []
         
         for i in range(3):
+            # CORRIGÉ: Patterns prefix pour ancrage CAPS automatique
+            source_pattern = ["S.*", "U.*", "W.*"][i]  # Patterns pour sources (S,U,W)
+            target_pattern = ["T.*", "V.*", "X.*"][i]  # Patterns pour targets (T,V,X)
+
             source_measure = TransactionMeasure(
                 measure_id=f"measure_source_{i}",
                 account_id=f"account_source_{i}",
-                primary_regex_pattern=".*S.*",
+                primary_regex_pattern=source_pattern,
                 primary_regex_weight=Decimal('1.0'),
                 acceptable_value=Decimal('500'),
                 secondary_patterns=[]
             )
-            
+
             target_measure = TransactionMeasure(
                 measure_id=f"measure_target_{i}",
                 account_id=f"account_target_{i}",
-                primary_regex_pattern=".*T.*",
+                primary_regex_pattern=target_pattern,
                 primary_regex_weight=Decimal('1.0'),
                 acceptable_value=Decimal('0'),
                 required_value=Decimal('50'),
@@ -427,16 +438,16 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
         source_measure = TransactionMeasure(
             measure_id="restrictive_source",
             account_id="restricted_account",
-            primary_regex_pattern=".*R.*",
+            primary_regex_pattern="R.*",  # CORRIGÉ: R prefix pour ancrage CAPS
             primary_regex_weight=Decimal('1.0'),
             acceptable_value=Decimal('50'),  # Très faible limite
             secondary_patterns=[]
         )
-        
+
         target_measure = TransactionMeasure(
             measure_id="demanding_target",
-            account_id="demanding_account", 
-            primary_regex_pattern=".*D.*",
+            account_id="demanding_account",
+            primary_regex_pattern="D.*",  # CORRIGÉ: D prefix pour ancrage CAPS
             primary_regex_weight=Decimal('1.0'),
             acceptable_value=Decimal('0'),
             required_value=Decimal('200'),  # Demande élevée
@@ -498,30 +509,30 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
         complex_source_measure = TransactionMeasure(
             measure_id="complex_agriculture",
             account_id="complex_farm",
-            primary_regex_pattern=".*AGRI.*",
+            primary_regex_pattern="C.*",  # CORRIGÉ: C prefix pour ancrage CAPS
             primary_regex_weight=Decimal('1.0'),
             acceptable_value=Decimal('1000'),
             secondary_patterns=[
-                (".*CARBON_HIGH.*", Decimal('-2.0')),
-                (".*WATER_INTENSIVE.*", Decimal('-1.5')),
-                (".*PESTICIDE_USE.*", Decimal('-1.0')),
-                (".*ORGANIC_BONUS.*", Decimal('0.5')),
-                (".*LOCAL_SUPPLY.*", Decimal('0.3'))
+                ("H.*", Decimal('-2.0')),  # CORRIGÉ: Patterns prefix
+                ("W.*", Decimal('-1.5')),
+                ("P.*", Decimal('-1.0')),
+                ("O.*", Decimal('0.5')),
+                ("L.*", Decimal('0.3'))
             ]
         )
-        
+
         complex_target_measure = TransactionMeasure(
             measure_id="complex_industry",
-            account_id="complex_factory", 
-            primary_regex_pattern=".*INDU.*",
+            account_id="complex_factory",
+            primary_regex_pattern="F.*",  # CORRIGÉ: F prefix pour ancrage CAPS
             primary_regex_weight=Decimal('1.0'),
             acceptable_value=Decimal('0'),
             required_value=Decimal('100'),
             secondary_patterns=[
-                (".*GREEN_TECH.*", Decimal('1.2')),
-                (".*RENEWABLE_ENERGY.*", Decimal('1.1')),
-                (".*WASTE_REDUCTION.*", Decimal('0.8')),
-                (".*EMISSION_CONTROL.*", Decimal('0.6'))
+                ("G.*", Decimal('1.2')),  # CORRIGÉ: Patterns prefix
+                ("R.*", Decimal('1.1')),
+                ("W.*", Decimal('0.8')),
+                ("E.*", Decimal('0.6'))
             ]
         )
         
@@ -570,7 +581,7 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
                 TransactionMeasure(
                     measure_id="test_measure",
                     account_id="account_alpha",
-                    primary_regex_pattern=".*ALPHA.*",
+                    primary_regex_pattern="λ.*",  # CORRIGÉ: λ prefix pour account_alpha_sink = λ
                     primary_regex_weight=Decimal('1.0'),
                     acceptable_value=Decimal('500')
                 )
@@ -677,7 +688,7 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
                     TransactionMeasure(
                         measure_id=f"measure_{source}_{i}",
                         account_id=source,
-                        primary_regex_pattern=f".*{source.upper()}.*",
+                        primary_regex_pattern=f"Ł.*" if source == "alice" else f"Ø.*" if source == "bob" else f"Ħ.*",  # CORRIGÉ: Unicode chars pour ancrage
                         primary_regex_weight=Decimal('1.0'),
                         acceptable_value=Decimal('1000')
                     )

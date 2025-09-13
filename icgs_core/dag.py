@@ -377,9 +377,17 @@ class DAG:
             new_accounts = self._extract_accounts_from_transaction(transaction)
             # Taxonomie déjà mise à jour dans _extract_accounts_from_transaction
             
-            # Étape 2: Création NFA temporaire avec état frozen  
+            # Étape 2: Création NFA temporaire avec état frozen
             temp_nfa = self._create_temporary_nfa_for_transaction(transaction)
             temp_nfa.freeze()
+
+            # HYBRID DUAL-NFA: Freeze target NFA si disponible
+            if hasattr(temp_nfa, 'metadata') and isinstance(temp_nfa.metadata, dict):
+                target_nfa = temp_nfa.metadata.get('target_nfa')
+                if target_nfa:
+                    target_nfa.freeze()
+                    self.logger.debug(f"Target NFA frozen with {len(target_nfa.get_final_states())} final states")
+
             self.logger.debug(f"Temporary NFA created and frozen with {len(temp_nfa.get_final_states())} final states")
             
             # Étape 3: Énumération et classification chemins
@@ -585,21 +593,55 @@ class DAG:
         Combine NFA existant avec nouvelles mesures transaction pour
         évaluation cohérente sans modification état permanent.
         """
-        # OPTIMISATION: Détection nécessité mise à jour
-        if self._nfa_update_needed(transaction):
-            # Mise à jour nécessaire - deepcopy + modification (comportement original)
-            if self.anchored_nfa:
-                temp_nfa = copy.deepcopy(self.anchored_nfa)
-                self.logger.debug("NFA deepcopy required - taxonomy/patterns changed")
-            else:
-                temp_nfa = AnchoredWeightedNFA(f"transaction_{self.transaction_counter}")
-                self.logger.debug("New NFA created - no existing NFA")
-        else:
-            # Version stable suffisante - réutilisation sans copie (OPTIMISATION)
-            self.logger.debug("NFA reuse optimization - stable version used")
-            return self.anchored_nfa
+        # SOLUTION ARCHITECTURALE: NFAs temporaires TOUJOURS propres
+        # Élimination pollution patterns cross-transaction
+        temp_nfa = AnchoredWeightedNFA(f"clean_main_tx_{self.transaction_counter}")
+        self.logger.debug("Clean NFA created - zero pollution strategy")
         
-        # Ajout mesures source
+        # BUG CRITIQUE FIX: Workaround AnchoredWeightedNFA patterns multiples
+        # STRATÉGIE HYBRIDE: Créer deux NFAs temporaires PROPRES - un pour chaque type de pattern
+        # et stocker dans metadata pour classification duale
+
+        # NFA PROPRE pour patterns target (évite conflicts avec existing patterns)
+        temp_nfa_target = AnchoredWeightedNFA(f"clean_target_tx_{self.transaction_counter}")
+
+        # CORRECTION: Support patterns target ET fallback si vide
+        has_target_measures = len(transaction.target_measures) > 0
+
+        for measure in transaction.target_measures:
+            temp_nfa_target.add_weighted_regex(
+                measure.measure_id,
+                measure.primary_regex_pattern,
+                measure.primary_regex_weight,
+                regex_id=f"target_{measure.measure_id}"
+            )
+
+            for pattern, weight in measure.secondary_patterns:
+                temp_nfa_target.add_weighted_regex(
+                    f"{measure.measure_id}_secondary",
+                    pattern,
+                    weight,
+                    regex_id=f"target_{measure.measure_id}_secondary"
+                )
+
+        # FALLBACK: Si pas de target measures, dupliquer source patterns dans target NFA
+        if not has_target_measures:
+            self.logger.debug("No target measures - duplicating source patterns in target NFA for classification")
+            for measure in transaction.source_measures:
+                temp_nfa_target.add_weighted_regex(
+                    f"fallback_{measure.measure_id}",
+                    measure.primary_regex_pattern,
+                    measure.primary_regex_weight,
+                    regex_id=f"fallback_{measure.measure_id}"
+                )
+
+        # Store target NFA in metadata SEULEMENT si patterns ajoutés
+        if has_target_measures or len(transaction.source_measures) > 0:
+            temp_nfa.metadata['target_nfa'] = temp_nfa_target
+        else:
+            self.logger.warning("No patterns available for target NFA - classification may fail")
+
+        # Ajout patterns source au NFA principal (priorité finale)
         for measure in transaction.source_measures:
             temp_nfa.add_weighted_regex(
                 measure.measure_id,
@@ -607,8 +649,7 @@ class DAG:
                 measure.primary_regex_weight,
                 regex_id=f"source_{measure.measure_id}"
             )
-            
-            # Ajout patterns secondaires
+
             for pattern, weight in measure.secondary_patterns:
                 temp_nfa.add_weighted_regex(
                     f"{measure.measure_id}_secondary",
@@ -616,24 +657,12 @@ class DAG:
                     weight,
                     regex_id=f"source_{measure.measure_id}_secondary"
                 )
-        
-        # Ajout mesures cible
-        for measure in transaction.target_measures:
-            temp_nfa.add_weighted_regex(
-                measure.measure_id,
-                measure.primary_regex_pattern,
-                measure.primary_regex_weight,
-                regex_id=f"target_{measure.measure_id}"
-            )
-            
-            # Ajout patterns secondaires
-            for pattern, weight in measure.secondary_patterns:
-                temp_nfa.add_weighted_regex(
-                    f"{measure.measure_id}_secondary",
-                    pattern,
-                    weight,
-                    regex_id=f"target_{measure.measure_id}_secondary"
-                )
+
+        # HACK: Stocker NFA target dans metadata pour classification hybride
+        if hasattr(temp_nfa, 'metadata'):
+            temp_nfa.metadata['target_nfa'] = temp_nfa_target
+        else:
+            temp_nfa.target_nfa_hack = temp_nfa_target  # Fallback
         
         return temp_nfa
     

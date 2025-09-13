@@ -1852,7 +1852,12 @@ class DAGPathEnumerator:
         
         start_time = time.time()
         self.reset_enumeration_state()
-        
+
+        # CRITICAL FIX: Store temporary transaction edge for enumeration
+        # The transaction edge must be available during recursive traversal
+        self.current_transaction_edge = transaction_edge
+        self.logger.debug(f"Stored transaction edge for enumeration: {transaction_edge.edge_id}")
+
         # Cache check
         cache_key = self._generate_cache_key(transaction_edge.target_node, transaction_num)
         if cache_key in self._path_cache:
@@ -1916,10 +1921,15 @@ class DAGPathEnumerator:
             
             self.logger.info(f"Enumeration completed - {self.stats.paths_enumerated} paths "
                            f"in {self.stats.enumeration_time_ms:.2f}ms")
-            
+
         except Exception as e:
             self.logger.error(f"Enumeration error: {e}")
             raise
+        finally:
+            # CRITICAL FIX: Cleanup temporary transaction edge
+            if hasattr(self, 'current_transaction_edge'):
+                self.current_transaction_edge = None
+                self.logger.debug("Cleaned up temporary transaction edge")
     
     def _enumerate_recursive(self, current_node: Node, 
                            paths_found: List[List[Node]]) -> Iterator[List[Node]]:
@@ -1984,6 +1994,17 @@ class DAGPathEnumerator:
             else:
                 # Continuer traversal reverse via incoming edges
                 incoming_edges_list = list(current_node.incoming_edges.values())
+
+                # CRITICAL FIX: Include temporary transaction edge for target node
+                # When we're at the transaction target node, we need to consider the
+                # temporary transaction edge as an additional incoming edge
+                if (hasattr(self, 'current_transaction_edge') and
+                    self.current_transaction_edge and
+                    current_node == self.current_transaction_edge.target_node):
+
+                    incoming_edges_list.append(self.current_transaction_edge)
+                    self.logger.debug(f"Added transaction edge to incoming edges for target node: {current_node.node_id}")
+                    self.logger.debug(f"Total incoming edges: {len(incoming_edges_list)} (including transaction edge)")
                 
                 self.logger.debug(f"Exploring {len(incoming_edges_list)} incoming edges "
                                 f"from node: {current_node.node_id}")
@@ -2403,49 +2424,73 @@ class DAGPathEnumerator:
                                 pipeline_stats: Dict[str, Any]) -> int:
         """
         Classification NFA avec validation et monitoring - Étape 1.6
-        
+        HYBRID DUAL-NFA: Support target NFA pour patterns multiples
+
         Returns:
             int: Nombre paths successfully classified
         """
         classified_count = 0
         nfa_errors = 0
-        
+
+        # HYBRID DUAL-NFA: Récupérer target NFA si disponible
+        target_nfa = None
+        if hasattr(nfa, 'metadata') and isinstance(nfa.metadata, dict):
+            target_nfa = nfa.metadata.get('target_nfa')
+            if target_nfa:
+                self.logger.debug("Hybrid dual-NFA mode: using both main and target NFAs for classification")
+
         for path_idx, (path, word) in enumerate(zip(all_paths, words)):
             if not word:  # Skip conversion failures
                 continue
-                
+
             try:
-                # Flexible NFA evaluation (support both method types)
+                final_state_id = None
+
+                # Try main NFA first
                 if hasattr(nfa, 'evaluate_to_final_state'):
                     final_state_id = nfa.evaluate_to_final_state(word)
                 elif hasattr(nfa, 'evaluate_word'):
                     result = nfa.evaluate_word(word)
                     final_state_id = result[0] if isinstance(result, tuple) else result
                 else:
-                    self.logger.error("NFA has no supported evaluation method")
+                    self.logger.error("Main NFA has no supported evaluation method")
                     break
-                
+
+                # HYBRID: If main NFA failed and target NFA available, try target NFA
+                if not final_state_id and target_nfa:
+                    try:
+                        if hasattr(target_nfa, 'evaluate_to_final_state'):
+                            final_state_id = target_nfa.evaluate_to_final_state(word)
+                        elif hasattr(target_nfa, 'evaluate_word'):
+                            result = target_nfa.evaluate_word(word)
+                            final_state_id = result[0] if isinstance(result, tuple) else result
+
+                        if final_state_id:
+                            self.logger.debug(f"Word '{word}' classified by target NFA → {final_state_id}")
+                    except Exception as target_error:
+                        self.logger.debug(f"Target NFA evaluation failed for '{word}': {target_error}")
+
                 if final_state_id:
                     path_classes[final_state_id].append(path)
                     classified_count += 1
-                    
+
                     if classified_count % 100 == 0:  # Progress logging
                         self.logger.debug(f"Classified {classified_count}/{len(all_paths)} paths")
                 else:
-                    self.logger.debug(f"Path {path_idx} rejected by NFA: word='{word[:20]}...'")
-                    
+                    self.logger.debug(f"Path {path_idx} rejected by both NFAs: word='{word[:20]}...'")
+
             except Exception as e:
                 nfa_errors += 1
                 self.logger.warning(f"NFA evaluation error for path {path_idx}: {e}")
-                
+
                 if nfa_errors > 10:  # Too many NFA errors
                     pipeline_stats['performance_warnings'].append(
                         f"Excessive NFA errors: {nfa_errors} failures"
                     )
-        
+
         if nfa_errors > 0:
             self.logger.warning(f"NFA classification completed with {nfa_errors} evaluation errors")
-            
+
         return classified_count
     
     def _validate_and_finalize_results(self, path_classes: Dict[str, List[List[Node]]],

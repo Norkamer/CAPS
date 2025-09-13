@@ -82,44 +82,19 @@ class AccountTaxonomy:
             self.account_registry.add(account_id)
             
             if requested_char is None:
-                # RÈGLE D'OR THOMPSON'S NFA: Taxonomie manuelle obligatoire
-                # Auto-assignment interdit pour respect "1 caractère = 1 transition"
-                raise ValueError(
-                    f"Manual taxonomy required for account '{account_id}' in transaction {transaction_num}. "
-                    f"Auto-assignment violated Thompson's NFA golden rule: '1 character = 1 transition'. "
-                    f"Please provide explicit character mapping instead of None."
-                )
+                raise ValueError(f"Explicit character mapping required for account '{account_id}'. Auto-assignment disabled.")
             else:
                 # Validation caractère demandé
                 if not self._is_valid_utf32_character(requested_char):
                     raise ValueError(f"Invalid UTF-32 character: {requested_char} for account {account_id}")
                 
-                # Détection collision dans cette transaction seulement
+                # Détection collision caractères dans même transaction
                 if requested_char in requested_chars:
-                    raise ValueError(f"Character collision in transaction {transaction_num}: {requested_char} requested by {account_id} and {requested_chars[requested_char]}")
-                
+                    raise ValueError(f"Character collision detected: '{requested_char}' used by {account_id} and {requested_chars[requested_char]}")
                 requested_chars[requested_char] = account_id
                 new_mapping[account_id] = requested_char
         
-        # Phase 2: Auto-assignment pour comptes sans mapping
-        used_chars_in_transaction = set(requested_chars.keys())
-        
-        # CORRECTION: Collecter tous les caractères utilisés historiquement
-        all_historical_chars = set()
-        for snapshot in self.taxonomy_history:
-            all_historical_chars.update(snapshot.account_mappings.values())
-        
-        for account_id in auto_assign_accounts:
-            # Si compte déjà existe, préserver mapping précédent
-            if account_id in previous_mapping:
-                assigned_char = previous_mapping[account_id]
-            else:
-                # Nouveau compte - auto-assignment avec évitement historique complet
-                all_used_chars = used_chars_in_transaction | all_historical_chars
-                assigned_char = self._auto_assign_character(all_used_chars)
-                used_chars_in_transaction.add(assigned_char)
-            
-            new_mapping[account_id] = assigned_char
+        # Phase 2: Pas d'auto-assignment - tous les mappings sont explicites
         
         # CORRECTION: Héritage comptes précédents NON mentionnés dans cette transaction
         for prev_account, prev_char in previous_mapping.items():
