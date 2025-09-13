@@ -154,6 +154,7 @@ class DAG:
         # Composants ICGS Phase 2 intégrés selon blueprint
         self.account_taxonomy = AccountTaxonomy()
         self.anchored_nfa: Optional[AnchoredWeightedNFA] = None
+        self.nfa_taxonomy_version: Optional[int] = None  # Version taxonomie pour optimisation NFA
         self.path_enumerator = DAGPathEnumerator(
             self.account_taxonomy, 
             max_paths=self.configuration.max_path_enumeration
@@ -547,18 +548,53 @@ class DAG:
         # Fallback: caractère par défaut
         return None  # Auto-assignment 'N'
     
+    def _nfa_update_needed(self, transaction: Transaction) -> bool:
+        """
+        Détermine si mise à jour NFA nécessaire pour transaction
+
+        Optimisation: Évite deepcopy quand NFA stable peut être réutilisé.
+
+        Returns:
+            True si deepcopy + mise à jour nécessaire, False si version stable OK
+        """
+        # Cas 1: Pas de NFA existant
+        if not self.anchored_nfa:
+            return True
+
+        # Cas 2: Version taxonomie changée depuis dernière mise à jour NFA
+        current_taxonomy_version = len(self.account_taxonomy.taxonomy_history)
+        if self.nfa_taxonomy_version != current_taxonomy_version:
+            return True
+
+        # Cas 3: Nouveaux patterns regex pas encore dans NFA
+        # (Pour simplicité, on assume que tous patterns transaction nécessitent mise à jour)
+        # Une optimisation future pourrait tracker patterns déjà ajoutés
+        if transaction.source_measures or transaction.target_measures:
+            return True
+
+        return False
+
     def _create_temporary_nfa_for_transaction(self, transaction: Transaction) -> AnchoredWeightedNFA:
         """
         Création NFA temporaire avec mesures transaction
-        
+
+        OPTIMISÉ: Évite deepcopy inutile si NFA stable peut être réutilisé.
         Combine NFA existant avec nouvelles mesures transaction pour
         évaluation cohérente sans modification état permanent.
         """
-        # Créer copie NFA existant ou nouveau si pas encore existant
-        if self.anchored_nfa:
-            temp_nfa = copy.deepcopy(self.anchored_nfa)
+        # OPTIMISATION: Détection nécessité mise à jour
+        if self._nfa_update_needed(transaction):
+            # Mise à jour nécessaire - deepcopy + modification (comportement original)
+            if self.anchored_nfa:
+                temp_nfa = copy.deepcopy(self.anchored_nfa)
+                self.logger.debug("NFA deepcopy required - taxonomy/patterns changed")
+            else:
+                temp_nfa = AnchoredWeightedNFA(f"transaction_{self.transaction_counter}")
+                self.logger.debug("New NFA created - no existing NFA")
         else:
-            temp_nfa = AnchoredWeightedNFA(f"transaction_{self.transaction_counter}")
+            # Version stable suffisante - réutilisation sans copie (OPTIMISATION)
+            self.logger.debug("NFA reuse optimization - stable version used")
+            return self.anchored_nfa
         
         # Ajout mesures source
         for measure in transaction.source_measures:
@@ -816,8 +852,11 @@ class DAG:
                 measure.primary_regex_pattern,
                 measure.primary_regex_weight
             )
-        
-        self.logger.debug(f"Transaction {transaction.transaction_id} committed atomically")
+
+        # OPTIMISATION: Mise à jour version taxonomie pour éviter deepcopy inutile
+        self.nfa_taxonomy_version = len(self.account_taxonomy.taxonomy_history)
+
+        self.logger.debug(f"Transaction {transaction.transaction_id} committed atomically (NFA version: {self.nfa_taxonomy_version})")
     
     def _get_or_create_account(self, account_id: str) -> Account:
         """
