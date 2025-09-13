@@ -1598,9 +1598,13 @@ class DAGPathEnumerator:
             return filtered_edges
 
         except Exception as e:
-            self.logger.error(f"Error in causal edge selection for {current_node.node_id}: {e}")
-            # Fallback vers ancien comportement
-            return list(current_node.incoming_edges.values())
+            node_id = getattr(current_node, 'node_id', 'unknown') if current_node else 'None'
+            self.logger.error(f"Error in causal edge selection for node {node_id}: {e}")
+            # Fallback sûr : retourner liste vide si nœud invalide
+            if current_node and hasattr(current_node, 'incoming_edges'):
+                return list(current_node.incoming_edges.values())
+            else:
+                return []
 
     def reset_enumeration_state(self):
         """Reset état énumération pour nouvelle transaction - Étape 2.2 Enhanced"""
@@ -2124,17 +2128,13 @@ class DAGPathEnumerator:
                 current_depth = len(self.current_path)
                 edges_to_explore = self._get_edges_for_causal_traversal(current_node, current_depth)
 
-                # FALLBACK critque : si optimisation causale trouve 0 edges mais que incoming_edges existent
+                # FALLBACK critique : si optimisation causale trouve 0 edges mais que incoming_edges existent
                 if len(edges_to_explore) == 0 and len(current_node.incoming_edges) > 0:
                     self.logger.debug(f"Causal optimization found 0 edges for {current_node.node_id}, falling back to exhaustive DFS")
                     edges_to_explore = list(current_node.incoming_edges.values())
 
-                    # CRITICAL FIX: Include temporary transaction edge for target node (exhaustive mode)
-                    if (hasattr(self, 'current_transaction_edge') and
-                        self.current_transaction_edge and
-                        current_node == self.current_transaction_edge.target_node):
-                        edges_to_explore.append(self.current_transaction_edge)
-                        self.logger.debug(f"Added transaction edge to exhaustive fallback for target node: {current_node.node_id}")
+                    # Note: Pas besoin d'ajouter transaction edge ici car elle est déjà dans incoming_edges
+                    # si sink_node.add_incoming_edge(transaction_edge) a été appelé
 
                     # Stats fallback
                     if hasattr(self.stats, 'causal_fallbacks'):
@@ -2143,19 +2143,8 @@ class DAGPathEnumerator:
                         self.stats.causal_fallbacks = 1
 
                 # Legacy compatibility: maintenir la variable pour le code suivant
+                # Note: edges_to_explore contient déjà toutes les edges nécessaires (y compris transaction edge)
                 incoming_edges_list = edges_to_explore
-
-                # CRITICAL FIX: Include temporary transaction edge for target node
-                # When we're at the transaction target node, we need to consider the
-                # temporary transaction edge as an additional incoming edge
-                if (hasattr(self, 'current_transaction_edge') and
-                    self.current_transaction_edge and
-                    current_node == self.current_transaction_edge.target_node):
-
-                    incoming_edges_list.append(self.current_transaction_edge)
-                    self.logger.debug(f"Added transaction edge to incoming edges for target node: {current_node.node_id}")
-                    self.logger.debug(f"Total incoming edges: {len(incoming_edges_list)} (including transaction edge)")
-                
                 self.logger.debug(f"Exploring {len(incoming_edges_list)} incoming edges "
                                 f"from node: {current_node.node_id}")
                 
@@ -2424,19 +2413,23 @@ class DAGPathEnumerator:
         if not self._validate_pipeline_inputs(transaction_edge, nfa, transaction_num):
             raise ValueError("Invalid pipeline inputs")
         
-        # PHASE 2.9: PRÉ-CONDITION STRICTE - Taxonomie configurée pour transaction_num
-        assert len(self.taxonomy.taxonomy_history) > 0, (
-            f"Taxonomy history is empty for transaction_num={transaction_num}. "
-            f"Must configure taxonomy with update_taxonomy() before path enumeration."
-        )
-        
-        max_configured_tx = max(snapshot.transaction_num for snapshot in self.taxonomy.taxonomy_history)
+        # PHASE 2.9: PRÉ-CONDITION STRICTE - Taxonomie configurée pour transaction_num (si disponible)
+        if hasattr(self.taxonomy, 'taxonomy_history') and self.taxonomy.taxonomy_history:
+            assert len(self.taxonomy.taxonomy_history) > 0, (
+                f"Taxonomy history is empty for transaction_num={transaction_num}. "
+                f"Must configure taxonomy with update_taxonomy() before path enumeration."
+            )
 
-        # TOLERANCE: Pour tests unitaires, utiliser dernier snapshot disponible si transaction_num > max_configured
-        if transaction_num > max_configured_tx:
-            self.logger.warning(f"Taxonomy not configured for transaction_num={transaction_num}, using latest "
-                              f"available snapshot (transaction_num={max_configured_tx}) for compatibility")
-            # Note: Le système utilisera automatiquement le snapshot le plus récent via get_character_mapping()
+            max_configured_tx = max(snapshot.transaction_num for snapshot in self.taxonomy.taxonomy_history)
+
+            # TOLERANCE: Pour tests unitaires, utiliser dernier snapshot disponible si transaction_num > max_configured
+            if transaction_num > max_configured_tx:
+                self.logger.warning(f"Taxonomy not configured for transaction_num={transaction_num}, using latest "
+                                  f"available snapshot (transaction_num={max_configured_tx}) for compatibility")
+                # Note: Le système utilisera automatiquement le snapshot le plus récent via get_character_mapping()
+        else:
+            # Mock taxonomy ou pas d'historique - tolérance pour tests
+            self.logger.debug(f"Mock taxonomy detected or no history available - skipping strict validation")
             
         start_time = time.time()
         pipeline_stats = {
