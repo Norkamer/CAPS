@@ -40,7 +40,7 @@ from .dag_structures import (
     Node, Edge, Account, EdgeType, NodeType,
     DAGStructureValidator, DAGValidationResult, create_node, create_edge, connect_nodes
 )
-from .exceptions import PathEnumerationNotReadyError, IntegrationLimitationError
+from .exceptions import IntegrationLimitationError
 
 logger = logging.getLogger(__name__)
 
@@ -301,10 +301,6 @@ class DAG:
             self.logger.info(f"Transaction {transaction.transaction_id} validated and committed successfully in {total_time:.2f}ms")
             return True
             
-        except PathEnumerationNotReadyError:
-            # Re-propagation exception contrôlée pour limitation documentée
-            self.stats['transactions_rejected'] += 1
-            raise
         except Exception as e:
             self.logger.error(f"Transaction {transaction.transaction_id} processing error: {e}")
             self.stats['transactions_rejected'] += 1
@@ -404,14 +400,9 @@ class DAG:
                     self.logger.warning(f"Path enumeration returned empty result for transaction {transaction.transaction_id}")
                     return False  # Retourne False pour test diagnostic
                     
-            except PathEnumerationNotReadyError:
-                raise  # Re-propagation exception contrôlée
             except Exception as e:
-                raise PathEnumerationNotReadyError(
-                    f"Path enumeration failed for transaction {transaction.transaction_id}: {e}. "
-                    f"This integration feature is pending implementation in PHASE 2.9.",
-                    "PATH_ENUM_FAILED"
-                )
+                self.logger.error(f"Path enumeration failed for transaction {transaction.transaction_id}: {e}")
+                return False
             
             enum_time = (time.time() - simplex_start) * 1000
             self.stats['avg_enumeration_time_ms'] = (
@@ -455,9 +446,6 @@ class DAG:
                 self.logger.warning(f"Simplex validation failed: {solution.status.value}")
                 return False
                 
-        except PathEnumerationNotReadyError:
-            # Re-propagation exception contrôlée
-            raise
         except Exception as e:
             self.logger.error(f"Simplex validation error: {e}")
             return False

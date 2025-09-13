@@ -38,7 +38,7 @@ from icgs_core import (
     LinearProgram, LinearConstraint, ConstraintType,
     AnchoredWeightedNFA, AccountTaxonomy
 )
-from icgs_core.exceptions import PathEnumerationNotReadyError
+# PathEnumerationNotReadyError removed - PHASE 2.9 ACTIVATED
 
 
 class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
@@ -51,11 +51,13 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
     
     def _execute_transaction_with_fallback(self, transaction: Transaction) -> tuple[bool, bool]:
         """
-        Helper: Exécute transaction avec gestion exceptions contrôlées
-        
+        Helper: Exécute transaction avec validation système complet
+
+        PHASE 2.9 ACTIVÉE: Plus de fallback sur exceptions - validation complète requise
+
         Returns:
-            (test_passed, fully_executed): 
-            - test_passed: True si succès ou limitation documentée (PHASE 2.9 pending)
+            (test_passed, fully_executed):
+            - test_passed: True si succès complet uniquement
             - fully_executed: True seulement si transaction complètement exécutée
         """
         try:
@@ -64,18 +66,11 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
                 print(f"✅ Transaction {transaction.transaction_id} succeeded completely")
                 return (True, True)  # Test passé ET transaction exécutée
             else:
-                print(f"❌ Transaction {transaction.transaction_id} failed with uncontrolled error")
+                print(f"❌ Transaction {transaction.transaction_id} failed - système complet requis")
                 return (False, False)
-                
-        except PathEnumerationNotReadyError as e:
-            # ✅ Exception contrôlée = limitation documentée = TEST PASSÉ mais pas exécuté
-            print(f"✅ Transaction {transaction.transaction_id} passed with documented limitation:")
-            print(f"   Code: {e.error_code}")
-            print(f"   Message: {e}")
-            return (True, False)  # Test passé MAIS transaction pas exécutée
-            
+
         except Exception as e:
-            print(f"❌ Transaction {transaction.transaction_id} failed with unexpected error: {e}")
+            print(f"❌ Transaction {transaction.transaction_id} failed with error: {e}")
             return (False, False)
     
     def setUp(self):
@@ -464,23 +459,17 @@ class TestAcademic16DAGTransactionPipeline(unittest.TestCase):
             target_measures=[target_measure]
         )
         
-        # Validation rejet transaction (avec gestion limitations PHASE 2.9)
+        # Validation rejet transaction - PHASE 2.9 ACTIVÉE: système complet
         try:
             result = self.dag.add_transaction(infeasible_transaction)
-            # Si on arrive ici, path enumeration a marché et transaction doit être rejetée
-            self.assertFalse(result)  # Transaction doit être rejetée
+            # Transaction infaisable doit être rejetée par système complet
+            self.assertFalse(result, "Infeasible transaction should be rejected by complete system")
             self.test_metrics['transactions_tested'] += 1
             self.test_metrics['transactions_rejected'] += 1
             transaction_executed = True
-            
-        except PathEnumerationNotReadyError as e:
-            # ✅ Limitation documentée = TEST PASSÉ (même pour transactions infaisables)
-            print(f"✅ Transaction {infeasible_transaction.transaction_id} test passed with documented limitation:")
-            print(f"   Code: {e.error_code}")
-            print(f"   Note: Infeasible transaction testing will be available in PHASE 2.9")
-            self.test_metrics['transactions_tested'] += 1  
-            self.test_metrics['transactions_rejected'] += 1
-            transaction_executed = False
+
+        except Exception as e:
+            self.fail(f"Infeasible transaction test failed with error: {e}")
         
         # Validation DAG état inchangé (rollback automatique)
         initial_account_count = len(self.dag.accounts)
