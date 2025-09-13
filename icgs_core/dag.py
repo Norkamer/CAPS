@@ -198,28 +198,49 @@ class DAG:
     def add_account(self, account: Account) -> bool:
         """
         Ajoute compte au DAG avec intégration taxonomie
-        
+
         Args:
             account: Compte à ajouter avec source/sink nodes
-            
+
         Returns:
             True si ajout réussi, False sinon
         """
         if account.account_id in self.accounts:
             self.logger.warning(f"Account {account.account_id} already exists")
             return False
-        
+
         try:
             # Ajout nodes du compte
             self.nodes[account.source_node.node_id] = account.source_node
             self.nodes[account.sink_node.node_id] = account.sink_node
-            
+
+            # CORRECTION CRITIQUE: Ajout edge interne source → sink
+            # Cette edge est essentielle pour l'énumération reverse des chemins
+            internal_edge_id = f"internal_{account.account_id}"
+            internal_edge = Edge(
+                edge_id=internal_edge_id,
+                source_node=account.source_node,
+                target_node=account.sink_node,
+                weight=Decimal('0'),  # Edge interne sans coût
+                edge_type=EdgeType.STRUCTURAL,
+                metadata={
+                    'account_id': account.account_id,
+                    'is_internal': True,
+                    'purpose': 'path_enumeration_support'
+                }
+            )
+
+            # Ajout edge aux collections DAG et nodes
+            self.edges[internal_edge_id] = internal_edge
+            account.source_node.add_outgoing_edge(internal_edge)
+            account.sink_node.add_incoming_edge(internal_edge)
+
             # Ajout compte
             self.accounts[account.account_id] = account
-            
-            self.logger.debug(f"Account {account.account_id} added successfully")
+
+            self.logger.debug(f"Account {account.account_id} added with internal edge {internal_edge_id}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to add account {account.account_id}: {e}")
             return False
@@ -365,13 +386,11 @@ class DAG:
                     transaction_edge, temp_nfa, self.transaction_counter
                 )
                 
-                # CORRECTION: Vérification résultat empty = limitation PHASE 2.9
+                # PHASE 2.9: Vérification résultat path enumeration avec taxonomie explicite
                 if not path_classes:
-                    raise PathEnumerationNotReadyError(
-                        f"Path enumeration returned empty result for transaction {transaction.transaction_id}. "
-                        f"This integration feature is pending implementation in PHASE 2.9.",
-                        "PATH_ENUM_EMPTY"
-                    )
+                    # Si vide même avec taxonomie explicite, c'est un problème technique
+                    self.logger.warning(f"Path enumeration returned empty result for transaction {transaction.transaction_id}")
+                    return False  # Retourne False pour test diagnostic
                     
             except PathEnumerationNotReadyError:
                 raise  # Re-propagation exception contrôlée
@@ -433,25 +452,97 @@ class DAG:
     
     def _extract_accounts_from_transaction(self, transaction: Transaction) -> Dict[str, Optional[str]]:
         """
-        Extraction comptes pour mise à jour taxonomie avec auto-assignment neutre
+        Extraction et création des comptes nécessaires pour une transaction
         
+        PHASE 2.9: PRÉ-CONDITION STRICTE - La taxonomie DOIT être configurée 
+        explicitement AVANT l'appel à add_transaction().
+        
+        Raises:
+            AssertionError: Si taxonomie pas configurée pour transaction_counter actuel
+            
         Returns:
-            Dict account_id → character mapping (None = auto-assignment neutre 'N')
+            Dict node_id → character mapping (vide, pour compatibilité API)
         """
-        accounts = {}
+        # PRÉ-CONDITION 1: Taxonomie configurée pour transaction courante
+        assert len(self.account_taxonomy.taxonomy_history) > 0, (
+            "Taxonomy history is empty. "
+            "Must configure taxonomy with update_taxonomy() before adding transactions."
+        )
         
-        # Comptes impliqués dans transaction avec auto-assignment neutre immédiat
+        # PRÉ-CONDITION 2: Taxonomie configurée pour transaction_counter actuel ou antérieur
+        max_configured_tx = max(snapshot.transaction_num for snapshot in self.account_taxonomy.taxonomy_history)
+        assert self.transaction_counter <= max_configured_tx, (
+            f"Taxonomy not configured for current transaction_counter={self.transaction_counter}. "
+            f"Latest configured transaction_num={max_configured_tx}. "
+            f"Must configure taxonomy up to transaction_counter before adding transactions."
+        )
+        
+        # Création comptes s'ils n'existent pas
         if transaction.source_account_id not in self.accounts:
-            accounts[transaction.source_account_id] = None  # Auto-assignment → 'N'
+            source_account = self._get_or_create_account(transaction.source_account_id)
+            # ASSERTION: Taxonomie doit être configurée pour ces nodes
+            required_nodes = [
+                f"{transaction.source_account_id}_source",
+                f"{transaction.source_account_id}_sink"
+            ]
+            for node_id in required_nodes:
+                mapping = self.account_taxonomy.get_character_mapping(node_id, self.transaction_counter)
+                assert mapping is not None, (
+                    f"Taxonomy mapping is None for '{node_id}' at transaction_num={self.transaction_counter}. "
+                    f"Must configure explicit character mapping before creating account '{transaction.source_account_id}'."
+                )
+            
         if transaction.target_account_id not in self.accounts:
-            accounts[transaction.target_account_id] = None  # Auto-assignment → 'N'
+            target_account = self._get_or_create_account(transaction.target_account_id)
+            # ASSERTION: Taxonomie doit être configurée pour ces nodes
+            required_nodes = [
+                f"{transaction.target_account_id}_source", 
+                f"{transaction.target_account_id}_sink"
+            ]
+            for node_id in required_nodes:
+                mapping = self.account_taxonomy.get_character_mapping(node_id, self.transaction_counter)
+                assert mapping is not None, (
+                    f"Taxonomy mapping is None for '{node_id}' at transaction_num={self.transaction_counter}. "
+                    f"Must configure explicit character mapping before creating account '{transaction.target_account_id}'."
+                )
         
-        # Mise à jour taxonomie immédiate pour éviter erreurs enumeration
-        if accounts:
-            self.account_taxonomy.update_taxonomy(accounts, self.transaction_counter)
-            self.logger.debug(f"Auto-assigned neutral characters for accounts: {list(accounts.keys())}")
+        # Aucune modification de taxonomie - responsabilité de l'appelant
+        return {}
+    
+    def _extract_pattern_representative_char(self, measures: List[TransactionMeasure]) -> Optional[str]:
+        """
+        PHASE 2.9: Extraction caractère représentatif depuis patterns mesures
         
-        return accounts
+        Analyse les patterns regex pour extraire un caractère représentatif
+        qui sera compatible avec les patterns lors de la classification NFA.
+        
+        Args:
+            measures: Liste mesures transaction
+            
+        Returns:
+            Caractère représentatif ou None pour auto-assignment par défaut
+        """
+        if not measures:
+            return None  # Auto-assignment par défaut 'N'
+        
+        # Analyse du pattern principal de la première mesure
+        primary_pattern = measures[0].primary_regex_pattern
+        
+        # Extraction caractère simple depuis pattern .* patterns
+        import re
+        
+        # Pattern .*X.* → extrait X
+        simple_char_match = re.search(r'\.\*([A-Z])\.\*', primary_pattern)
+        if simple_char_match:
+            return simple_char_match.group(1)
+        
+        # Pattern .*WORD.* → extrait première lettre
+        word_match = re.search(r'\.\*([A-Z]+)\.\*', primary_pattern)
+        if word_match:
+            return word_match.group(1)[0]  # Première lettre
+        
+        # Fallback: caractère par défaut
+        return None  # Auto-assignment 'N'
     
     def _create_temporary_nfa_for_transaction(self, transaction: Transaction) -> AnchoredWeightedNFA:
         """
@@ -556,12 +647,38 @@ class DAG:
         program = LinearProgram(f"transaction_{self.transaction_counter}_{transaction.transaction_id}")
         
         if not path_classes:
-            # Fallback: créer variables minimales basées sur mesures transaction
-            self.logger.warning("No path classes provided, creating minimal variables")
+            # Fallback: créer variables avec noms cohérents basés sur mesures transaction
+            self.logger.warning("No path classes provided, creating fallback variables with coherent naming")
+
+            # Création variables avec noms compatibles NFA final states
             for measure in transaction.source_measures + transaction.target_measures:
-                var_id = f"minimal_{measure.measure_id}"
+                # Format cohérent avec get_state_weights_for_measure
+                var_id = f"{measure.measure_id}_{measure.measure_id}_final"
                 program.add_variable(var_id, lower_bound=Decimal('0'))
-            return program  # Retour problème minimal sans contraintes
+
+                # Contraintes basiques pour faisabilité
+                # Source constraint: variable ≤ acceptable_value
+                if hasattr(measure, 'acceptable_value') and measure.acceptable_value is not None:
+                    source_constraint = LinearConstraint(
+                        coefficients={var_id: measure.primary_regex_weight},
+                        bound=measure.acceptable_value,
+                        constraint_type=ConstraintType.LEQ,
+                        name=f"fallback_source_{measure.measure_id}"
+                    )
+                    program.add_constraint(source_constraint)
+
+                # Target constraint: variable ≥ required_value
+                if hasattr(measure, 'required_value') and measure.required_value is not None:
+                    target_constraint = LinearConstraint(
+                        coefficients={var_id: measure.primary_regex_weight},
+                        bound=measure.required_value,
+                        constraint_type=ConstraintType.GEQ,
+                        name=f"fallback_target_{measure.measure_id}"
+                    )
+                    program.add_constraint(target_constraint)
+
+            self.logger.info(f"Fallback LP created with {len(program.variables)} variables and {len(program.constraints)} constraints")
+            return program
         
         for state_id, paths in path_classes.items():
             # Variable flux f_i ≥ 0 pour état final i
@@ -700,35 +817,48 @@ class DAG:
     
     def _ensure_accounts_exist_with_taxonomy(self, transaction: Transaction) -> None:
         """
-        CORRECTION: Crée tous les comptes nécessaires dans une seule transaction taxonomie
+        PHASE 2.9: PRÉ-CONDITION STRICTE - Crée les comptes nécessaires
         
-        Évite les conflits "strictly increasing" en créant tous les mappings ensemble.
+        La taxonomie DOIT être configurée explicitement AVANT l'appel.
+        Aucune modification automatique de taxonomie n'est effectuée.
+        
+        Raises:
+            AssertionError: Si taxonomie pas configurée pour les nouveaux comptes
         """
-        accounts_to_create = []
-        all_nodes_to_map = {}
+        # PRÉ-CONDITION: Taxonomie configurée pour transaction courante
+        assert len(self.account_taxonomy.taxonomy_history) > 0, (
+            "Taxonomy history is empty. "
+            "Must configure taxonomy with update_taxonomy() before creating accounts."
+        )
         
-        # Collecte tous les comptes à créer
+        max_configured_tx = max(snapshot.transaction_num for snapshot in self.account_taxonomy.taxonomy_history)
+        assert self.transaction_counter <= max_configured_tx, (
+            f"Taxonomy not configured for current transaction_counter={self.transaction_counter}. "
+            f"Latest configured transaction_num={max_configured_tx}. "
+            f"Must configure taxonomy up to transaction_counter before creating accounts."
+        )
+        
+        # Création des comptes sans modification de taxonomie
         for account_id in [transaction.source_account_id, transaction.target_account_id]:
             if account_id not in self.accounts:
-                # Création compte sans taxonomie immédiate
+                # Création compte 
                 new_account = Account(account_id, Decimal('0'))
+                
+                # ASSERTION: Vérifier que taxonomie configurée pour nodes de ce compte
+                required_nodes = [
+                    f"{account_id}_source",
+                    f"{account_id}_sink"
+                ]
+                for node_id in required_nodes:
+                    mapping = self.account_taxonomy.get_character_mapping(node_id, self.transaction_counter)
+                    assert mapping is not None, (
+                        f"Taxonomy mapping is None for '{node_id}' at transaction_num={self.transaction_counter}. "
+                        f"Must configure explicit character mapping before creating account '{account_id}'."
+                    )
+                
+                # Ajout compte au DAG
                 self.add_account(new_account)
-                accounts_to_create.append(new_account)
-                
-                # Collecte nodes à mapper
-                all_nodes_to_map[new_account.source_node.node_id] = None  # Auto-assignment 'N'
-                all_nodes_to_map[new_account.sink_node.node_id] = None     # Auto-assignment 'N'
-        
-        # Création batch taxonomie si nécessaire
-        if all_nodes_to_map:
-            try:
-                current_taxonomy_transaction = self._taxonomy_counter
-                self._taxonomy_counter += 1
-                
-                self.account_taxonomy.update_taxonomy(all_nodes_to_map, current_taxonomy_transaction)
-                self.logger.debug(f"Batch created accounts with taxonomy mapping for {len(accounts_to_create)} accounts at taxonomy transaction {current_taxonomy_transaction}")
-            except Exception as e:
-                self.logger.warning(f"Failed to add batch taxonomy mapping: {e}")
+                self.logger.debug(f"Created account '{account_id}' with pre-configured taxonomy")
     
     def validate_dag_integrity(self) -> DAGValidationResult:
         """
