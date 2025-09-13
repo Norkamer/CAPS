@@ -562,6 +562,9 @@ class DAG:
             return True
 
         # Cas 2: Version taxonomie changée depuis dernière mise à jour NFA
+        # NOTE: Pas NÉCESSAIRE aujourd'hui (taxonomie/NFA indépendants), mais le deviendra.
+        # Future: NFA pourrait optimiser patterns selon caractères disponibles en taxonomie.
+        # À optimiser à ce moment-là pour éviter deepcopy inutile quand changement taxonomie isolé.
         current_taxonomy_version = len(self.account_taxonomy.taxonomy_history)
         if self.nfa_taxonomy_version != current_taxonomy_version:
             return True
