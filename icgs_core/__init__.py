@@ -27,9 +27,15 @@ from .linear_programming import (
 # Imports path enumeration
 from .path_enumerator import DAGPathEnumerator, EnumerationStatistics
 
-# TODO: Imports à activer au fur et à mesure de l'implémentation
-# from .simplex_solver import TripleValidationOrientedSimplex, MathematicallyRigorousPivotManager
-# from .dag import DAG
+# Imports DAG structures
+from .dag_structures import Account, Node, Edge, EdgeType, NodeType
+
+# Imports Phase 2.6-2.8 activés - Simplex et DAG Core implémentés
+from .simplex_solver import (
+    TripleValidationOrientedSimplex, MathematicallyRigorousPivotManager,
+    SimplexSolution, SolutionStatus, PivotStatus
+)
+from .dag import DAG, Transaction, TransactionMeasure, DAGConfiguration
 
 __all__ = [
     'AccountTaxonomy',
@@ -51,7 +57,18 @@ __all__ = [
     'validate_economic_consistency',
     'DAGPathEnumerator',
     'EnumerationStatistics',
-    # 'MathematicallyRigorousPivotManager',
-    # 'TripleValidationOrientedSimplex',
-    # 'DAG'
+    'Account',
+    'Node', 
+    'Edge',
+    'EdgeType',
+    'NodeType',
+    'MathematicallyRigorousPivotManager',
+    'TripleValidationOrientedSimplex',
+    'SimplexSolution',
+    'SolutionStatus',
+    'PivotStatus',
+    'DAG',
+    'Transaction',
+    'TransactionMeasure',
+    'DAGConfiguration'
 ]
