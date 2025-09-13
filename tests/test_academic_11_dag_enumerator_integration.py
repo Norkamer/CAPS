@@ -32,11 +32,16 @@ class TestAcademicDAGEnumeratorIntegration:
         # Création taxonomy minimal pour tests
         self.taxonomy = AccountTaxonomy()
         
-        # Ajout mappings minimal pour tests via update_taxonomy
+        # PHASE 2.9: Configuration taxonomie pour transactions 0 et 1 (utilisées dans tests)
         test_accounts = ["test_source", "test_intermediate", "test_sink", 
                         "integration_source", "integration_sink"]
         account_mappings = {account: chr(65 + i) for i, account in enumerate(test_accounts)}
+        
+        # Configuration pour transaction_num=0
         self.taxonomy.update_taxonomy(account_mappings, transaction_num=0)
+        
+        # Configuration pour transaction_num=1 (utilisée dans plusieurs tests)
+        self.taxonomy.update_taxonomy(account_mappings, transaction_num=1)
         
         # PathEnumerator avec DAG integration
         self.enumerator = DAGPathEnumerator(self.taxonomy, max_paths=50, batch_size=10)

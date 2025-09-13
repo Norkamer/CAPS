@@ -48,7 +48,9 @@ class TestAcademicMultiSourceEnumeration:
             'overlap_source_a': 'α', 'overlap_source_b': 'β', 'overlap_source_c': 'γ',
             'shared_intermediate': 'δ', 'overlap_target': 'ε'
         }
+        # PHASE 2.9: Configuration taxonomie pour plusieurs transactions utilisées dans tests
         self.taxonomy.update_taxonomy(test_accounts, 1)
+        self.taxonomy.update_taxonomy(test_accounts, 2)  # Ajout transaction_num=2
         
         # Create enumerator avec taxonomy
         self.enumerator = DAGPathEnumerator(self.taxonomy, max_paths=200, batch_size=50)

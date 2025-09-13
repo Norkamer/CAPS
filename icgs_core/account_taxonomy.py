@@ -82,9 +82,13 @@ class AccountTaxonomy:
             self.account_registry.add(account_id)
             
             if requested_char is None:
-                # Auto-assignment nécessaire
-                auto_assign_accounts.append(account_id)
-                self.stats['auto_assignments'] += 1
+                # RÈGLE D'OR THOMPSON'S NFA: Taxonomie manuelle obligatoire
+                # Auto-assignment interdit pour respect "1 caractère = 1 transition"
+                raise ValueError(
+                    f"Manual taxonomy required for account '{account_id}' in transaction {transaction_num}. "
+                    f"Auto-assignment violated Thompson's NFA golden rule: '1 character = 1 transition'. "
+                    f"Please provide explicit character mapping instead of None."
+                )
             else:
                 # Validation caractère demandé
                 if not self._is_valid_utf32_character(requested_char):
