@@ -2661,3 +2661,835 @@ class DAGPathEnumerator:
             health_report['overall_health'] = 'WARNING'
         
         return health_report
+    
+    # ==================== ÉTAPE 2.5: DAG TOPOLOGY ANALYSIS ====================
+    
+    def analyze_dag_topology(self, nodes: List[Node], edges: List[Edge], 
+                           source_nodes: List[Node] = None, 
+                           target_node: Node = None) -> Dict[str, Any]:
+        """
+        Analyse topologique complète du DAG pour optimisation enumeration - Étape 2.5
+        
+        Topology Analysis:
+        - Node centrality metrics (betweenness, closeness, degree)
+        - Connectivity patterns et bottlenecks identification
+        - Path complexity analysis avec branching factor
+        - Critical path identification pour optimization
+        
+        Args:
+            nodes: List des nodes du DAG
+            edges: List des edges du DAG
+            source_nodes: Sources optionnelles pour analysis ciblée
+            target_node: Target optionnel pour analysis ciblée
+            
+        Returns:
+            Dict[str, Any]: Analyse topologique complète avec métriques optimization
+        """
+        import time
+        from collections import defaultdict, deque
+        
+        analysis_start = time.time()
+        topology_metrics = {}
+        
+        try:
+            self.logger.info(f"Starting DAG topology analysis: {len(nodes)} nodes, {len(edges)} edges")
+            
+            # Phase 1: Basic topology metrics
+            topology_metrics.update(self._calculate_basic_topology_metrics(nodes, edges))
+            
+            # Phase 2: Node centrality analysis
+            centrality_metrics = self._analyze_node_centrality(nodes, edges)
+            topology_metrics['centrality_analysis'] = centrality_metrics
+            
+            # Phase 3: Connectivity patterns analysis
+            connectivity_analysis = self._analyze_connectivity_patterns(nodes, edges)
+            topology_metrics['connectivity_analysis'] = connectivity_analysis
+            
+            # Phase 4: Path complexity analysis
+            complexity_analysis = self._analyze_path_complexity(nodes, edges, source_nodes, target_node)
+            topology_metrics['path_complexity'] = complexity_analysis
+            
+            # Phase 5: Critical path identification
+            critical_paths = self._identify_critical_paths(nodes, edges, source_nodes, target_node)
+            topology_metrics['critical_paths'] = critical_paths
+            
+            # Phase 6: Optimization recommendations
+            optimization_recommendations = self._generate_topology_optimizations(
+                topology_metrics, source_nodes, target_node
+            )
+            topology_metrics['optimization_recommendations'] = optimization_recommendations
+            
+            analysis_time = (time.time() - analysis_start) * 1000
+            topology_metrics['analysis_summary'] = {
+                'analysis_time_ms': analysis_time,
+                'nodes_analyzed': len(nodes),
+                'edges_analyzed': len(edges),
+                'sources_considered': len(source_nodes) if source_nodes else 0,
+                'target_considered': bool(target_node),
+                'bottlenecks_identified': len(connectivity_analysis.get('bottlenecks', [])),
+                'critical_paths_found': len(critical_paths.get('identified_paths', []))
+            }
+            
+            self.logger.info(f"DAG topology analysis completed in {analysis_time:.2f}ms")
+            return topology_metrics
+            
+        except Exception as e:
+            error_time = (time.time() - analysis_start) * 1000
+            self.logger.error(f"DAG topology analysis failed after {error_time:.2f}ms: {e}")
+            raise RuntimeError(f"DAG topology analysis failed: {e}") from e
+    
+    def _calculate_basic_topology_metrics(self, nodes: List[Node], 
+                                        edges: List[Edge]) -> Dict[str, Any]:
+        """
+        Calcul métriques topologiques de base - Étape 2.5
+        
+        Basic Metrics:
+        - Node count et distribution
+        - Edge density et distribution
+        - Degree statistics (in/out/total)
+        - Graph diameter estimation
+        """
+        from collections import defaultdict
+        
+        try:
+            # Degree calculations
+            in_degrees = defaultdict(int)
+            out_degrees = defaultdict(int)
+            
+            for edge in edges:
+                out_degrees[edge.source_node.node_id] += 1
+                in_degrees[edge.target_node.node_id] += 1
+            
+            # Node classification
+            source_nodes = [node for node in nodes if in_degrees[node.node_id] == 0]
+            sink_nodes = [node for node in nodes if out_degrees[node.node_id] == 0]
+            intermediate_nodes = [node for node in nodes 
+                                if in_degrees[node.node_id] > 0 and out_degrees[node.node_id] > 0]
+            
+            # Degree statistics
+            in_degree_values = list(in_degrees.values())
+            out_degree_values = list(out_degrees.values())
+            total_degrees = [in_degrees[node.node_id] + out_degrees[node.node_id] for node in nodes]
+            
+            basic_metrics = {
+                'node_count': len(nodes),
+                'edge_count': len(edges),
+                'edge_density': len(edges) / (len(nodes) * (len(nodes) - 1)) if len(nodes) > 1 else 0,
+                'node_classification': {
+                    'source_nodes': len(source_nodes),
+                    'sink_nodes': len(sink_nodes),
+                    'intermediate_nodes': len(intermediate_nodes)
+                },
+                'degree_statistics': {
+                    'avg_in_degree': sum(in_degree_values) / len(nodes) if nodes else 0,
+                    'avg_out_degree': sum(out_degree_values) / len(nodes) if nodes else 0,
+                    'max_in_degree': max(in_degree_values) if in_degree_values else 0,
+                    'max_out_degree': max(out_degree_values) if out_degree_values else 0,
+                    'avg_total_degree': sum(total_degrees) / len(nodes) if nodes else 0
+                }
+            }
+            
+            return basic_metrics
+            
+        except Exception as e:
+            self.logger.error(f"Basic topology metrics calculation failed: {e}")
+            raise RuntimeError(f"Basic topology metrics failed: {e}") from e
+    
+    def _analyze_node_centrality(self, nodes: List[Node], 
+                               edges: List[Edge]) -> Dict[str, Any]:
+        """
+        Analyse centralité des nœuds pour identification bottlenecks - Étape 2.5
+        
+        Centrality Metrics:
+        - Degree centrality (normalized)
+        - Betweenness centrality estimation
+        - Closeness centrality estimation
+        - Critical node identification
+        """
+        from collections import defaultdict, deque
+        import heapq
+        
+        try:
+            # Build adjacency lists
+            adjacency = defaultdict(list)
+            reverse_adjacency = defaultdict(list)
+            
+            for edge in edges:
+                adjacency[edge.source_node.node_id].append(edge.target_node.node_id)
+                reverse_adjacency[edge.target_node.node_id].append(edge.source_node.node_id)
+            
+            node_ids = [node.node_id for node in nodes]
+            
+            # Degree centrality
+            degree_centrality = {}
+            max_possible_degree = len(nodes) - 1
+            
+            for node_id in node_ids:
+                total_degree = len(adjacency[node_id]) + len(reverse_adjacency[node_id])
+                degree_centrality[node_id] = total_degree / max_possible_degree if max_possible_degree > 0 else 0
+            
+            # Betweenness centrality estimation (simplified for performance)
+            betweenness_centrality = self._estimate_betweenness_centrality(
+                node_ids, adjacency, reverse_adjacency
+            )
+            
+            # Closeness centrality estimation
+            closeness_centrality = self._estimate_closeness_centrality(
+                node_ids, adjacency, reverse_adjacency
+            )
+            
+            # Identify critical nodes (high centrality)
+            critical_nodes = []
+            for node_id in node_ids:
+                centrality_score = (
+                    degree_centrality.get(node_id, 0) * 0.4 +
+                    betweenness_centrality.get(node_id, 0) * 0.4 +
+                    closeness_centrality.get(node_id, 0) * 0.2
+                )
+                if centrality_score > 0.7:  # High centrality threshold
+                    critical_nodes.append({
+                        'node_id': node_id,
+                        'centrality_score': centrality_score,
+                        'degree_centrality': degree_centrality.get(node_id, 0),
+                        'betweenness_centrality': betweenness_centrality.get(node_id, 0),
+                        'closeness_centrality': closeness_centrality.get(node_id, 0)
+                    })
+            
+            centrality_analysis = {
+                'degree_centrality': degree_centrality,
+                'betweenness_centrality': betweenness_centrality,
+                'closeness_centrality': closeness_centrality,
+                'critical_nodes': sorted(critical_nodes, key=lambda x: x['centrality_score'], reverse=True),
+                'centrality_summary': {
+                    'avg_degree_centrality': sum(degree_centrality.values()) / len(degree_centrality) if degree_centrality else 0,
+                    'max_degree_centrality': max(degree_centrality.values()) if degree_centrality else 0,
+                    'critical_nodes_count': len(critical_nodes)
+                }
+            }
+            
+            return centrality_analysis
+            
+        except Exception as e:
+            self.logger.error(f"Node centrality analysis failed: {e}")
+            raise RuntimeError(f"Node centrality analysis failed: {e}") from e
+    
+    def _estimate_betweenness_centrality(self, node_ids: List[str], adjacency: Dict[str, List[str]], 
+                                       reverse_adjacency: Dict[str, List[str]]) -> Dict[str, float]:
+        """
+        Estimation betweenness centrality via sampling - Étape 2.5
+        
+        Sampling-based approximation pour performance sur large graphs
+        """
+        from collections import deque
+        import random
+        
+        try:
+            betweenness = {node_id: 0.0 for node_id in node_ids}
+            
+            # Sample-based approximation (sample up to 100 nodes for performance)
+            sample_size = min(100, len(node_ids))
+            sampled_nodes = random.sample(node_ids, sample_size) if len(node_ids) > sample_size else node_ids
+            
+            for source in sampled_nodes:
+                # BFS from source
+                distances = {source: 0}
+                predecessors = {node_id: [] for node_id in node_ids}
+                queue = deque([source])
+                
+                while queue:
+                    current = queue.popleft()
+                    current_dist = distances[current]
+                    
+                    for neighbor in adjacency[current]:
+                        if neighbor not in distances:
+                            distances[neighbor] = current_dist + 1
+                            predecessors[neighbor].append(current)
+                            queue.append(neighbor)
+                        elif distances[neighbor] == current_dist + 1:
+                            predecessors[neighbor].append(current)
+                
+                # Calculate betweenness contribution
+                for target in node_ids:
+                    if target in distances and target != source:
+                        self._accumulate_betweenness(source, target, predecessors, betweenness)
+            
+            # Normalize by sampling factor
+            normalization_factor = (len(node_ids) / sample_size) if sample_size > 0 else 1
+            for node_id in betweenness:
+                betweenness[node_id] = betweenness[node_id] / (len(node_ids) * (len(node_ids) - 1)) * normalization_factor
+            
+            return betweenness
+            
+        except Exception as e:
+            self.logger.warning(f"Betweenness centrality estimation failed: {e}")
+            return {node_id: 0.0 for node_id in node_ids}
+    
+    def _accumulate_betweenness(self, source: str, target: str, predecessors: Dict[str, List[str]], 
+                              betweenness: Dict[str, float]):
+        """
+        Accumulation betweenness score pour shortest paths - Étape 2.5
+        """
+        try:
+            # Simple path counting approximation
+            visited = set()
+            stack = [(target, 1.0)]
+            
+            while stack:
+                node, weight = stack.pop()
+                if node in visited:
+                    continue
+                visited.add(node)
+                
+                if node != source:
+                    betweenness[node] += weight
+                    
+                    for pred in predecessors[node]:
+                        if pred not in visited:
+                            stack.append((pred, weight / len(predecessors[node])))
+                            
+        except Exception:
+            pass  # Silent fail for robustness
+    
+    def _estimate_closeness_centrality(self, node_ids: List[str], adjacency: Dict[str, List[str]], 
+                                     reverse_adjacency: Dict[str, List[str]]) -> Dict[str, float]:
+        """
+        Estimation closeness centrality via BFS sampling - Étape 2.5
+        """
+        from collections import deque
+        import random
+        
+        try:
+            closeness = {}
+            
+            # Sample nodes for performance
+            sample_size = min(50, len(node_ids))
+            sampled_nodes = random.sample(node_ids, sample_size) if len(node_ids) > sample_size else node_ids
+            
+            for node_id in sampled_nodes:
+                # BFS to calculate distances
+                distances = {node_id: 0}
+                queue = deque([node_id])
+                
+                while queue:
+                    current = queue.popleft()
+                    current_dist = distances[current]
+                    
+                    # Check both outgoing and incoming edges for undirected behavior
+                    neighbors = set(adjacency[current] + reverse_adjacency[current])
+                    
+                    for neighbor in neighbors:
+                        if neighbor not in distances:
+                            distances[neighbor] = current_dist + 1
+                            queue.append(neighbor)
+                
+                # Calculate closeness
+                reachable_distances = [dist for dist in distances.values() if dist > 0]
+                if reachable_distances:
+                    total_distance = sum(reachable_distances)
+                    closeness[node_id] = (len(reachable_distances)) / total_distance
+                else:
+                    closeness[node_id] = 0.0
+            
+            # Fill in non-sampled nodes with average
+            avg_closeness = sum(closeness.values()) / len(closeness) if closeness else 0.0
+            for node_id in node_ids:
+                if node_id not in closeness:
+                    closeness[node_id] = avg_closeness
+            
+            return closeness
+            
+        except Exception as e:
+            self.logger.warning(f"Closeness centrality estimation failed: {e}")
+            return {node_id: 0.0 for node_id in node_ids}
+    
+    def _analyze_connectivity_patterns(self, nodes: List[Node], 
+                                     edges: List[Edge]) -> Dict[str, Any]:
+        """
+        Analyse patterns de connectivité et identification bottlenecks - Étape 2.5
+        
+        Connectivity Analysis:
+        - Bottleneck identification
+        - Connected components analysis
+        - Bridge edges detection
+        - Flow capacity estimation
+        """
+        from collections import defaultdict, deque
+        
+        try:
+            adjacency = defaultdict(list)
+            reverse_adjacency = defaultdict(list)
+            
+            for edge in edges:
+                adjacency[edge.source_node.node_id].append(edge.target_node.node_id)
+                reverse_adjacency[edge.target_node.node_id].append(edge.source_node.node_id)
+            
+            node_ids = [node.node_id for node in nodes]
+            
+            # Identify bottlenecks (nodes with high in-degree but low out-degree)
+            bottlenecks = []
+            for node_id in node_ids:
+                in_degree = len(reverse_adjacency[node_id])
+                out_degree = len(adjacency[node_id])
+                
+                if in_degree > 2 and out_degree <= 1:
+                    bottleneck_score = in_degree / (out_degree + 1)
+                    bottlenecks.append({
+                        'node_id': node_id,
+                        'bottleneck_score': bottleneck_score,
+                        'in_degree': in_degree,
+                        'out_degree': out_degree
+                    })
+            
+            # Connected components analysis (treating as undirected for this)
+            connected_components = self._find_connected_components(node_ids, adjacency, reverse_adjacency)
+            
+            # Bridge edges detection (simplified)
+            bridge_edges = self._identify_bridge_edges(adjacency, reverse_adjacency, node_ids)
+            
+            # Flow capacity estimation
+            flow_analysis = self._estimate_flow_capacity(adjacency, reverse_adjacency, node_ids)
+            
+            connectivity_analysis = {
+                'bottlenecks': sorted(bottlenecks, key=lambda x: x['bottleneck_score'], reverse=True),
+                'connected_components': connected_components,
+                'bridge_edges': bridge_edges,
+                'flow_analysis': flow_analysis,
+                'connectivity_summary': {
+                    'bottlenecks_count': len(bottlenecks),
+                    'components_count': len(connected_components['components']),
+                    'bridge_edges_count': len(bridge_edges),
+                    'max_component_size': max([comp['size'] for comp in connected_components['components']]) if connected_components['components'] else 0
+                }
+            }
+            
+            return connectivity_analysis
+            
+        except Exception as e:
+            self.logger.error(f"Connectivity patterns analysis failed: {e}")
+            raise RuntimeError(f"Connectivity analysis failed: {e}") from e
+    
+    def _find_connected_components(self, node_ids: List[str], adjacency: Dict[str, List[str]], 
+                                 reverse_adjacency: Dict[str, List[str]]) -> Dict[str, Any]:
+        """
+        Identification connected components via DFS - Étape 2.5
+        """
+        from collections import deque
+        
+        try:
+            visited = set()
+            components = []
+            
+            for node_id in node_ids:
+                if node_id not in visited:
+                    # DFS to find component
+                    component_nodes = []
+                    stack = [node_id]
+                    
+                    while stack:
+                        current = stack.pop()
+                        if current not in visited:
+                            visited.add(current)
+                            component_nodes.append(current)
+                            
+                            # Add both outgoing and incoming neighbors (undirected)
+                            neighbors = set(adjacency[current] + reverse_adjacency[current])
+                            for neighbor in neighbors:
+                                if neighbor not in visited:
+                                    stack.append(neighbor)
+                    
+                    components.append({
+                        'component_id': len(components),
+                        'nodes': component_nodes,
+                        'size': len(component_nodes)
+                    })
+            
+            return {
+                'components': components,
+                'largest_component_size': max([comp['size'] for comp in components]) if components else 0,
+                'components_count': len(components)
+            }
+            
+        except Exception as e:
+            self.logger.warning(f"Connected components analysis failed: {e}")
+            return {'components': [], 'largest_component_size': 0, 'components_count': 0}
+    
+    def _identify_bridge_edges(self, adjacency: Dict[str, List[str]], 
+                             reverse_adjacency: Dict[str, List[str]], 
+                             node_ids: List[str]) -> List[Dict[str, str]]:
+        """
+        Identification bridge edges - connexions critiques - Étape 2.5
+        """
+        try:
+            bridge_edges = []
+            
+            # Simple heuristic: edges from/to nodes with degree 1
+            for node_id in node_ids:
+                total_degree = len(adjacency[node_id]) + len(reverse_adjacency[node_id])
+                
+                if total_degree == 1:
+                    # This node's edge is likely a bridge
+                    if adjacency[node_id]:
+                        bridge_edges.append({
+                            'source': node_id,
+                            'target': adjacency[node_id][0],
+                            'bridge_type': 'outgoing_leaf'
+                        })
+                    elif reverse_adjacency[node_id]:
+                        bridge_edges.append({
+                            'source': reverse_adjacency[node_id][0],
+                            'target': node_id,
+                            'bridge_type': 'incoming_leaf'
+                        })
+            
+            return bridge_edges
+            
+        except Exception as e:
+            self.logger.warning(f"Bridge edges identification failed: {e}")
+            return []
+    
+    def _estimate_flow_capacity(self, adjacency: Dict[str, List[str]], 
+                              reverse_adjacency: Dict[str, List[str]], 
+                              node_ids: List[str]) -> Dict[str, Any]:
+        """
+        Estimation flow capacity du DAG - Étape 2.5
+        """
+        try:
+            # Simple flow estimation based on node degrees
+            min_cut_nodes = []
+            flow_bottlenecks = []
+            
+            for node_id in node_ids:
+                in_degree = len(reverse_adjacency[node_id])
+                out_degree = len(adjacency[node_id])
+                
+                # Identify potential bottlenecks
+                if in_degree > 1 and out_degree == 1:
+                    flow_bottlenecks.append({
+                        'node_id': node_id,
+                        'flow_reduction': in_degree - out_degree,
+                        'in_degree': in_degree,
+                        'out_degree': out_degree
+                    })
+                
+                # Identify min-cut candidates
+                if in_degree == 1 and out_degree >= 1:
+                    min_cut_nodes.append({
+                        'node_id': node_id,
+                        'cut_capacity': min(in_degree, out_degree)
+                    })
+            
+            total_sources = len([node_id for node_id in node_ids if not reverse_adjacency[node_id]])
+            total_sinks = len([node_id for node_id in node_ids if not adjacency[node_id]])
+            
+            flow_analysis = {
+                'estimated_max_flow': min(total_sources, total_sinks),
+                'flow_bottlenecks': sorted(flow_bottlenecks, key=lambda x: x['flow_reduction'], reverse=True),
+                'min_cut_candidates': min_cut_nodes,
+                'sources_count': total_sources,
+                'sinks_count': total_sinks,
+                'flow_efficiency': total_sinks / total_sources if total_sources > 0 else 0
+            }
+            
+            return flow_analysis
+            
+        except Exception as e:
+            self.logger.warning(f"Flow capacity estimation failed: {e}")
+            return {'estimated_max_flow': 0, 'flow_bottlenecks': [], 'min_cut_candidates': []}
+    
+    def _analyze_path_complexity(self, nodes: List[Node], edges: List[Edge],
+                               source_nodes: List[Node] = None, target_node: Node = None) -> Dict[str, Any]:
+        """
+        Analyse complexité des chemins et branching factors - Étape 2.5
+        """
+        from collections import defaultdict
+        
+        try:
+            adjacency = defaultdict(list)
+            reverse_adjacency = defaultdict(list)
+            
+            for edge in edges:
+                adjacency[edge.source_node.node_id].append(edge.target_node.node_id)
+                reverse_adjacency[edge.target_node.node_id].append(edge.source_node.node_id)
+            
+            node_ids = [node.node_id for node in nodes]
+            
+            # Branching factor analysis
+            branching_factors = {}
+            for node_id in node_ids:
+                out_degree = len(adjacency[node_id])
+                branching_factors[node_id] = out_degree
+            
+            # Path length estimation
+            path_length_estimates = self._estimate_path_lengths(adjacency, node_ids, source_nodes, target_node)
+            
+            # Complexity scoring
+            complexity_scores = {}
+            for node_id in node_ids:
+                branching = branching_factors[node_id]
+                path_length = path_length_estimates.get(node_id, 1)
+                
+                # Complexity = branching_factor * log(path_length)
+                import math
+                complexity_scores[node_id] = branching * math.log(path_length + 1)
+            
+            # High complexity nodes
+            avg_complexity = sum(complexity_scores.values()) / len(complexity_scores) if complexity_scores else 0
+            high_complexity_nodes = [
+                {'node_id': node_id, 'complexity_score': score}
+                for node_id, score in complexity_scores.items()
+                if score > avg_complexity * 1.5
+            ]
+            
+            complexity_analysis = {
+                'branching_factors': branching_factors,
+                'path_length_estimates': path_length_estimates,
+                'complexity_scores': complexity_scores,
+                'high_complexity_nodes': sorted(high_complexity_nodes, key=lambda x: x['complexity_score'], reverse=True),
+                'complexity_summary': {
+                    'avg_branching_factor': sum(branching_factors.values()) / len(branching_factors) if branching_factors else 0,
+                    'max_branching_factor': max(branching_factors.values()) if branching_factors else 0,
+                    'avg_complexity_score': avg_complexity,
+                    'high_complexity_count': len(high_complexity_nodes)
+                }
+            }
+            
+            return complexity_analysis
+            
+        except Exception as e:
+            self.logger.error(f"Path complexity analysis failed: {e}")
+            raise RuntimeError(f"Path complexity analysis failed: {e}") from e
+    
+    def _estimate_path_lengths(self, adjacency: Dict[str, List[str]], node_ids: List[str],
+                             source_nodes: List[Node] = None, target_node: Node = None) -> Dict[str, int]:
+        """
+        Estimation longueurs moyennes des chemins - Étape 2.5
+        """
+        from collections import deque
+        
+        try:
+            path_lengths = {}
+            
+            # Use provided sources or find graph sources
+            if source_nodes:
+                sources = [node.node_id for node in source_nodes]
+            else:
+                sources = [node_id for node_id in node_ids if not any(node_id in adj for adj in adjacency.values())]
+            
+            for source in sources:
+                # BFS from each source
+                distances = {source: 0}
+                queue = deque([source])
+                
+                while queue:
+                    current = queue.popleft()
+                    current_dist = distances[current]
+                    
+                    for neighbor in adjacency[current]:
+                        if neighbor not in distances:
+                            distances[neighbor] = current_dist + 1
+                            queue.append(neighbor)
+                
+                # Update path lengths
+                for node_id, distance in distances.items():
+                    if node_id not in path_lengths:
+                        path_lengths[node_id] = distance
+                    else:
+                        path_lengths[node_id] = (path_lengths[node_id] + distance) / 2
+            
+            # Fill in missing nodes
+            for node_id in node_ids:
+                if node_id not in path_lengths:
+                    path_lengths[node_id] = 1
+            
+            return path_lengths
+            
+        except Exception as e:
+            self.logger.warning(f"Path length estimation failed: {e}")
+            return {node_id: 1 for node_id in node_ids}
+    
+    def _identify_critical_paths(self, nodes: List[Node], edges: List[Edge],
+                               source_nodes: List[Node] = None, target_node: Node = None) -> Dict[str, Any]:
+        """
+        Identification critical paths pour optimization - Étape 2.5
+        """
+        from collections import defaultdict, deque
+        
+        try:
+            adjacency = defaultdict(list)
+            
+            for edge in edges:
+                adjacency[edge.source_node.node_id].append(edge.target_node.node_id)
+            
+            node_ids = [node.node_id for node in nodes]
+            
+            # Find sources and sinks
+            if source_nodes:
+                sources = [node.node_id for node in source_nodes]
+            else:
+                sources = [node_id for node_id in node_ids if not any(node_id in adj for adj in adjacency.values())]
+            
+            if target_node:
+                targets = [target_node.node_id]
+            else:
+                targets = [node_id for node_id in node_ids if not adjacency[node_id]]
+            
+            critical_paths = []
+            
+            # Find longest paths (critical paths)
+            for source in sources:
+                for target in targets:
+                    path = self._find_longest_path(source, target, adjacency)
+                    if path and len(path) > 2:  # Only significant paths
+                        critical_paths.append({
+                            'source': source,
+                            'target': target,
+                            'path': path,
+                            'length': len(path),
+                            'criticality_score': len(path) * self._calculate_path_importance(path, adjacency)
+                        })
+            
+            # Sort by criticality
+            critical_paths.sort(key=lambda x: x['criticality_score'], reverse=True)
+            
+            critical_path_analysis = {
+                'identified_paths': critical_paths[:10],  # Top 10 critical paths
+                'sources_analyzed': len(sources),
+                'targets_analyzed': len(targets),
+                'longest_path_length': max([cp['length'] for cp in critical_paths]) if critical_paths else 0,
+                'avg_path_length': sum([cp['length'] for cp in critical_paths]) / len(critical_paths) if critical_paths else 0
+            }
+            
+            return critical_path_analysis
+            
+        except Exception as e:
+            self.logger.error(f"Critical paths identification failed: {e}")
+            raise RuntimeError(f"Critical paths identification failed: {e}") from e
+    
+    def _find_longest_path(self, source: str, target: str, adjacency: Dict[str, List[str]]) -> List[str]:
+        """
+        Recherche plus long chemin entre source et target - Étape 2.5
+        """
+        try:
+            # Simple DFS to find longest path (limited depth for performance)
+            def dfs(current, target, path, visited, max_depth=10):
+                if len(path) > max_depth:
+                    return []
+                
+                if current == target:
+                    return path + [current]
+                
+                longest = []
+                for neighbor in adjacency[current]:
+                    if neighbor not in visited:
+                        new_visited = visited | {current}
+                        candidate = dfs(neighbor, target, path + [current], new_visited, max_depth)
+                        if len(candidate) > len(longest):
+                            longest = candidate
+                
+                return longest
+            
+            return dfs(source, target, [], set())
+            
+        except Exception:
+            return []
+    
+    def _calculate_path_importance(self, path: List[str], adjacency: Dict[str, List[str]]) -> float:
+        """
+        Calcul importance d'un chemin basé sur branching - Étape 2.5
+        """
+        try:
+            if len(path) <= 1:
+                return 1.0
+            
+            importance = 1.0
+            for node in path[:-1]:  # Exclude last node
+                branching_factor = len(adjacency[node])
+                if branching_factor > 1:
+                    importance *= branching_factor
+                    
+            return importance
+            
+        except Exception:
+            return 1.0
+    
+    def _generate_topology_optimizations(self, topology_metrics: Dict[str, Any], 
+                                       source_nodes: List[Node] = None, 
+                                       target_node: Node = None) -> Dict[str, Any]:
+        """
+        Génération recommandations optimization basées analyse topologique - Étape 2.5
+        """
+        try:
+            optimizations = {
+                'enumeration_strategies': [],
+                'performance_improvements': [],
+                'bottleneck_resolutions': [],
+                'parallelization_opportunities': []
+            }
+            
+            # Analyze centrality results
+            centrality = topology_metrics.get('centrality_analysis', {})
+            critical_nodes = centrality.get('critical_nodes', [])
+            
+            if critical_nodes:
+                optimizations['enumeration_strategies'].append({
+                    'strategy': 'critical_node_prioritization',
+                    'description': f'Prioritize enumeration through {len(critical_nodes)} critical nodes',
+                    'critical_nodes': [node['node_id'] for node in critical_nodes[:5]]
+                })
+            
+            # Analyze connectivity bottlenecks
+            connectivity = topology_metrics.get('connectivity_analysis', {})
+            bottlenecks = connectivity.get('bottlenecks', [])
+            
+            if bottlenecks:
+                optimizations['bottleneck_resolutions'].append({
+                    'strategy': 'bottleneck_bypass',
+                    'description': f'Implement bypass strategies for {len(bottlenecks)} bottlenecks',
+                    'bottleneck_nodes': [bn['node_id'] for bn in bottlenecks[:3]]
+                })
+            
+            # Analyze path complexity
+            complexity = topology_metrics.get('path_complexity', {})
+            high_complexity = complexity.get('high_complexity_nodes', [])
+            
+            if high_complexity:
+                optimizations['performance_improvements'].append({
+                    'strategy': 'complexity_reduction',
+                    'description': f'Reduce enumeration complexity at {len(high_complexity)} high-complexity nodes',
+                    'complex_nodes': [node['node_id'] for node in high_complexity[:5]]
+                })
+            
+            # Parallelization opportunities
+            components = connectivity.get('connected_components', {}).get('components', [])
+            if len(components) > 1:
+                optimizations['parallelization_opportunities'].append({
+                    'strategy': 'component_parallelization',
+                    'description': f'Parallelize enumeration across {len(components)} disconnected components',
+                    'component_sizes': [comp['size'] for comp in components]
+                })
+            
+            # Overall recommendations
+            total_optimizations = (
+                len(optimizations['enumeration_strategies']) +
+                len(optimizations['performance_improvements']) +
+                len(optimizations['bottleneck_resolutions']) +
+                len(optimizations['parallelization_opportunities'])
+            )
+            
+            optimizations['optimization_summary'] = {
+                'total_opportunities': total_optimizations,
+                'priority_level': 'HIGH' if total_optimizations > 3 else 'MEDIUM' if total_optimizations > 1 else 'LOW',
+                'estimated_improvement': min(total_optimizations * 15, 50)  # Max 50% improvement
+            }
+            
+            return optimizations
+            
+        except Exception as e:
+            self.logger.error(f"Topology optimization generation failed: {e}")
+            return {
+                'enumeration_strategies': [],
+                'performance_improvements': [],
+                'bottleneck_resolutions': [],
+                'parallelization_opportunities': [],
+                'optimization_summary': {'total_opportunities': 0, 'priority_level': 'LOW', 'estimated_improvement': 0}
+            }
