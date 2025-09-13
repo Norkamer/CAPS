@@ -30,10 +30,10 @@ from .path_enumerator import DAGPathEnumerator, EnumerationStatistics
 # Imports DAG structures
 from .dag_structures import Account, Node, Edge, EdgeType, NodeType
 
-# Imports Phase 2.6-2.8 activés - Simplex et DAG Core implémentés
+# Imports Phase 2.6-2.8 + Price Discovery activés - Simplex et DAG Core implémentés
 from .simplex_solver import (
     TripleValidationOrientedSimplex, MathematicallyRigorousPivotManager,
-    SimplexSolution, SolutionStatus, PivotStatus
+    SimplexSolution, SolutionStatus, PivotStatus, ValidationMode
 )
 from .dag import DAG, Transaction, TransactionMeasure, DAGConfiguration
 
@@ -67,6 +67,7 @@ __all__ = [
     'SimplexSolution',
     'SolutionStatus',
     'PivotStatus',
+    'ValidationMode',
     'DAG',
     'Transaction',
     'TransactionMeasure',

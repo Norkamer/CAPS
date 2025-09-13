@@ -1,0 +1,1 @@
+# API Bridge pour intégration icgs_core avec simulations

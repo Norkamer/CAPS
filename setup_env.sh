@@ -68,7 +68,7 @@ fi
 
 # 5. Validation structure projet
 echo -e "\n${BLUE}🏗️  Validating project structure...${NC}"
-REQUIRED_DIRS=("icgs_core" "tests" "examples" "docs")
+REQUIRED_DIRS=("icgs_core" "icgs_simulation" "tests" "examples" "docs")
 for dir in "${REQUIRED_DIRS[@]}"; do
     if [ -d "$dir" ]; then
         echo -e "${GREEN}✓ $dir/${NC}"
@@ -88,10 +88,18 @@ try:
     from icgs_core.account_taxonomy import AccountTaxonomy
     print('✓ Core modules import success')
 except Exception as e:
-    print(f'❌ Import failed: {e}')
+    print(f'❌ Core import failed: {e}')
+    sys.exit(1)
+
+try:
+    import icgs_simulation
+    from icgs_simulation import EconomicSimulation
+    print('✓ Simulation modules import success')
+except Exception as e:
+    print(f'❌ Simulation import failed: {e}')
     sys.exit(1)
 " 2>/dev/null; then
-    echo -e "${GREEN}✓ Core modules importable${NC}"
+    echo -e "${GREEN}✓ All modules importable${NC}"
 else
     echo -e "${RED}❌ Module import failed${NC}"
     exit 1
@@ -126,15 +134,26 @@ icgs_test_academic() {
     python3 -m pytest tests/test_academic_*.py -v "$@"
 }
 
+icgs_simulation() {
+    echo "🎯 Running ICGS simulation demo..."
+    python3 icgs_simulation/examples/mini_simulation.py "$@"
+}
+
+icgs_simulation_advanced() {
+    echo "🏭 Running advanced economic simulation..."
+    python3 icgs_simulation/examples/advanced_simulation.py "$@"
+}
+
 icgs_status() {
     echo "📊 ICGS Environment Status:"
     echo "   Root: $ICGS_ROOT"
     echo "   Python: $(python3 --version)"
     echo "   PYTHONPATH configured: $(echo $PYTHONPATH | grep -q $(pwd) && echo 'YES' || echo 'NO')"
     echo "   Core modules: $(python3 -c 'from icgs_core.account_taxonomy import AccountTaxonomy; print("AVAILABLE")' 2>/dev/null || echo 'NOT AVAILABLE')"
+    echo "   Simulation modules: $(python3 -c 'from icgs_simulation import EconomicSimulation; print("AVAILABLE")' 2>/dev/null || echo 'NOT AVAILABLE')"
 }
 
-export -f icgs_test icgs_test_academic icgs_status
+export -f icgs_test icgs_test_academic icgs_simulation icgs_status
 EOF
 
 chmod +x activate_icgs.sh
@@ -150,7 +169,8 @@ echo "  3. Check status: ${YELLOW}icgs_status${NC}"
 echo ""
 echo -e "${BLUE}Available commands after activation:${NC}"
 echo "  • icgs_test [args]       - Run all tests"
-echo "  • icgs_test_academic     - Run academic validation tests"  
+echo "  • icgs_test_academic     - Run academic validation tests"
+echo "  • icgs_simulation        - Run simulation demo with Price Discovery"
 echo "  • icgs_status           - Show environment status"
 echo ""
 echo -e "${YELLOW}Note: Run 'source activate_icgs.sh' in each terminal session${NC}"

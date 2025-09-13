@@ -1,0 +1,1 @@
+# Domaines économiques pré-configurés pour simulations ICGS
