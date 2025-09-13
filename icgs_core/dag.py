@@ -26,7 +26,10 @@ import copy
 
 # Imports ICGS modules
 from .account_taxonomy import AccountTaxonomy
-from .anchored_nfa import AnchoredWeightedNFA
+try:
+    from .anchored_nfa_v2 import AnchoredWeightedNFA
+except ImportError:
+    from anchored_nfa_v2 import AnchoredWeightedNFA
 from .path_enumerator import DAGPathEnumerator, EnumerationStatistics
 from .simplex_solver import TripleValidationOrientedSimplex, SimplexSolution, SolutionStatus
 from .linear_programming import (
@@ -775,11 +778,14 @@ class DAG:
             }
         )
         
-        # Ajout edge au DAG
-        self.edges[transaction_edge.edge_id] = transaction_edge
-        
-        # Connection bidirectionnelle nodes
-        connect_nodes(source_account.source_node, target_account.sink_node, transaction_edge)
+        # Ajout edge au DAG (éviter doublons)
+        if transaction_edge.edge_id not in self.edges:
+            self.edges[transaction_edge.edge_id] = transaction_edge
+
+            # Connection bidirectionnelle nodes
+            connect_nodes(source_account.source_node, target_account.sink_node, transaction_edge)
+        else:
+            self.logger.warning(f"Transaction edge {transaction_edge.edge_id} already exists, skipping creation")
         
         # Mise à jour balances comptes
         source_account.add_outgoing_transaction(transaction_edge, transaction.amount)
