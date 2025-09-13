@@ -34,6 +34,9 @@ class AnchoredWeightedNFA(WeightedNFA):
         self.anchoring_enabled = True
         self.frozen_final_states: List[Any] = []  # Compatibility
 
+        # HYBRID DUAL-NFA: Metadata support for external NFAs
+        self.metadata = {}
+
         # Stats anchoring
         self.stats.update({
             'patterns_anchored': 0,
