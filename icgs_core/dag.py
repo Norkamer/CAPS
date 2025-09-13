@@ -37,6 +37,7 @@ from .dag_structures import (
     Node, Edge, Account, EdgeType, NodeType,
     DAGStructureValidator, DAGValidationResult, create_node, create_edge, connect_nodes
 )
+from .exceptions import PathEnumerationNotReadyError, IntegrationLimitationError
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +276,10 @@ class DAG:
             self.logger.info(f"Transaction {transaction.transaction_id} validated and committed successfully in {total_time:.2f}ms")
             return True
             
+        except PathEnumerationNotReadyError:
+            # Re-propagation exception contrôlée pour limitation documentée
+            self.stats['transactions_rejected'] += 1
+            raise
         except Exception as e:
             self.logger.error(f"Transaction {transaction.transaction_id} processing error: {e}")
             self.stats['transactions_rejected'] += 1
@@ -354,18 +359,28 @@ class DAG:
             
             # Étape 3: Énumération et classification chemins
             transaction_edge = self._create_temporary_transaction_edge(transaction)
-            path_classes = self.path_enumerator.enumerate_and_classify(
-                transaction_edge, temp_nfa, self.transaction_counter
-            )
             
-            # Fallback si enumeration échoue : créer classification minimale
-            if not path_classes:
-                self.logger.warning("Path enumeration failed, creating fallback classification")
-                path_classes = {
-                    f"neutral_state_{self.transaction_counter}": [
-                        [transaction_edge.source_node, transaction_edge.target_node]
-                    ]
-                }
+            try:
+                path_classes = self.path_enumerator.enumerate_and_classify(
+                    transaction_edge, temp_nfa, self.transaction_counter
+                )
+                
+                # CORRECTION: Vérification résultat empty = limitation PHASE 2.9
+                if not path_classes:
+                    raise PathEnumerationNotReadyError(
+                        f"Path enumeration returned empty result for transaction {transaction.transaction_id}. "
+                        f"This integration feature is pending implementation in PHASE 2.9.",
+                        "PATH_ENUM_EMPTY"
+                    )
+                    
+            except PathEnumerationNotReadyError:
+                raise  # Re-propagation exception contrôlée
+            except Exception as e:
+                raise PathEnumerationNotReadyError(
+                    f"Path enumeration failed for transaction {transaction.transaction_id}: {e}. "
+                    f"This integration feature is pending implementation in PHASE 2.9.",
+                    "PATH_ENUM_FAILED"
+                )
             
             enum_time = (time.time() - simplex_start) * 1000
             self.stats['avg_enumeration_time_ms'] = (
@@ -409,6 +424,9 @@ class DAG:
                 self.logger.warning(f"Simplex validation failed: {solution.status.value}")
                 return False
                 
+        except PathEnumerationNotReadyError:
+            # Re-propagation exception contrôlée
+            raise
         except Exception as e:
             self.logger.error(f"Simplex validation error: {e}")
             return False
