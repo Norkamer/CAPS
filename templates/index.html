@@ -40,6 +40,21 @@
         .status.failed { background: #e53e3e; }
         .loading { text-align: center; padding: 20px; }
         .full-width { grid-column: 1 / -1; }
+
+        /* PHASE 2B: Styles visualisation 3D intégrée */
+        .visualization-3d { height: 500px; border: 2px solid #e2e8f0; border-radius: 12px;
+                           position: relative; background: #1a202c; overflow: hidden; }
+        .viz-controls { display: flex; gap: 10px; align-items: center; margin-bottom: 15px;
+                       flex-wrap: wrap; }
+        .viz-controls button { padding: 8px 16px; font-size: 14px; }
+        .speed-control { display: flex; align-items: center; gap: 8px; }
+        .speed-control input { width: 100px; }
+        .animation-status { background: #2d3748; color: white; padding: 8px 12px;
+                           border-radius: 6px; font-size: 12px; }
+        .viz-info { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7);
+                   color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+        .btn-3d { background: #805ad5; }
+        .btn-3d:hover { background: #6b46c1; }
     </style>
 </head>
 <body>
@@ -110,24 +125,67 @@
                     <div class="loading">Aucune transaction encore...</div>
                 </div>
             </div>
+
+            <!-- PHASE 2B: Visualisation 3D Intégrée -->
+            <div class="card full-width">
+                <h3>🌌 Visualisation 3D Algorithme Simplex</h3>
+
+                <div class="viz-controls">
+                    <button id="animateLastTx" class="btn btn-3d">🎬 Animer Dernière Transaction</button>
+                    <button id="animateDemo" class="btn btn-3d">🎯 Animation Démo</button>
+                    <button id="resetAnimation" class="btn">🔄 Reset</button>
+
+                    <div class="speed-control">
+                        <label for="speedControl" style="font-size: 14px;">Vitesse:</label>
+                        <input type="range" id="speedControl" min="0.1" max="5" value="1" step="0.1">
+                        <span id="speedValue">1.0x</span>
+                    </div>
+
+                    <div id="animationStatus" class="animation-status">
+                        Prêt - Phase 1 Mode Authentique Activé
+                    </div>
+                </div>
+
+                <div id="visualization3D" class="visualization-3d">
+                    <div class="viz-info">
+                        <div>Variables f_i authentiques Phase 1</div>
+                        <div id="statesInfo">0 états Simplex capturés</div>
+                    </div>
+                    <div class="loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        🌌 Visualisation 3D sera initialisée après première transaction
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- PHASE 2B: Three.js CDN pour visualisation 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
         // État global
         let sectors = {};
         let updateInterval;
 
+        // PHASE 2B: Variables globales 3D
+        let scene, camera, renderer, animationId;
+        let simplexStates = [];
+        let animationSpeed = 1.0;
+        let isAnimating = false;
+        let currentStateIndex = 0;
+
         // Initialisation
         document.addEventListener('DOMContentLoaded', function() {
             loadSectors();
             updateMetrics();
             updateHistory();
+            init3DVisualization();  // PHASE 2B: Initialiser 3D
 
             // Mise à jour automatique toutes les 5 secondes
             updateInterval = setInterval(() => {
                 updateMetrics();
                 updateHistory();
+                update3DInfo();  // PHASE 2B: Mettre à jour infos 3D
             }, 5000);
         });
 
@@ -316,6 +374,317 @@ ${result.transactions_processed} transactions traitées`);
                 this.disabled = false;
                 this.textContent = '🎯 Lancer Simulation Démo';
             }
+        });
+
+        // ============================================================================
+        // PHASE 2B: Fonctions Visualisation 3D Intégrée
+        // ============================================================================
+
+        function init3DVisualization() {
+            const container = document.getElementById('visualization3D');
+
+            // Scene Three.js
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a202c);
+
+            // Caméra
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(5, 5, 5);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+
+            // Vider container et ajouter canvas
+            container.innerHTML = '';
+            container.appendChild(renderer.domElement);
+
+            // Ajouter info overlay
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'viz-info';
+            infoDiv.innerHTML = `
+                <div>Variables f_i authentiques Phase 1</div>
+                <div id="statesInfo">0 états Simplex capturés</div>
+            `;
+            container.appendChild(infoDiv);
+
+            // Lumières
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+
+            // Axes 3D
+            const axesHelper = new THREE.AxesHelper(2);
+            scene.add(axesHelper);
+
+            // Labels axes
+            addAxisLabels();
+
+            // Contrôles basiques
+            addBasicControls();
+
+            // Render initial
+            renderer.render(scene, camera);
+
+            // Resize handler
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function addAxisLabels() {
+            // Créer géométrie texte simple pour les axes
+            const loader = new THREE.FontLoader();
+
+            // Pour simplifier, on utilise des sphères colorées comme labels
+            const sphereGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+
+            // Axe X - SOURCE (Rouge)
+            const xMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const xSphere = new THREE.Mesh(sphereGeometry, xMaterial);
+            xSphere.position.set(2.2, 0, 0);
+            scene.add(xSphere);
+
+            // Axe Y - TARGET (Vert)
+            const yMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const ySphere = new THREE.Mesh(sphereGeometry, yMaterial);
+            ySphere.position.set(0, 2.2, 0);
+            scene.add(ySphere);
+
+            // Axe Z - SECONDARY (Bleu)
+            const zMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+            const zSphere = new THREE.Mesh(sphereGeometry, zMaterial);
+            zSphere.position.set(0, 0, 2.2);
+            scene.add(zSphere);
+        }
+
+        function addBasicControls() {
+            let mouseDown = false;
+            let mouseX = 0, mouseY = 0;
+
+            renderer.domElement.addEventListener('mousedown', function(event) {
+                mouseDown = true;
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+            });
+
+            renderer.domElement.addEventListener('mouseup', function() {
+                mouseDown = false;
+            });
+
+            renderer.domElement.addEventListener('mousemove', function(event) {
+                if (!mouseDown) return;
+
+                const deltaX = event.clientX - mouseX;
+                const deltaY = event.clientY - mouseY;
+
+                // Rotation caméra simple
+                const spherical = new THREE.Spherical();
+                spherical.setFromVector3(camera.position);
+                spherical.theta -= deltaX * 0.01;
+                spherical.phi += deltaY * 0.01;
+                spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+
+                camera.position.setFromSpherical(spherical);
+                camera.lookAt(0, 0, 0);
+
+                mouseX = event.clientX;
+                mouseY = event.clientY;
+                renderer.render(scene, camera);
+            });
+
+            // Zoom avec molette
+            renderer.domElement.addEventListener('wheel', function(event) {
+                event.preventDefault();
+                const scale = event.deltaY > 0 ? 1.1 : 0.9;
+                camera.position.multiplyScalar(scale);
+                renderer.render(scene, camera);
+            });
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('visualization3D');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.render(scene, camera);
+        }
+
+        async function animateLastTransaction() {
+            try {
+                // Récupérer dernières données métriques avec animation
+                const response = await fetch('/api/metrics');
+                const data = await response.json();
+
+                const animationData = data.simplex_3d?.last_animation_data;
+                if (!animationData || !animationData.simplex_states || animationData.simplex_states.length === 0) {
+                    updateAnimationStatus('❌ Aucune donnée animation disponible');
+                    return;
+                }
+
+                updateAnimationStatus('🎬 Animation en cours...');
+                await animateSimplexStates(animationData);
+                updateAnimationStatus('✅ Animation terminée');
+
+            } catch (error) {
+                console.error('Erreur animation:', error);
+                updateAnimationStatus('❌ Erreur animation: ' + error.message);
+            }
+        }
+
+        async function animateSimplexStates(animationData) {
+            const states = animationData.simplex_states || [];
+            const transitions = animationData.simplex_transitions || [];
+
+            // Nettoyer scène des objets précédents
+            const objectsToRemove = [];
+            scene.traverse((object) => {
+                if (object.userData.isSimplexPoint || object.userData.isSimplexLine) {
+                    objectsToRemove.push(object);
+                }
+            });
+            objectsToRemove.forEach(obj => scene.remove(obj));
+
+            if (states.length === 0) {
+                updateAnimationStatus('⚠️ Aucun état Simplex à animer');
+                return;
+            }
+
+            updateAnimationStatus(`🎬 Animation ${states.length} états Simplex`);
+
+            // Créer points pour chaque état
+            for (let i = 0; i < states.length; i++) {
+                const state = states[i];
+                const coords = state.coordinates;
+
+                if (!coords || coords.length !== 3) continue;
+
+                // Géométrie sphère
+                const geometry = new THREE.SphereGeometry(0.1, 16, 16);
+
+                // Couleur basée sur status
+                let color = 0x888888; // Gris par défaut
+                if (state.is_optimal) color = 0x00ff00; // Vert pour optimal
+                else if (state.is_feasible) color = 0xffaa00; // Orange pour feasible
+
+                const material = new THREE.MeshPhongMaterial({ color: color });
+                const sphere = new THREE.Mesh(geometry, material);
+
+                sphere.position.set(coords[0], coords[1], coords[2]);
+                sphere.userData.isSimplexPoint = true;
+                sphere.userData.stateIndex = i;
+
+                scene.add(sphere);
+
+                // Animation apparition progressive
+                sphere.scale.set(0, 0, 0);
+                animateScale(sphere, { x: 1, y: 1, z: 1 }, 500 / animationSpeed);
+
+                await new Promise(resolve => setTimeout(resolve, 300 / animationSpeed));
+                renderer.render(scene, camera);
+            }
+
+            // Créer lignes de transition
+            for (const transition of transitions) {
+                const fromCoords = transition.from_coordinates;
+                const toCoords = transition.to_coordinates;
+
+                if (!fromCoords || !toCoords) continue;
+
+                const points = [
+                    new THREE.Vector3(fromCoords[0], fromCoords[1], fromCoords[2]),
+                    new THREE.Vector3(toCoords[0], toCoords[1], toCoords[2])
+                ];
+
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({
+                    color: 0x666666,
+                    linewidth: 2,
+                    opacity: 0.7,
+                    transparent: true
+                });
+
+                const line = new THREE.Line(geometry, material);
+                line.userData.isSimplexLine = true;
+                scene.add(line);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function animateScale(object, targetScale, duration) {
+            const startScale = { x: object.scale.x, y: object.scale.y, z: object.scale.z };
+            const startTime = Date.now();
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                object.scale.x = startScale.x + (targetScale.x - startScale.x) * progress;
+                object.scale.y = startScale.y + (targetScale.y - startScale.y) * progress;
+                object.scale.z = startScale.z + (targetScale.z - startScale.z) * progress;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+            animate();
+        }
+
+        function updateAnimationStatus(message) {
+            document.getElementById('animationStatus').textContent = message;
+        }
+
+        function update3DInfo() {
+            // Mettre à jour infos nombre d'états capturés
+            fetch('/api/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    const simplex3d = data.simplex_3d || {};
+                    const statesCount = simplex3d.states_captured || 0;
+                    const statesInfo = document.getElementById('statesInfo');
+                    if (statesInfo) {
+                        statesInfo.textContent = `${statesCount} états Simplex capturés`;
+                    }
+                })
+                .catch(error => console.error('Erreur update 3D info:', error));
+        }
+
+        // Event listeners pour contrôles 3D
+        document.addEventListener('DOMContentLoaded', function() {
+            // Bouton animer dernière transaction
+            document.getElementById('animateLastTx')?.addEventListener('click', animateLastTransaction);
+
+            // Bouton animation démo
+            document.getElementById('animateDemo')?.addEventListener('click', async function() {
+                updateAnimationStatus('🎯 Lancement démo animation...');
+                // Lancer d'abord la démo, puis animer
+                await document.getElementById('runDemo').click();
+                setTimeout(animateLastTransaction, 2000); // Attendre 2s puis animer
+            });
+
+            // Bouton reset
+            document.getElementById('resetAnimation')?.addEventListener('click', function() {
+                if (scene) {
+                    // Nettoyer objets Simplex
+                    const objectsToRemove = [];
+                    scene.traverse((object) => {
+                        if (object.userData.isSimplexPoint || object.userData.isSimplexLine) {
+                            objectsToRemove.push(object);
+                        }
+                    });
+                    objectsToRemove.forEach(obj => scene.remove(obj));
+                    renderer.render(scene, camera);
+                }
+                updateAnimationStatus('🔄 Visualisation réinitialisée');
+            });
+
+            // Contrôle vitesse
+            document.getElementById('speedControl')?.addEventListener('input', function(e) {
+                animationSpeed = parseFloat(e.target.value);
+                document.getElementById('speedValue').textContent = animationSpeed.toFixed(1) + 'x';
+            });
         });
     </script>
 </body>

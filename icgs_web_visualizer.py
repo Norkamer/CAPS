@@ -42,6 +42,7 @@ app.config['SECRET_KEY'] = 'icgs_demo_2024'
 
 # Global simulation instance
 global_simulation = None
+global_3d_analyzer = None  # PHASE 2A: Analyseur 3D global
 simulation_history = []
 performance_metrics = {
     'total_transactions': 0,
@@ -54,10 +55,19 @@ performance_metrics = {
 
 def init_simulation():
     """Initialize global ICGS simulation"""
-    global global_simulation
+    global global_simulation, global_3d_analyzer
     if global_simulation is None:
         global_simulation = EconomicSimulation("web_demo")
         print("🚀 ICGS Web Simulation initialized")
+
+        # PHASE 2A: Initialiser analyseur 3D avec mode authentique
+        if ANALYZER_3D_AVAILABLE:
+            global_3d_analyzer = ICGS3DSpaceAnalyzer(global_simulation)
+            success = global_3d_analyzer.enable_authentic_simplex_data(global_simulation)
+            if success:
+                print("🌌 Analyseur 3D Mode Authentique activé")
+            else:
+                print("⚠️  Analyseur 3D Mode Authentique échoué")
     return global_simulation
 
 @app.route('/')
@@ -166,7 +176,14 @@ def api_transaction():
         total_tx = performance_metrics['total_transactions']
         performance_metrics['avg_validation_time_ms'] = (current_avg * (total_tx - 1) + avg_time) / total_tx
 
-        # Enregistrer dans l'historique
+        # PHASE 2A: Collecter données animation 3D pour cette transaction
+        animation_data = None
+        if global_simulation and hasattr(global_simulation, 'get_3d_collector'):
+            collector = global_simulation.get_3d_collector()
+            if collector and len(collector.states_history) > 0:
+                animation_data = collector.export_animation_data()
+
+        # Enregistrer dans l'historique avec données 3D intégrées
         transaction_record = {
             'timestamp': datetime.now().isoformat(),
             'tx_id': tx_id,
@@ -181,7 +198,8 @@ def api_transaction():
                 'success': result_opt.success,
                 'time_ms': round(opt_time, 2),
                 'optimal_price': float(getattr(result_opt, 'optimal_price', 0))
-            }
+            },
+            'animation': animation_data  # NOUVEAU: Données animation 3D intégrées
         }
         simulation_history.append(transaction_record)
 
@@ -198,11 +216,23 @@ def api_transaction():
 
 @app.route('/api/metrics')
 def api_metrics():
-    """API: Métriques de performance actuelles"""
+    """API: Métriques de performance actuelles + données 3D intégrées"""
     # Obtenir stats DAG si disponibles
     dag_stats = {}
     if global_simulation and hasattr(global_simulation, 'dag'):
         dag_stats = getattr(global_simulation.dag, 'stats', {})
+
+    # PHASE 2A: Intégrer données 3D dans métriques existantes
+    simplex_3d_data = {}
+    if global_simulation and hasattr(global_simulation, 'get_3d_collector'):
+        collector = global_simulation.get_3d_collector()
+        if collector:
+            simplex_3d_data = {
+                'states_captured': len(collector.states_history),
+                'transitions_captured': len(collector.transitions_history),
+                'last_animation_ready': len(collector.states_history) > 0,
+                'last_animation_data': collector.export_animation_data() if len(collector.states_history) > 0 else None
+            }
 
     return jsonify({
         'performance': {
@@ -210,7 +240,8 @@ def api_metrics():
             'sectors_used': list(performance_metrics['sectors_used'])
         },
         'dag_stats': dag_stats,
-        'history_count': len(simulation_history)
+        'history_count': len(simulation_history),
+        'simplex_3d': simplex_3d_data  # NOUVEAU: Données 3D intégrées
     })
 
 @app.route('/api/history')
