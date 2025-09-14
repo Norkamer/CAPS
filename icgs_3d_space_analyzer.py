@@ -109,31 +109,41 @@ class ICGS3DSpaceAnalyzer:
 
     def _analyze_with_authentic_simplex_data(self, tx_id: str, source_id: str,
                                            target_id: str, amount: Decimal) -> SolutionPoint3D:
-        """Analyse avec vraies données Simplex f_i via API 3D"""
+        """Analyse avec vraies données Simplex f_i via API 3D connecté au bridge"""
 
-        # Validation FEASIBILITY avec collecte données
+        # Accéder à la simulation (qui EST le bridge) pour utiliser son collecteur 3D intégré
+        bridge = self.simulation  # EconomicSimulation IS the bridge
+        bridge_collector = None
+
+        if hasattr(bridge, 'get_3d_collector'):
+            bridge_collector = bridge.get_3d_collector()
+
+        if not bridge_collector:
+            print("⚠️  Bridge collector non disponible - Fallback vers approximation")
+            return self._analyze_with_approximation(tx_id, source_id, target_id, amount)
+
+        # Vider l'historique pour cette transaction
+        bridge_collector.reset()
+
+        # Validation FEASIBILITY avec collecte données authentiques
+        print(f"🔍 Validation FEASIBILITY avec collecte API 3D pour {tx_id}")
         result_feas = self.simulation.validate_transaction(tx_id, SimulationMode.FEASIBILITY)
 
-        # Accéder au bridge pour récupérer le LinearProgram et le solveur
-        bridge = self.simulation.bridge
-        if hasattr(bridge, 'simplex_solver') and hasattr(bridge, 'dag'):
-            # Récupérer le dernier LinearProgram construit
-            # Note: Ceci nécessiterait une modification du bridge pour exposer le LP
-            # Pour le moment, on fait une validation OPTIMIZATION pour avoir les données
-            pass
-
-        # Validation OPTIMIZATION avec collecte
+        # Validation OPTIMIZATION avec collecte données authentiques
+        print(f"🔍 Validation OPTIMIZATION avec collecte API 3D pour {tx_id}")
         result_opt = self.simulation.validate_transaction(tx_id, SimulationMode.OPTIMIZATION)
 
-        # Récupérer les vraies coordonnées depuis le collecteur (si disponible)
-        if self.simplex_3d_collector.states_history:
-            last_state = self.simplex_3d_collector.states_history[-1]
+        # Récupérer les vraies coordonnées depuis le collecteur du bridge
+        if bridge_collector.states_history:
+            print(f"✅ Collecteur bridge: {len(bridge_collector.states_history)} états capturés")
+            last_state = bridge_collector.states_history[-1]
             x_contribution, y_contribution, z_contribution = last_state.coordinates_3d
 
-            # Utiliser les vraies variables f_i
+            # Utiliser les vraies variables f_i du Simplex
             variables_fi = last_state.variables_fi
+            print(f"🔢 Variables f_i authentiques extraites: {len(variables_fi)} variables")
         else:
-            # Fallback vers approximation si collecteur pas connecté
+            print("⚠️  Aucun état Simplex capturé - Fallback vers approximation")
             return self._analyze_with_approximation(tx_id, source_id, target_id, amount)
 
         # Déterminer le type de pivot
@@ -184,18 +194,24 @@ class ICGS3DSpaceAnalyzer:
         Args:
             bridge_instance: Instance du bridge ICGS pour connecter le collecteur
 
-        Note: Nécessite modification du bridge pour exposer:
-        - LinearProgram après construction
-        - Hook dans solve_with_absolute_guarantees()
+        Note: Utilise le collecteur intégré dans le bridge modifié
         """
         self.use_authentic_simplex_data = True
 
-        if bridge_instance and hasattr(bridge_instance, 'simplex_solver'):
-            # Connecter le collecteur au solveur (nécessite modification bridge)
-            print("🔗 API 3D connectée au Simplex - Variables f_i authentiques activées")
+        if bridge_instance and hasattr(bridge_instance, 'get_3d_collector'):
+            collector = bridge_instance.get_3d_collector()
+            if collector:
+                print("🔗 API 3D connectée au Bridge Simplex - Variables f_i authentiques activées")
+                print(f"   Collecteur disponible: {type(collector).__name__}")
+                return True
+            else:
+                print("⚠️  Bridge ne contient pas de collecteur 3D")
+                print("   Vérifier que SIMPLEX_3D_API_AVAILABLE=True dans icgs_bridge.py")
+                return False
         else:
-            print("⚠️  Mode authentique activé mais bridge non connecté")
-            print("   Nécessite modification icgs_bridge.py pour extraction LP/solution")
+            print("⚠️  Bridge instance non fournie ou incompatible")
+            print("   Usage: analyzer.enable_authentic_simplex_data(simulation.bridge)")
+            return False
 
     def _analyze_with_approximation(self, tx_id: str, source_id: str,
                                    target_id: str, amount: Decimal) -> SolutionPoint3D:

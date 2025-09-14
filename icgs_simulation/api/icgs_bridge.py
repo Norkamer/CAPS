@@ -27,6 +27,13 @@ from icgs_core import (
 )
 from ..domains.base import get_sector_info, get_recommended_balance
 
+# Import API Simplex 3D (optionnel)
+try:
+    from icgs_simplex_3d_api import Simplex3DCollector
+    SIMPLEX_3D_API_AVAILABLE = True
+except ImportError:
+    SIMPLEX_3D_API_AVAILABLE = False
+
 
 class SimulationMode(Enum):
     """Modes de simulation disponibles"""
@@ -108,6 +115,13 @@ class EconomicSimulation:
         self.transactions: List[Transaction] = []
         self.transaction_counter = 1  # Commencer à 1 pour éviter collisions taxonomie
         self.taxonomy_configured = False  # Flag pour update batch unique
+
+        # API Simplex 3D (optionnel)
+        self.simplex_3d_collector = None
+        if SIMPLEX_3D_API_AVAILABLE:
+            self.simplex_3d_collector = Simplex3DCollector()
+
+        self._current_linear_program = None  # Cache LinearProgram pour API 3D
 
         # Note: Configuration taxonomie différée jusqu'à première transaction
         # pour éviter problèmes de numérotation
@@ -372,6 +386,13 @@ class EconomicSimulation:
                 success = self.dag.add_transaction(transaction)
                 validation_time = (time.time() - start_time) * 1000
 
+                # Hook API Simplex 3D : capturer état après validation FEASIBILITY
+                if self.simplex_3d_collector and success:
+                    try:
+                        self._capture_3d_state_feasibility(transaction, validation_time)
+                    except Exception as e3d:
+                        self.logger.warning(f"API 3D capture échouée: {e3d}")
+
                 return SimulationResult(
                     success=success,
                     mode=mode,
@@ -441,12 +462,22 @@ class EconomicSimulation:
                 "target_flux": target_agent.get_sector_info().weight
             }
 
+            # Cache LinearProgram pour API 3D
+            self._current_linear_program = problem
+
             # Optimisation avec Price Discovery
             solution = self.simplex_solver.solve_optimization_problem(
                 problem, objective_coeffs
             )
 
             validation_time = (time.time() - start_time) * 1000
+
+            # Hook API Simplex 3D : capturer état après validation OPTIMIZATION
+            if self.simplex_3d_collector and solution.status == SolutionStatus.OPTIMAL:
+                try:
+                    self._capture_3d_state_optimization(problem, solution, ValidationMode.OPTIMIZATION)
+                except Exception as e3d:
+                    self.logger.warning(f"API 3D capture OPTIMIZATION échouée: {e3d}")
 
             return SimulationResult(
                 success=solution.status == SolutionStatus.OPTIMAL,
@@ -484,3 +515,54 @@ class EconomicSimulation:
             'dag_stats': dict(self.dag.stats),
             'sectors_represented': list(set(agent.sector for agent in self.agents.values()))
         }
+
+    def _capture_3d_state_feasibility(self, transaction: Transaction, validation_time: float):
+        """Capture état 3D après validation FEASIBILITY"""
+        if not self.simplex_3d_collector:
+            return
+
+        # Créer SimplexSolution simulée pour FEASIBILITY
+        from icgs_core.simplex_solver import SimplexSolution, SolutionStatus
+        from icgs_core.linear_programming import LinearProgram
+
+        # Solution simulée basée sur DAG stats
+        solution = SimplexSolution(status=SolutionStatus.FEASIBLE)
+        solution.variables = {"feasibility_check": Decimal('1.0')}  # Simulé
+        solution.solving_time = validation_time / 1000.0
+        solution.iterations_used = 1
+
+        # LinearProgram minimal pour compatibilité
+        problem = LinearProgram(f"feasibility_{transaction.transaction_id}")
+        problem.variables = {"feasibility_check": type('FluxVar', (), {
+            'variable_id': 'feasibility_check',
+            'is_basic': True
+        })()}
+
+        # Capturer état
+        self.simplex_3d_collector.capture_simplex_state(
+            problem, solution, ValidationMode.FEASIBILITY
+        )
+
+    def _capture_3d_state_optimization(self, problem, solution, mode):
+        """Capture état 3D après validation OPTIMIZATION avec vraies données Simplex"""
+        if not self.simplex_3d_collector:
+            return
+
+        # Capturer état avec vraies variables f_i du Simplex
+        state = self.simplex_3d_collector.capture_simplex_state(problem, solution, mode)
+
+        # Si il y a un état précédent, créer transition
+        if len(self.simplex_3d_collector.states_history) > 1:
+            from icgs_simplex_3d_api import SimplexTransitionType
+            previous_state = self.simplex_3d_collector.states_history[-2]
+            self.simplex_3d_collector.capture_transition(
+                previous_state, state, SimplexTransitionType.OPTIMIZATION_STEP
+            )
+
+    def get_3d_collector(self):
+        """Accès externe au collecteur 3D pour analyseurs"""
+        return self.simplex_3d_collector
+
+    def get_current_linear_program(self):
+        """Accès au LinearProgram courant pour API 3D"""
+        return self._current_linear_program
