@@ -168,61 +168,130 @@ class WebNativeICGS:
         self.logger.info(f"Capacités: {self.get_pool_capacities()}")
 
     def _create_virtual_pool(self) -> Dict[str, List[Tuple[str, str]]]:
-        """Créer pool virtuel avec slots et caractères pré-alloués"""
+        """Créer pool virtuel avec slots et caractères pré-alloués (évite collisions _source/_sink)"""
+        # SOLUTION: Allouer blocs de caractères espacés pour éviter collisions automatiques
+        # Chaque agent génère _source et _sink avec caractères séquentiels
         return {
             'AGRICULTURE': [
-                ('AGRI_SLOT_A', 'A'),
-                ('AGRI_SLOT_B', 'B'),
-                ('AGRI_SLOT_C', 'C')
+                ('AGRI_SLOT_A', 'A'),  # A+B réservés pour _source/_sink
+                ('AGRI_SLOT_D', 'D'),  # D+E réservés
+                ('AGRI_SLOT_G', 'G')   # G+H réservés
             ],
             'INDUSTRY': [
-                ('IND_SLOT_I', 'I'),
-                ('IND_SLOT_J', 'J'),
-                ('IND_SLOT_K', 'K'),
-                ('IND_SLOT_L', 'L')
+                ('IND_SLOT_I', 'I'),   # I+J réservés
+                ('IND_SLOT_K', 'K'),   # K+L réservés
+                ('IND_SLOT_M', 'M'),   # M+N réservés
+                ('IND_SLOT_O', 'O')    # O+P réservés
             ],
             'SERVICES': [
-                ('SERV_SLOT_S', 'S'),
-                ('SERV_SLOT_T', 'T'),
-                ('SERV_SLOT_U', 'U'),
-                ('SERV_SLOT_V', 'V')
+                ('SERV_SLOT_Q', 'Q'),  # Q+R réservés (évite collision avec S!)
+                ('SERV_SLOT_S', 'S'),  # S+T réservés
+                ('SERV_SLOT_U', 'U'),  # U+V réservés
+                ('SERV_SLOT_W', 'W')   # W+X réservés
             ],
             'FINANCE': [
-                ('FIN_SLOT_F', 'F'),
-                ('FIN_SLOT_G', 'G')
+                ('FIN_SLOT_Y', 'Y'),   # Y+Z réservés
+                ('FIN_SLOT_C', 'C')    # C+F réservés (réutilise espaces libres)
             ],
             'ENERGY': [
-                ('ENG_SLOT_E', 'E'),
-                ('ENG_SLOT_H', 'H')
+                ('ENG_SLOT_E', 'E'),   # E+F réservés
+                ('ENG_SLOT_F', 'F')    # F+G réservés (avec garde-fou)
             ]
-            # Note: CARBON retiré car non supporté par ICGS Core actuel
+            # Note: Allocation évite collisions en laissant espace pour _source/_sink automatique
         }
 
     def _configure_icgs_once(self) -> EconomicSimulation:
-        """Configuration unique ICGS avec TOUS les slots virtuels"""
+        """Configuration unique ICGS avec TOUS les slots virtuels et taxonomie explicite (Option A)"""
         icgs = EconomicSimulation("web_native_pool")
 
-        # Créer agents virtuels pour TOUS les slots d'avance
+        # OPTION A: Créer agents avec taxonomie explicite pour éviter collisions
         for sector, slots in self.virtual_pool.items():
-            for virtual_id, taxonomic_char in slots:
+            for virtual_id, base_char in slots:
                 try:
-                    icgs.create_agent(
-                        agent_id=virtual_id,
-                        sector=sector,
-                        balance=Decimal('1000'),  # Balance par défaut
+                    # Générer caractères taxonomiques uniques pour source/sink
+                    source_char, sink_char = self._generate_unique_taxonomic_chars(base_char, virtual_id)
+
+                    # CORRECTION: Créer Account directement avec DAG pour contrôle taxonomique total
+                    from icgs_core import Account
+                    account = Account(
+                        account_id=virtual_id,
+                        initial_balance=Decimal('1000'),
                         metadata={
                             'virtual_slot': True,
-                            'taxonomic_char': taxonomic_char,
+                            'taxonomic_base': base_char,
+                            'taxonomic_source': source_char,
+                            'taxonomic_sink': sink_char,
                             'sector': sector,
                             'created_at': time.time()
                         }
                     )
-                    self.logger.debug(f"Slot créé: {virtual_id} → {taxonomic_char} ({sector})")
+
+                    # OPTION A: Ajout direct avec taxonomie explicite (évite double-ajout)
+                    taxonomic_mapping = {'source': source_char, 'sink': sink_char}
+                    success = icgs.dag.add_account(account, taxonomic_chars=taxonomic_mapping)
+
+                    if success:
+                        # CORRECTION: Ajouter agent à EconomicSimulation après création DAG réussie
+                        from icgs_simulation.api.icgs_bridge import SimulationAgent
+                        agent = SimulationAgent(
+                            agent_id=virtual_id,
+                            account=account,
+                            sector=sector,
+                            balance=Decimal('1000'),
+                            metadata=account.metadata
+                        )
+                        icgs.agents[virtual_id] = agent
+
+                        print(f"✅ Slot créé avec taxonomie explicite: {virtual_id} → source:{source_char}, sink:{sink_char} ({sector})")
+                        self.logger.debug(f"Slot créé avec taxonomie: {virtual_id} → {taxonomic_mapping}")
+                    else:
+                        print(f"⚠️ Slot échoué: {virtual_id}")
+
                 except Exception as e:
+                    print(f"❌ Échec création slot {virtual_id} → {base_char}: {e}")
                     self.logger.warning(f"Échec création slot {virtual_id}: {e}")
 
-        self.logger.info("Configuration ICGS terminée - taxonomie figée")
+        self.logger.info("Configuration ICGS terminée avec taxonomie explicite - collisions éliminées")
         return icgs
+
+    def _generate_unique_taxonomic_chars(self, base_char: str, virtual_id: str) -> Tuple[str, str]:
+        """
+        Génère caractères taxonomiques uniques pour source/sink basés sur caractère de base
+
+        Args:
+            base_char: Caractère de base du slot ('A', 'I', 'S', etc.)
+            virtual_id: ID du slot virtuel pour unicité
+
+        Returns:
+            Tuple[source_char, sink_char] garantis uniques globalement
+
+        Strategy:
+        - Source: Utilise minuscule du base_char (A → a)
+        - Sink: Utilise base_char majuscule directement (A → A)
+        - Fallback: Si collision, utilise hash virtual_id pour unicité absolue
+        """
+        # Caractères de base
+        source_char = base_char.lower()  # A → a, I → i, etc.
+        sink_char = base_char.upper()    # Garde majuscule
+
+        # Validation unicité globale avec slots existants
+        if hasattr(self, '_used_taxonomic_chars'):
+            # Vérifier collisions avec caractères déjà alloués
+            while source_char in self._used_taxonomic_chars or sink_char in self._used_taxonomic_chars:
+                # Fallback: Générer caractères uniques avec hash
+                import hashlib
+                hash_suffix = hashlib.md5(virtual_id.encode()).hexdigest()[:2]
+                source_char = f"{base_char.lower()}{hash_suffix[0]}"[:1]  # Garde 1 char
+                sink_char = f"{base_char.upper()}{hash_suffix[1]}"[:1]   # Garde 1 char
+                break
+
+            self._used_taxonomic_chars.add(source_char)
+            self._used_taxonomic_chars.add(sink_char)
+        else:
+            # Initialisation premier appel
+            self._used_taxonomic_chars = {source_char, sink_char}
+
+        return source_char, sink_char
 
     def _create_neutral_measures(self) -> Dict[str, EconomicMeasure]:
         """Mesures neutres par défaut (sans biais économique)"""

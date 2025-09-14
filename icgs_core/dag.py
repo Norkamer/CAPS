@@ -199,12 +199,14 @@ class DAG:
         
         self.logger.info(f"DAG initialized with ICGS Phase 2 pipeline - config: {self.configuration}")
     
-    def add_account(self, account: Account) -> bool:
+    def add_account(self, account: Account, taxonomic_chars: Optional[Dict[str, str]] = None) -> bool:
         """
         Ajoute compte au DAG avec intégration taxonomie
 
         Args:
             account: Compte à ajouter avec source/sink nodes
+            taxonomic_chars: Configuration taxonomique explicite {'source': 'X', 'sink': 'Y'}
+                           Si None, utilise configuration batch automatique (legacy)
 
         Returns:
             True si ajout réussi, False sinon
@@ -212,6 +214,10 @@ class DAG:
         if account.account_id in self.accounts:
             self.logger.warning(f"Account {account.account_id} already exists")
             return False
+
+        # NOUVEAU: Configuration taxonomie explicite AVANT try/catch pour propager ValidationErrors
+        if taxonomic_chars is not None:  # CORRECTION: {} est falsy mais doit être validé
+            self._configure_account_taxonomy_immediate(account, taxonomic_chars)
 
         try:
             # Ajout nodes du compte
@@ -248,7 +254,42 @@ class DAG:
         except Exception as e:
             self.logger.error(f"Failed to add account {account.account_id}: {e}")
             return False
-    
+
+    def _configure_account_taxonomy_immediate(self, account: Account, taxonomic_chars: Dict[str, str]):
+        """
+        Configure la taxonomie immédiatement pour un compte avec caractères explicites
+
+        Args:
+            account: Compte à configurer
+            taxonomic_chars: Mapping des caractères {'source': 'X', 'sink': 'Y'}
+
+        Raises:
+            ValueError: Si format taxonomic_chars invalide ou caractères en collision
+        """
+        # Validation format
+        required_keys = {'source', 'sink'}
+        if not isinstance(taxonomic_chars, dict) or set(taxonomic_chars.keys()) != required_keys:
+            raise ValueError(f"taxonomic_chars must contain exactly {required_keys}, got: {set(taxonomic_chars.keys())}")
+
+        # Validation caractères uniques
+        chars_list = list(taxonomic_chars.values())
+        if len(chars_list) != len(set(chars_list)):
+            raise ValueError(f"Taxonomic characters must be unique, got duplicates: {chars_list}")
+
+        # Configuration taxonomique avec transaction_num incrémental
+        account_mappings = {
+            f"{account.account_id}_source": taxonomic_chars['source'],
+            f"{account.account_id}_sink": taxonomic_chars['sink']
+        }
+
+        try:
+            # Utiliser transaction_counter incrémental pour éviter collisions "strictly increasing"
+            self.account_taxonomy.update_taxonomy(account_mappings, self.transaction_counter)
+            self.transaction_counter += 1  # Incrémenter pour prochain compte
+            self.logger.debug(f"Taxonomie configurée immédiatement pour {account.account_id}: {account_mappings}, tx_num={self.transaction_counter-1}")
+        except Exception as e:
+            raise ValueError(f"Échec configuration taxonomie pour {account.account_id}: {e}")
+
     def add_transaction(self, transaction: Transaction) -> bool:
         """
         Pipeline validation transaction complet selon blueprint ICGS Phase 2

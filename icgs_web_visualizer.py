@@ -326,15 +326,32 @@ def api_run_demo():
 
         created_agents = []
         for agent_id, sector, balance, metadata in demo_agents:
-            result = manager.add_agent(agent_id, sector, balance, metadata)
-            if result['success']:
-                performance_metrics['agents_count'] += 1
-                performance_metrics['sectors_used'].add(sector)
-                created_agents.append({
-                    'agent_id': agent_id,
-                    'virtual_slot': result['virtual_slot'],
-                    'sector': sector
-                })
+            try:
+                # Vérifier si l'agent existe déjà
+                if agent_id in manager.real_to_virtual:
+                    # Agent existe déjà, utiliser l'agent existant
+                    agent_info = manager.agent_registry[agent_id]
+                    created_agents.append({
+                        'agent_id': agent_id,
+                        'virtual_slot': agent_info.virtual_slot,
+                        'sector': agent_info.sector,
+                        'status': 'exists'
+                    })
+                    performance_metrics['sectors_used'].add(sector)
+                else:
+                    # Créer nouvel agent
+                    agent_info = manager.add_agent(agent_id, sector, balance, metadata)
+                    performance_metrics['agents_count'] += 1
+                    performance_metrics['sectors_used'].add(sector)
+                    created_agents.append({
+                        'agent_id': agent_id,
+                        'virtual_slot': agent_info.virtual_slot,
+                        'sector': agent_info.sector,
+                        'status': 'created'
+                    })
+            except Exception as e:
+                print(f"⚠️ Erreur création agent {agent_id}: {e}")
+                # Continuer avec les autres agents
 
         # Créer transactions de démonstration
         demo_transactions = [
@@ -344,26 +361,35 @@ def api_run_demo():
 
         results = []
         for source, target, amount in demo_transactions:
-            result = manager.process_transaction(source, target, amount)
+            try:
+                print(f"🔄 Test transaction: {source} → {target} ({amount})")
+                result = manager.process_transaction(source, target, amount)
+                print(f"   Result: success={result['success']}")
+                if not result['success']:
+                    print(f"   Error: {result.get('error', 'Unknown error')}")
+                    print(f"   Full result: {result}")  # Debug complet
 
-            if result['success']:
-                tx_record = result['transaction_record']
-                performance_metrics['total_transactions'] += 1
-                if tx_record['feasibility']['success']:
-                    performance_metrics['successful_feasibility'] += 1
-                if tx_record['optimization']['success']:
-                    performance_metrics['successful_optimization'] += 1
+                if result['success']:
+                    tx_record = result['transaction_record']
+                    performance_metrics['total_transactions'] += 1
+                    if tx_record['feasibility']['success']:
+                        performance_metrics['successful_feasibility'] += 1
+                    if tx_record['optimization']['success']:
+                        performance_metrics['successful_optimization'] += 1
 
-                results.append({
-                    'tx_id': tx_record['tx_id'],
-                    'source': source,
-                    'target': target,
-                    'amount': float(amount),
-                    'feasibility_success': tx_record['feasibility']['success'],
-                    'optimization_success': tx_record['optimization']['success']
-                })
+                    results.append({
+                        'tx_id': tx_record['tx_id'],
+                        'source': source,
+                        'target': target,
+                        'amount': float(amount),
+                        'feasibility_success': tx_record['feasibility']['success'],
+                        'optimization_success': tx_record['optimization']['success']
+                    })
 
-                simulation_history.append(tx_record)
+                    simulation_history.append(tx_record)
+            except Exception as e:
+                print(f"   ❌ Exception during transaction: {e}")
+                # Continuer avec les autres transactions
 
         return jsonify({
             'success': True,
