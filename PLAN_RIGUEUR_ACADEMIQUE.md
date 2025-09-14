@@ -19,7 +19,7 @@ Le projet CAPS (Intelligent Computation Graph System) présente une architecture
 - **43,486 lignes** de code Python avec architecture modulaire excellente
 - **432 fonctions de test** réparties sur 65 fichiers avec validation formelle rigoureuse
 - **Paper académique initié** avec structure formelle IEEE/ACM dans `FromIcgs/papers/ICGS_Academic_Paper.md`
-- **Ressources ICGS intégrées** dans `CAPS/FromIcgs/` (15 fichiers documentation + blueprints)
+- **Ressources FromIcgs intégrées** dans `CAPS/FromIcgs/` (19 fichiers : papers, blueprints, roadmaps, analyses)
 - **Innovation technique:** Architecture hybride DAG-NFA-Simplex unique (première implémentation connue)
 - **Triple validation mathématique** avec preuves formelles et garanties absolues
 - **Support UTF-32 complet** dans taxonomie avec caractères Unicode avancés
@@ -29,7 +29,7 @@ Le projet CAPS (Intelligent Computation Graph System) présente une architecture
 ### Gaps Critiques Identifiés ❌
 
 #### **ORGANISATION INTERNE (MAJEUR)**
-- ⚠️ Ressources ICGS intégrées mais nécessitent adaptation terminologique
+- ⚠️ Ressources FromIcgs intégrées mais nécessitent adaptation terminologique
 - ❌ Paper académique section 2.1+ incomplète (`FromIcgs/papers/`)
 - ❌ Pas de structure package Python moderne
 - ❌ Absence de versioning sémantique automatisé
@@ -81,7 +81,7 @@ Le projet CAPS (Intelligent Computation Graph System) présente une architecture
 ```bash
 # Finalisation paper publication-ready (FromIcgs/papers/)
 - Complétion section 2.1+ "Related Work" (actuellement tronquée)
-- Adaptation terminologie ICGS → CAPS dans paper
+- Adaptation terminologie pour cohérence CAPS dans paper
 - Ajout bibliographie BibTeX formelle (25+ références minimum)
 - Performance benchmarking vs NetworkX, Scipy.optimize
 - Génération graphs/tables publication-ready
@@ -327,15 +327,15 @@ Le projet CAPS (Intelligent Computation Graph System) présente une architecture
 
 Le projet CAPS démontre une **sophistication technique exceptionnelle** avec des fondations mathématiques solides. L'architecture modulaire, la documentation exhaustive et les tests académiques rigoureux constituent des **atouts uniques** pour une transformation vers les standards académiques.
 
-**Message Clé:** CAPS dispose déjà des ressources techniques et académiques (FromIcgs intégrées) - il nécessite une structuration moderne et formalisation pour maximiser son impact scientifique.
+**Message Clé:** CAPS dispose déjà des ressources techniques et académiques complètes (FromIcgs : 19 fichiers incluant roadmaps évolutives, analyses quantifiées, blueprints architecturaux) - il nécessite une structuration moderne et formalisation pour maximiser son impact scientifique.
 
-**Prochaine Étape Recommandée:** Lancer immédiatement Phase 0 (unification FromIcgs) puis Phase 1 comme investissement fondamental pour toute ambition académique future.
+**Prochaine Étape Recommandée:** Lancer immédiatement Phase 0 (intégration ressources FromIcgs) puis Phase 1 comme investissement fondamental pour toute ambition académique future.
 
 ---
 
-*Ce plan constitue une roadmap complète pour élever CAPS aux standards académiques internationaux tout en intégrant les innovations techniques ICGS via FromIcgs.*
+*Ce plan constitue une roadmap complète pour élever CAPS aux standards académiques internationaux en exploitant les innovations techniques intégrées via FromIcgs.*
 
 **Status Document:** PLAN STRATÉGIQUE STANDALONE CAPS
 **Révision:** v2.0 - 2025-09-14 (Indépendance ICGS avec ressources intégrées)
-**Ressources Intégrées:** 15 fichiers FromIcgs (papers, blueprints, documentation)
+**Ressources Intégrées:** 19 fichiers FromIcgs (papers, blueprints, roadmaps, analyses, documentation)
 **Validité:** 12 mois (révision recommandée Q3 2025)

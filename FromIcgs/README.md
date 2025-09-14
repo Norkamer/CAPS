@@ -14,6 +14,14 @@ Ce répertoire contient les ressources essentielles du projet ICGS intégrées d
 ### `blueprints/`
 - **ICGS_MASTER_RECONSTRUCTION_BLUEPRINT.md** - Architecture technique complète
 - **PHASE3_TECHNICAL_DOCUMENTATION.md** - Documentation technique avancée
+- **HYBRID_ENUMERATOR_COHERENCE_ARCHITECTURE.md** - Architecture hybride énumérateur-cohérence
+
+### `roadmaps/`
+- **PRICE_DISCOVERY_ROADMAP.md** - Roadmap évolutive price discovery (3 phases avec métriques)
+
+### `analysis/`
+- **analyze_one_weight_one_use.py** - Analyse contrainte "One Weight, One Use" (critique architecturale)
+- **analyze_regex_nfa_explosion.py** - Analyse explosion NFA regex avec optimisations quantifiées
 
 ### `docs/phase2/`
 - **fr/** - Documentation française détaillée
@@ -51,14 +59,16 @@ Ces ressources permettent à CAPS de :
 ## 📊 Métriques Préservées
 
 ### Ressources Documentaires
-- **4 fichiers paper/blueprint** critiques
-- **10 fichiers documentation** technique détaillée
-- **Architecture complète** DAG-NFA-Simplex préservée
+- **7 fichiers paper/blueprint/roadmap** critiques
+- **12 fichiers documentation** technique détaillée
+- **2 analyses Python** quantifiées (contraintes architecturales + optimisations NFA)
+- **Architecture complète** DAG-NFA-Simplex + Hybrid préservée
 
 ### Valeur Académique
-- **Innovation technique** : Architecture hybride unique
-- **Preuves mathématiques** : Triple validation formelle
-- **Base publication** : Structure IEEE/ACM existante
+- **Innovation technique** : Architecture hybride + contrainte "One Weight, One Use"
+- **Preuves mathématiques** : Triple validation + analyse explosion combinatoire
+- **Base publication** : Structure IEEE/ACM + roadmap méthodologique
+- **Optimisations quantifiées** : 66% réduction NFA, métriques performance
 
 ---
 
