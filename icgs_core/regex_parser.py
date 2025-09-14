@@ -21,15 +21,18 @@ class TokenType(Enum):
     ANCHOR_END = "ANCHOR_END"   # $ (fin)
     GROUP_START = "GROUP_START" # (
     GROUP_END = "GROUP_END"     # )
+    CHARACTER_CLASS = "CHARACTER_CLASS" # [abc] ou [a-z]
 
 
 @dataclass
 class RegexToken:
     """Token regex avec métadonnées pour Thompson's"""
     token_type: TokenType
-    value: Optional[str] = None  # Caractère pour LITERAL
+    value: Optional[str] = None  # Caractère pour LITERAL ou classe pour CHARACTER_CLASS
     quantifier: Optional[str] = None  # *, +, ?
     position: int = 0  # Position dans pattern original
+    char_set: Optional[Set[str]] = None  # Caractères pour CHARACTER_CLASS
+    negated: bool = False  # Pour [^abc]
 
     def __str__(self) -> str:
         if self.value:
@@ -106,9 +109,13 @@ class RegexParser:
                     tokens.append(RegexToken(TokenType.LITERAL, escaped_char, position=self.position-1))
                 else:
                     raise ValueError("Invalid escape at end of pattern")
-            elif char in '[{':
-                # Classes de caractères et quantificateurs - pas supportés initialement
-                raise NotImplementedError(f"Character classes not implemented: {char}")
+            elif char == '[':
+                # Classes de caractères [abc] ou [a-z]
+                token = self._parse_character_class()
+                tokens.append(token)
+            elif char == '{':
+                # Quantificateurs {2,5} - pas supportés pour l'instant
+                raise NotImplementedError(f"Quantifiers not implemented: {char}")
             else:
                 # Caractère littéral
                 tokens.append(RegexToken(TokenType.LITERAL, char, position=self.position))
@@ -205,6 +212,68 @@ class RegexParser:
 
         except Exception:
             return set()
+
+    def _parse_character_class(self) -> RegexToken:
+        """
+        Parse classe de caractères [abc] ou [a-z] ou [^abc]
+
+        Returns:
+            Token CHARACTER_CLASS avec char_set
+        """
+        start_pos = self.position
+        self.position += 1  # Skip '['
+
+        if self.position >= self.length:
+            raise ValueError("Unterminated character class")
+
+        # Check for negation [^...]
+        negated = False
+        if self.position < self.length and self.pattern[self.position] == '^':
+            negated = True
+            self.position += 1
+
+        char_set = set()
+        class_str = "["
+
+        if negated:
+            class_str += "^"
+
+        # Parse characters until ]
+        while self.position < self.length and self.pattern[self.position] != ']':
+            char = self.pattern[self.position]
+
+            # Handle ranges like a-z
+            if (self.position + 2 < self.length and
+                self.pattern[self.position + 1] == '-' and
+                self.pattern[self.position + 2] != ']'):
+
+                start_char = char
+                end_char = self.pattern[self.position + 2]
+
+                # Add range to set
+                for code in range(ord(start_char), ord(end_char) + 1):
+                    char_set.add(chr(code))
+
+                class_str += f"{start_char}-{end_char}"
+                self.position += 3
+            else:
+                # Single character
+                char_set.add(char)
+                class_str += char
+                self.position += 1
+
+        if self.position >= self.length or self.pattern[self.position] != ']':
+            raise ValueError("Unterminated character class")
+
+        class_str += "]"
+
+        return RegexToken(
+            TokenType.CHARACTER_CLASS,
+            value=class_str,
+            position=start_pos,
+            char_set=char_set,
+            negated=negated
+        )
 
     def simplify_anchored_pattern(self, pattern: str) -> str:
         """

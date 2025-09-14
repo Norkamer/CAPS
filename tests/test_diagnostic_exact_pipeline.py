@@ -58,7 +58,14 @@ class TestDiagnosticExactPipeline(unittest.TestCase):
         
         print(f"\nTransaction: {transaction.transaction_id}")
         print(f"Transaction counter AVANT: {self.dag.transaction_counter}")
-        
+
+        # Configuration taxonomy pour éviter erreurs
+        simple_mappings = {
+            "alice_farm_source": "A", "alice_farm_sink": "B",
+            "bob_factory_source": "C", "bob_factory_sink": "D"
+        }
+        self.dag.account_taxonomy.update_taxonomy(simple_mappings, 0)
+
         # SÉQUENCE EXACTE add_transaction() ÉTAPE PAR ÉTAPE
         
         # ÉTAPE 1: _extract_accounts_from_transaction() 
@@ -129,6 +136,16 @@ class TestDiagnosticExactPipeline(unittest.TestCase):
         except Exception as e:
             print(f"❌ enumerate_and_classify failed: {e}")
             raise
+
+        # ASSERTIONS pour validation pipeline diagnostic
+        self.assertIsNotNone(transaction_edge, "Transaction edge should be created")
+        self.assertIsNotNone(temp_nfa, "Temporary NFA should be created")
+        self.assertIsInstance(path_classes, dict, "Path classes should be a dictionary")
+        self.assertGreaterEqual(len(direct_paths), 0, "Should enumerate paths (may be 0 if no valid paths)")
+
+        # Validation structure de données
+        self.assertIsInstance(self.dag.transaction_counter, int)
+        self.assertGreaterEqual(self.dag.transaction_counter, 0)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

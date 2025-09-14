@@ -22,6 +22,7 @@ class TransitionType(Enum):
     EPSILON = "EPSILON"         # ε-transition (pas de consommation)
     CHARACTER = "CHARACTER"     # Transition caractère spécifique
     DOT = "DOT"                # . (tout caractère)
+    CHARACTER_CLASS = "CHARACTER_CLASS"  # Classe caractères [abc]
 
 
 @dataclass
@@ -31,6 +32,8 @@ class NFATransition:
     to_state: str
     transition_type: TransitionType
     character: Optional[str] = None  # Caractère pour CHARACTER
+    char_set: Optional[Set[str]] = None  # Caractères pour CHARACTER_CLASS
+    negated: bool = False  # Pour classes négatives [^abc]
     transition_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def matches_character(self, char: str) -> bool:
@@ -41,6 +44,13 @@ class NFATransition:
             return char == self.character
         elif self.transition_type == TransitionType.DOT:
             return len(char) == 1  # . accepte tout caractère unique
+        elif self.transition_type == TransitionType.CHARACTER_CLASS:
+            if self.char_set is None:
+                return False
+            if self.negated:
+                return char not in self.char_set
+            else:
+                return char in self.char_set
         return False
 
     def __str__(self) -> str:
@@ -50,6 +60,11 @@ class NFATransition:
             return f"{self.from_state} --'{self.character}'--> {self.to_state}"
         elif self.transition_type == TransitionType.DOT:
             return f"{self.from_state} --.--> {self.to_state}"
+        elif self.transition_type == TransitionType.CHARACTER_CLASS:
+            class_desc = "^" if self.negated else ""
+            if self.char_set:
+                class_desc += "".join(sorted(self.char_set))
+            return f"{self.from_state} --[{class_desc}]--> {self.to_state}"
 
 
 @dataclass
@@ -222,6 +237,43 @@ class ThompsonNFABuilder:
             # $ - pas de consommation, validation fin
             return PatternFragment(
                 pattern="$",
+                start_state_id=start_id,
+                final_state_ids={final_id},
+                all_state_ids={start_id, final_id},
+                transitions=[NFATransition(start_id, final_id, TransitionType.EPSILON)]
+            )
+
+        elif token.token_type == TokenType.CHARACTER_CLASS:
+            # [abc] ou [a-z] - classe de caractères
+            transition = NFATransition(
+                start_id, final_id,
+                TransitionType.CHARACTER_CLASS,
+                char_set=token.char_set,
+                negated=token.negated
+            )
+
+            return PatternFragment(
+                pattern=token.value or "[...]",
+                start_state_id=start_id,
+                final_state_ids={final_id},
+                all_state_ids={start_id, final_id},
+                transitions=[transition]
+            )
+
+        elif token.token_type == TokenType.GROUP_START:
+            # ( - début de groupe, pas de consommation
+            return PatternFragment(
+                pattern="(",
+                start_state_id=start_id,
+                final_state_ids={final_id},
+                all_state_ids={start_id, final_id},
+                transitions=[NFATransition(start_id, final_id, TransitionType.EPSILON)]
+            )
+
+        elif token.token_type == TokenType.GROUP_END:
+            # ) - fin de groupe, pas de consommation
+            return PatternFragment(
+                pattern=")",
                 start_state_id=start_id,
                 final_state_ids={final_id},
                 all_state_ids={start_id, final_id},

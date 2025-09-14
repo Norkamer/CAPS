@@ -156,5 +156,15 @@ class TestDiagnosticTest16Verbose(unittest.TestCase):
             print(f"❌ enumerate_and_classify failed: {e}")
             raise
 
+        # ASSERTIONS pour validation diagnostic Test 16 verbose
+        self.assertIsNotNone(transaction_edge, "Transaction edge should be created")
+        self.assertIsNotNone(temp_nfa, "Temporary NFA should be created")
+        self.assertIsNotNone(result, "enumerate_and_classify should return result")
+        self.assertIsInstance(result, dict, "Result should be dictionary")
+
+        # Validation DAG état après diagnostic
+        self.assertEqual(len(self.dag.accounts), 2, "Should have 2 accounts after setup")
+        self.assertGreaterEqual(len(self.dag.nodes), 4, "Should have at least 4 nodes (source/sink pairs)")
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

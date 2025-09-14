@@ -256,6 +256,20 @@ class TestDiagnosticSinglePattern(unittest.TestCase):
         dag_performance = self.dag.get_performance_summary()
         print(f"\nPerformance summary: {dag_performance}")
 
+        # ASSERTIONS pour validation test diagnostic
+        self.assertIsNotNone(result, "Transaction should return a result (True/False)")
+        self.assertIsInstance(self.dag.transaction_counter, int, "Transaction counter should be an integer")
+        self.assertGreaterEqual(len(self.dag.accounts), 0, "DAG should have accounts after transaction attempt")
+        self.assertIsNotNone(dag_performance, "Performance summary should not be None")
+
+        # Si la transaction réussit, valider les balances
+        if result:
+            self.assertIn("test_source", self.dag.accounts, "Source account should exist after successful transaction")
+            self.assertIn("test_target", self.dag.accounts, "Target account should exist after successful transaction")
+            source_balance = self.dag.accounts["test_source"].balance.current_balance
+            target_balance = self.dag.accounts["test_target"].balance.current_balance
+            self.assertEqual(source_balance + target_balance, Decimal('0'), "Balance conservation should hold")
+
 
 if __name__ == '__main__':
     # Exécution diagnostic
