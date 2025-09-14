@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICGS 3D Solution Space Visualizer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #3498db;
+        }
+
+        .header p {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 250px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #bdc3c7;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .control-group select, .control-group button {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: #34495e;
+            color: white;
+            cursor: pointer;
+        }
+
+        .control-group button:hover {
+            background: #2c3e50;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 400px;
+        }
+
+        .legend h3 {
+            margin-bottom: 10px;
+            color: #e74c3c;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .legend-line {
+            width: 30px;
+            margin-right: 10px;
+        }
+
+        .legend-line.dashed {
+            background-image: linear-gradient(to right, transparent 50%, currentColor 50%);
+            background-size: 8px 100%;
+        }
+
+        .legend h4 {
+            margin: 15px 0 8px 0;
+            color: #3498db;
+            font-size: 0.9em;
+        }
+
+        .stats {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 200px;
+            font-size: 0.9em;
+        }
+
+        .stats h3 {
+            margin-bottom: 10px;
+            color: #f39c12;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            text-align: center;
+        }
+
+        .loading h2 {
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #34495e;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            pointer-events: none;
+            z-index: 200;
+            max-width: 300px;
+            display: none;
+        }
+
+        .axis-label {
+            position: absolute;
+            font-size: 0.9em;
+            color: #bdc3c7;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- En-tête -->
+        <div class="header">
+            <h1>🌌 ICGS 3D Space</h1>
+            <p><strong>Espace des Solutions Simplex</strong></p>
+            <p>Partition par Types de Contraintes</p>
+            <p>Première Mondiale - Visualisation Mathématique</p>
+        </div>
+
+        <!-- Contrôles -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="rotationSpeed">Vitesse Rotation</label>
+                <input type="range" id="rotationSpeed" min="0" max="2" step="0.1" value="0.5">
+            </div>
+
+            <div class="control-group">
+                <label for="pointSize">Taille Points</label>
+                <input type="range" id="pointSize" min="1" max="10" step="0.5" value="3">
+            </div>
+
+            <div class="control-group">
+                <label for="viewMode">Mode Visualisation</label>
+                <select id="viewMode">
+                    <option value="points">Points Seuls</option>
+                    <option value="connections">Points + Connexions</option>
+                    <option value="surface">Surface Faisable</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <button id="resetCamera">📷 Reset Caméra</button>
+            </div>
+
+            <div class="control-group">
+                <button id="generateMesh">🔳 Générer Maillage</button>
+            </div>
+
+            <div class="control-group">
+                <button id="analyzeNew">🔄 Nouvelle Analyse</button>
+            </div>
+        </div>
+
+        <!-- Légende -->
+        <div class="legend">
+            <h3>🎨 Légende - Parcours Simplex</h3>
+
+            <h4>Points (Pivots)</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #00ff00;"></div>
+                <span>Point Optimal</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffaa00;"></div>
+                <span>Point Parcouru</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff6b6b;"></div>
+                <span>Point Considéré</span>
+            </div>
+
+            <h4>Arêtes (Transitions)</h4>
+            <div class="legend-item">
+                <div class="legend-line" style="height: 2px; background: #00ff88;"></div>
+                <span>Arête Parcourue</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-line dashed" style="height: 2px; background: #aaaaaa;"></div>
+                <span>Arête Considérée</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-line dashed" style="height: 1px; background: #666666;"></div>
+                <span>Arête Rejetée</span>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="stats">
+            <h3>📊 Statistiques</h3>
+            <div class="stat-item">
+                <span>Points Totaux:</span>
+                <span id="totalPoints">-</span>
+            </div>
+            <div class="stat-item">
+                <span>Faisables:</span>
+                <span id="feasiblePoints">-</span>
+            </div>
+            <div class="stat-item">
+                <span>Optimaux:</span>
+                <span id="optimalPoints">-</span>
+            </div>
+            <div class="stat-item">
+                <span>Taux Succès:</span>
+                <span id="successRate">-</span>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <h2>🚀 Chargement Espace 3D ICGS</h2>
+            <div class="spinner"></div>
+            <p style="margin-top: 15px;">Analyse des solutions Simplex...</p>
+        </div>
+
+        <!-- Container Three.js -->
+        <div id="canvas-container"></div>
+
+        <!-- Tooltip -->
+        <div class="tooltip" id="tooltip"></div>
+
+        <!-- Labels axes -->
+        <div class="axis-label" id="axisX" style="left: 50px; top: 50%;">Axe X: Contraintes SOURCE</div>
+        <div class="axis-label" id="axisY" style="left: 50%; top: 50px;">Axe Y: Contraintes TARGET</div>
+        <div class="axis-label" id="axisZ" style="right: 50px; top: 50%;">Axe Z: Contraintes SECONDARY</div>
+    </div>
+
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // Variables globales
+        let scene, camera, renderer, controls;
+        let solutionPoints = [];
+        let simplexEdges = [];
+        let meshPoints = [];
+        let animationId;
+        let tooltip;
+        let solutionData = null;
+
+        // Configuration
+        const config = {
+            rotationSpeed: 0.005,
+            pointSize: 3,
+            viewMode: 'points',
+            cameraDistance: 2000
+        };
+
+        // Couleurs
+        const colors = {
+            // Points pivots
+            optimal: 0x00ff00,            // Vert - Point optimal
+            traversed: 0xffaa00,          // Orange - Point parcouru
+            considered: 0xff6b6b,         // Rouge clair - Point considéré
+            infeasible: 0xff0000,         // Rouge - Infaisable
+            meshPoint: 0xffffff,          // Blanc - Point maillage
+
+            // Arêtes simplex
+            edgeTraversed: 0x00ff88,      // Vert-cyan - Arête parcourue
+            edgeConsidered: 0xaaaaaa,     // Gris - Arête considérée
+            edgeRejected: 0x666666,       // Gris foncé - Arête rejetée
+
+            axis: 0x666666                // Gris axes
+        };
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', async function() {
+            tooltip = document.getElementById('tooltip');
+
+            try {
+                await loadSolutionData();
+                initThreeJS();
+                createAxes();
+                createSolutionPoints();
+                createSimplexEdges();
+                setupControls();
+                animate();
+                hideLoading();
+            } catch (error) {
+                console.error('Erreur initialisation:', error);
+                showError(error);
+            }
+        });
+
+        // Chargement données 3D
+        async function loadSolutionData() {
+            try {
+                // Essayer de charger depuis fichier local d'abord
+                const response = await fetch('icgs_3d_space.json');
+                if (response.ok) {
+                    solutionData = await response.json();
+                } else {
+                    // Fallback vers données démo si fichier pas trouvé
+                    solutionData = generateDemoData();
+                }
+
+                updateStats();
+                console.log('✅ Données 3D chargées:', solutionData.metadata);
+            } catch (error) {
+                console.warn('Fallback vers données démo:', error);
+                solutionData = generateDemoData();
+                updateStats();
+            }
+        }
+
+        // Données de démonstration
+        function generateDemoData() {
+            return {
+                metadata: {
+                    total_points: 5,
+                    feasible_points: 5,
+                    optimal_points: 5,
+                    analysis_timestamp: new Date().toISOString()
+                },
+                solution_points: [
+                    {
+                        coordinates: [825, 780, 150],
+                        transaction_id: "TX_demo_001",
+                        feasible: true,
+                        optimal: true,
+                        metadata: {
+                            source: "ALICE_FARM",
+                            target: "BOB_FACTORY",
+                            amount: 500,
+                            source_sector: "AGRICULTURE",
+                            target_sector: "INDUSTRY"
+                        }
+                    },
+                    {
+                        coordinates: [432, 300, 30],
+                        transaction_id: "TX_demo_002",
+                        feasible: true,
+                        optimal: true,
+                        metadata: {
+                            source: "BOB_FACTORY",
+                            target: "CAROL_LOGISTICS",
+                            amount: 300,
+                            source_sector: "INDUSTRY",
+                            target_sector: "SERVICES"
+                        }
+                    },
+                    {
+                        coordinates: [208, 270, 20],
+                        transaction_id: "TX_demo_003",
+                        feasible: true,
+                        optimal: false,
+                        metadata: {
+                            source: "DAVID_BANK",
+                            target: "ALICE_FARM",
+                            amount: 200,
+                            source_sector: "FINANCE",
+                            target_sector: "AGRICULTURE"
+                        }
+                    },
+                    {
+                        coordinates: [100, 50, -10],
+                        transaction_id: "TX_demo_004",
+                        feasible: false,
+                        optimal: false,
+                        metadata: {
+                            source: "TEST_SOURCE",
+                            target: "TEST_TARGET",
+                            amount: 1000,
+                            source_sector: "UNKNOWN",
+                            target_sector: "UNKNOWN"
+                        }
+                    }
+                ],
+                axis_labels: {
+                    x: "Contraintes SOURCE (Débiteur)",
+                    y: "Contraintes TARGET (Créditeur)",
+                    z: "Contraintes SECONDARY (Bonus/Malus)"
+                }
+            };
+        }
+
+        // Initialisation Three.js
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                1,
+                10000
+            );
+            camera.position.set(1500, 1200, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lumières
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1000, 1000, 500);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.enableZoom = true;
+
+            // Resize handler
+            window.addEventListener('resize', onWindowResize);
+
+            // Mouse events
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('click', onMouseClick);
+        }
+
+        // Création axes 3D
+        function createAxes() {
+            const axisLength = 1000;
+            const axisGeometry = new THREE.BufferGeometry();
+            const axisMaterial = new THREE.LineBasicMaterial({ color: colors.axis });
+
+            // Axe X (rouge)
+            const xPoints = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(axisLength, 0, 0)
+            ];
+            const xGeometry = new THREE.BufferGeometry().setFromPoints(xPoints);
+            const xLine = new THREE.Line(xGeometry, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+            scene.add(xLine);
+
+            // Axe Y (vert)
+            const yPoints = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, axisLength, 0)
+            ];
+            const yGeometry = new THREE.BufferGeometry().setFromPoints(yPoints);
+            const yLine = new THREE.Line(yGeometry, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
+            scene.add(yLine);
+
+            // Axe Z (bleu)
+            const zPoints = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, axisLength)
+            ];
+            const zGeometry = new THREE.BufferGeometry().setFromPoints(zPoints);
+            const zLine = new THREE.Line(zGeometry, new THREE.LineBasicMaterial({ color: 0x0000ff }));
+            scene.add(zLine);
+        }
+
+        // Création points solutions
+        function createSolutionPoints() {
+            solutionPoints = [];
+
+            solutionData.solution_points.forEach(point => {
+                const [x, y, z] = point.coordinates;
+
+                // Géométrie et matériel selon statut
+                const geometry = new THREE.SphereGeometry(config.pointSize, 32, 32);
+                let color;
+
+                // Couleur selon type de pivot
+                if (point.pivot_type) {
+                    switch(point.pivot_type) {
+                        case 'optimal':
+                            color = colors.optimal;
+                            break;
+                        case 'traversed':
+                            color = colors.traversed;
+                            break;
+                        case 'considered':
+                            color = colors.considered;
+                            break;
+                        default:
+                            color = colors.infeasible;
+                    }
+                } else {
+                    // Fallback pour ancienne structure
+                    if (point.optimal) {
+                        color = colors.optimal;
+                    } else if (point.feasible) {
+                        color = colors.traversed;
+                    } else {
+                        color = colors.infeasible;
+                    }
+                }
+
+                const material = new THREE.MeshLambertMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(x, y, z);
+                sphere.userData = point;
+                sphere.castShadow = true;
+                sphere.receiveShadow = true;
+
+                scene.add(sphere);
+                solutionPoints.push(sphere);
+            });
+        }
+
+        // Création des arêtes entre pivots du Simplex
+        function createSimplexEdges() {
+            simplexEdges = [];
+
+            if (!solutionData.simplex_edges) {
+                console.log('Aucune arête Simplex trouvée dans les données');
+                return;
+            }
+
+            solutionData.simplex_edges.forEach(edge => {
+                const [fromX, fromY, fromZ] = edge.from_coordinates;
+                const [toX, toY, toZ] = edge.to_coordinates;
+
+                // Créer géométrie ligne
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(fromX, fromY, fromZ),
+                    new THREE.Vector3(toX, toY, toZ)
+                ]);
+
+                // Matériau selon type d'arête
+                let material;
+                let lineWidth = 2;
+
+                switch(edge.edge_type) {
+                    case 'traversed':
+                        material = new THREE.LineBasicMaterial({
+                            color: colors.edgeTraversed,
+                            linewidth: lineWidth * 2,
+                            transparent: true,
+                            opacity: 0.9
+                        });
+                        break;
+                    case 'considered':
+                        material = new THREE.LineDashedMaterial({
+                            color: colors.edgeConsidered,
+                            linewidth: lineWidth,
+                            dashSize: 10,
+                            gapSize: 5,
+                            transparent: true,
+                            opacity: 0.6
+                        });
+                        break;
+                    default: // rejected
+                        material = new THREE.LineDashedMaterial({
+                            color: colors.edgeRejected,
+                            linewidth: lineWidth,
+                            dashSize: 5,
+                            gapSize: 10,
+                            transparent: true,
+                            opacity: 0.3
+                        });
+                }
+
+                const line = new THREE.Line(geometry, material);
+
+                // Calculer les tirets pour les lignes pointillées
+                if (edge.edge_type !== 'traversed') {
+                    line.computeLineDistances();
+                }
+
+                // Ajouter métadonnées
+                line.userData = {
+                    edgeType: edge.edge_type,
+                    pivotDirection: edge.pivot_direction,
+                    improvement: edge.improvement,
+                    fromStep: edge.from_step,
+                    toStep: edge.to_step
+                };
+
+                scene.add(line);
+                simplexEdges.push(line);
+            });
+
+            console.log(`✅ ${simplexEdges.length} arêtes Simplex créées`);
+        }
+
+        // Configuration contrôles UI
+        function setupControls() {
+            // Vitesse rotation
+            document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+                config.rotationSpeed = parseFloat(e.target.value) * 0.01;
+            });
+
+            // Taille points
+            document.getElementById('pointSize').addEventListener('input', (e) => {
+                config.pointSize = parseFloat(e.target.value);
+                updatePointSizes();
+            });
+
+            // Mode visualisation
+            document.getElementById('viewMode').addEventListener('change', (e) => {
+                config.viewMode = e.target.value;
+                updateViewMode();
+            });
+
+            // Reset caméra
+            document.getElementById('resetCamera').addEventListener('click', () => {
+                camera.position.set(1500, 1200, 1000);
+                controls.reset();
+            });
+
+            // Générer maillage
+            document.getElementById('generateMesh').addEventListener('click', generateMesh);
+
+            // Nouvelle analyse
+            document.getElementById('analyzeNew').addEventListener('click', runNewAnalysis);
+        }
+
+        // Mise à jour taille points
+        function updatePointSizes() {
+            solutionPoints.forEach(point => {
+                point.scale.setScalar(config.pointSize / 3);
+            });
+        }
+
+        // Mise à jour mode visualisation
+        function updateViewMode() {
+            // TODO: Implémenter différents modes
+            console.log('Mode visualisation:', config.viewMode);
+        }
+
+        // Génération maillage
+        function generateMesh() {
+            console.log('🔳 Génération maillage 3D...');
+            // TODO: Implémenter génération maillage faisable
+        }
+
+        // Nouvelle analyse
+        async function runNewAnalysis() {
+            showLoading();
+            try {
+                const response = await fetch('/api/simulation/analyze_3d');
+                if (response.ok) {
+                    const newData = await response.json();
+                    solutionData = newData;
+                    refreshVisualization();
+                }
+            } catch (error) {
+                console.error('Erreur nouvelle analyse:', error);
+            }
+            hideLoading();
+        }
+
+        // Actualisation visualisation
+        function refreshVisualization() {
+            // Supprimer anciens points
+            solutionPoints.forEach(point => scene.remove(point));
+
+            // Recréer points
+            createSolutionPoints();
+            updateStats();
+        }
+
+        // Gestion souris
+        function onMouseMove(event) {
+            // TODO: Implémenter hover tooltip
+        }
+
+        function onMouseClick(event) {
+            // TODO: Implémenter sélection point
+        }
+
+        // Resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            // Rotation automatique
+            if (config.rotationSpeed > 0) {
+                scene.rotation.y += config.rotationSpeed;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Mise à jour statistiques
+        function updateStats() {
+            if (!solutionData) return;
+
+            const meta = solutionData.metadata;
+            document.getElementById('totalPoints').textContent = meta.total_points;
+            document.getElementById('feasiblePoints').textContent = meta.feasible_points;
+            document.getElementById('optimalPoints').textContent = meta.optimal_points;
+
+            const successRate = meta.total_points > 0 ?
+                (meta.feasible_points / meta.total_points * 100).toFixed(1) : 0;
+            document.getElementById('successRate').textContent = successRate + '%';
+        }
+
+        // Loading
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showError(error) {
+            document.getElementById('loading').innerHTML = `
+                <h2>❌ Erreur Chargement</h2>
+                <p>${error.message}</p>
+                <button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; border: none; border-radius: 5px; background: #e74c3c; color: white; cursor: pointer;">
+                    🔄 Recharger
+                </button>
+            `;
+        }
+
+        console.log('🌌 ICGS 3D Visualizer initialized');
+    </script>
+</body>
+</html>

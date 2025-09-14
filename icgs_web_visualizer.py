@@ -29,6 +29,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 from icgs_simulation import EconomicSimulation, SECTORS
 from icgs_simulation.api.icgs_bridge import SimulationMode, SimulationResult
 
+# Import 3D analyzer
+try:
+    from icgs_3d_space_analyzer import ICGS3DSpaceAnalyzer
+    ANALYZER_3D_AVAILABLE = True
+except ImportError:
+    ANALYZER_3D_AVAILABLE = False
+    print("⚠️  3D Analyzer not available")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'icgs_demo_2024'
 
@@ -283,6 +291,84 @@ def api_run_demo():
             'success': False,
             'error': str(e)
         }), 400
+
+@app.route('/api/analyze_3d')
+def api_analyze_3d():
+    """API: Analyser l'espace 3D des solutions Simplex"""
+    if not ANALYZER_3D_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': '3D Analyzer not available'
+        }), 501
+
+    sim = init_simulation()
+
+    try:
+        # Créer analyseur 3D
+        analyzer = ICGS3DSpaceAnalyzer(sim)
+
+        # Générer données 3D avec transactions d'analyse
+        transactions_3d = [
+            ('ALICE_FARM', 'BOB_INDUSTRY', Decimal('500')),
+            ('BOB_INDUSTRY', 'CAROL_SERVICES', Decimal('300')),
+            ('CAROL_SERVICES', 'ALICE_FARM', Decimal('150'))
+        ]
+
+        solution_points = []
+        for source, target, amount in transactions_3d:
+            try:
+                point = analyzer.analyze_transaction_3d_space(source, target, amount)
+                solution_points.append({
+                    'coordinates': [point.x, point.y, point.z],
+                    'transaction_id': point.transaction_id,
+                    'feasible': point.feasible,
+                    'optimal': point.optimal,
+                    'metadata': point.metadata
+                })
+            except Exception as tx_error:
+                print(f"Erreur transaction 3D: {tx_error}")
+                continue
+
+        # Préparer données pour retour JSON
+        analysis_3d = {
+            'metadata': {
+                'total_points': len(solution_points),
+                'feasible_points': sum(1 for p in solution_points if p['feasible']),
+                'optimal_points': sum(1 for p in solution_points if p['optimal']),
+                'analysis_timestamp': datetime.now().isoformat()
+            },
+            'solution_points': solution_points,
+            'axis_labels': {
+                'x': 'Contraintes SOURCE (Débiteur)',
+                'y': 'Contraintes TARGET (Créditeur)',
+                'z': 'Contraintes SECONDARY (Bonus/Malus)'
+            }
+        }
+
+        return jsonify({
+            'success': True,
+            'data_3d': analysis_3d,
+            'message': f'Analyse 3D complétée: {len(solution_points)} points'
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/icgs_3d_space.json')
+def serve_3d_data():
+    """Servir le fichier JSON des données 3D"""
+    try:
+        return send_from_directory('.', 'icgs_3d_space.json')
+    except FileNotFoundError:
+        return jsonify({'error': 'Données 3D non disponibles'}), 404
+
+@app.route('/3d')
+def view_3d():
+    """Page visualisation 3D"""
+    return send_from_directory('.', 'icgs_3d_visualizer.html')
 
 @app.route('/static/<path:filename>')
 def static_files(filename):

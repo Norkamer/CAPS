@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "total_points": 5,
+    "feasible_points": 5,
+    "optimal_points": 5,
+    "analysis_timestamp": "2024-09-14T07:30:00Z"
+  },
+  "solution_points": [
+    {
+      "coordinates": [
+        825.0000000000001,
+        780.0,
+        150.0
+      ],
+      "transaction_id": "TX_3d_space_demo_001",
+      "feasible": true,
+      "optimal": true,
+      "pivot_step": 0,
+      "pivot_type": "optimal",
+      "metadata": {
+        "source": "ALICE_FARM",
+        "target": "BOB_FACTORY",
+        "amount": 500.0,
+        "source_sector": "AGRICULTURE",
+        "target_sector": "INDUSTRY",
+        "dag_stats": {
+          "transactions_added": 5,
+          "transactions_rejected": 0,
+          "nfa_explosions_detected": 0,
+          "simplex_feasible": 5,
+          "simplex_infeasible": 0,
+          "warm_starts_used": 0,
+          "cold_starts_used": 5,
+          "cross_validations_performed": 4,
+          "pivot_rejections": 0,
+          "avg_enumeration_time_ms": 0.9727954864501953,
+          "avg_simplex_solve_time_ms": 1.0343074798583984,
+          "max_paths_enumerated": 0,
+          "total_validation_time_ms": 10.300636291503906
+        },
+        "validation_time_feas": 2.5167465209960938,
+        "validation_time_opt": 0.12612342834472656
+      }
+    },
+    {
+      "coordinates": [
+        432.0,
+        300.0,
+        30.0
+      ],
+      "transaction_id": "TX_3d_space_demo_002",
+      "feasible": true,
+      "optimal": true,
+      "pivot_step": 1,
+      "pivot_type": "optimal",
+      "metadata": {
+        "source": "BOB_FACTORY",
+        "target": "CAROL_LOGISTICS",
+        "amount": 300.0,
+        "source_sector": "INDUSTRY",
+        "target_sector": "UNKNOWN",
+        "dag_stats": {
+          "transactions_added": 5,
+          "transactions_rejected": 0,
+          "nfa_explosions_detected": 0,
+          "simplex_feasible": 5,
+          "simplex_infeasible": 0,
+          "warm_starts_used": 0,
+          "cold_starts_used": 5,
+          "cross_validations_performed": 4,
+          "pivot_rejections": 0,
+          "avg_enumeration_time_ms": 0.9727954864501953,
+          "avg_simplex_solve_time_ms": 1.0343074798583984,
+          "max_paths_enumerated": 0,
+          "total_validation_time_ms": 10.300636291503906
+        },
+        "validation_time_feas": 1.8274784088134766,
+        "validation_time_opt": 0.09846687316894531
+      }
+    },
+    {
+      "coordinates": [
+        208.0,
+        270.0,
+        20.0
+      ],
+      "transaction_id": "TX_3d_space_demo_003",
+      "feasible": true,
+      "optimal": true,
+      "pivot_step": 2,
+      "pivot_type": "optimal",
+      "metadata": {
+        "source": "DAVID_BANK",
+        "target": "ALICE_FARM",
+        "amount": 200.0,
+        "source_sector": "FINANCE",
+        "target_sector": "AGRICULTURE",
+        "dag_stats": {
+          "transactions_added": 5,
+          "transactions_rejected": 0,
+          "nfa_explosions_detected": 0,
+          "simplex_feasible": 5,
+          "simplex_infeasible": 0,
+          "warm_starts_used": 0,
+          "cold_starts_used": 5,
+          "cross_validations_performed": 4,
+          "pivot_rejections": 0,
+          "avg_enumeration_time_ms": 0.9727954864501953,
+          "avg_simplex_solve_time_ms": 1.0343074798583984,
+          "max_paths_enumerated": 0,
+          "total_validation_time_ms": 10.300636291503906
+        },
+        "validation_time_feas": 1.8551349639892578,
+        "validation_time_opt": 0.08916854858398438
+      }
+    },
+    {
+      "coordinates": [
+        273.0,
+        180.0,
+        15.0
+      ],
+      "transaction_id": "TX_3d_space_demo_004",
+      "feasible": true,
+      "optimal": true,
+      "pivot_step": 3,
+      "pivot_type": "optimal",
+      "metadata": {
+        "source": "EVE_ENERGY",
+        "target": "BOB_FACTORY",
+        "amount": 150.0,
+        "source_sector": "ENERGY",
+        "target_sector": "INDUSTRY",
+        "dag_stats": {
+          "transactions_added": 5,
+          "transactions_rejected": 0,
+          "nfa_explosions_detected": 0,
+          "simplex_feasible": 5,
+          "simplex_infeasible": 0,
+          "warm_starts_used": 0,
+          "cold_starts_used": 5,
+          "cross_validations_performed": 4,
+          "pivot_rejections": 0,
+          "avg_enumeration_time_ms": 0.9727954864501953,
+          "avg_simplex_solve_time_ms": 1.0343074798583984,
+          "max_paths_enumerated": 0,
+          "total_validation_time_ms": 10.300636291503906
+        },
+        "validation_time_feas": 2.2630691528320312,
+        "validation_time_opt": 0.1437664031982422
+      }
+    },
+    {
+      "coordinates": [
+        150.0,
+        80.0,
+        10.0
+      ],
+      "transaction_id": "TX_3d_space_demo_005",
+      "feasible": true,
+      "optimal": true,
+      "pivot_step": 4,
+      "pivot_type": "optimal",
+      "metadata": {
+        "source": "CAROL_LOGISTICS",
+        "target": "DAVID_BANK",
+        "amount": 100.0,
+        "source_sector": "UNKNOWN",
+        "target_sector": "FINANCE",
+        "dag_stats": {
+          "transactions_added": 5,
+          "transactions_rejected": 0,
+          "nfa_explosions_detected": 0,
+          "simplex_feasible": 5,
+          "simplex_infeasible": 0,
+          "warm_starts_used": 0,
+          "cold_starts_used": 5,
+          "cross_validations_performed": 4,
+          "pivot_rejections": 0,
+          "avg_enumeration_time_ms": 0.9727954864501953,
+          "avg_simplex_solve_time_ms": 1.0343074798583984,
+          "max_paths_enumerated": 0,
+          "total_validation_time_ms": 10.300636291503906
+        },
+        "validation_time_feas": 1.9788742065429688,
+        "validation_time_opt": 0.08630752563476562
+      }
+    }
+  ],
+  "simplex_edges": [
+    {
+      "from_coordinates": [
+        825.0000000000001,
+        780.0,
+        150.0
+      ],
+      "to_coordinates": [
+        432.0,
+        300.0,
+        30.0
+      ],
+      "from_step": 0,
+      "to_step": 1,
+      "pivot_direction": "TARGET constraint pivot",
+      "improvement": 631.8615354648517,
+      "edge_type": "traversed"
+    },
+    {
+      "from_coordinates": [
+        432.0,
+        300.0,
+        30.0
+      ],
+      "to_coordinates": [
+        208.0,
+        270.0,
+        20.0
+      ],
+      "from_step": 1,
+      "to_step": 2,
+      "pivot_direction": "SOURCE constraint pivot",
+      "improvement": 226.2211307548435,
+      "edge_type": "traversed"
+    },
+    {
+      "from_coordinates": [
+        208.0,
+        270.0,
+        20.0
+      ],
+      "to_coordinates": [
+        273.0,
+        180.0,
+        15.0
+      ],
+      "from_step": 2,
+      "to_step": 3,
+      "pivot_direction": "TARGET constraint pivot",
+      "improvement": 111.13055385446434,
+      "edge_type": "traversed"
+    },
+    {
+      "from_coordinates": [
+        273.0,
+        180.0,
+        15.0
+      ],
+      "to_coordinates": [
+        150.0,
+        80.0,
+        10.0
+      ],
+      "from_step": 3,
+      "to_step": 4,
+      "pivot_direction": "SOURCE constraint pivot",
+      "improvement": 158.60012610335465,
+      "edge_type": "traversed"
+    }
+  ],
+  "axis_labels": {
+    "x": "Contraintes SOURCE (D\u00e9biteur)",
+    "y": "Contraintes TARGET (Cr\u00e9diteur)",
+    "z": "Contraintes SECONDARY (Bonus/Malus)"
+  },
+  "color_scheme": {
+    "feasible_optimal": "#00ff00",
+    "feasible_only": "#ffaa00",
+    "infeasible": "#ff0000"
+  },
+  "authentic_simplex_data": false
+}
