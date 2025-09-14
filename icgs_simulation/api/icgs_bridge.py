@@ -378,8 +378,18 @@ class EconomicSimulation:
 
             # Configurer taxonomie une seule fois avec tous les agents
             if not self.taxonomy_configured:
-                self._configure_taxonomy_batch()
-                self.taxonomy_configured = True
+                # OPTION A : Détecter si taxonomie déjà configurée (ex: par WebNativeICGS)
+                existing_accounts = len(getattr(self.dag.account_taxonomy, 'account_registry', set()))
+                existing_history = len(getattr(self.dag.account_taxonomy, 'taxonomy_history', []))
+
+                if existing_accounts > 0 or existing_history > 0:
+                    # Taxonomie déjà configurée par Option A, éviter conflit transaction_counter
+                    self.taxonomy_configured = True
+                    self.logger.info(f"Taxonomie déjà configurée ({existing_accounts} comptes, {existing_history} snapshots) - Skip batch legacy")
+                else:
+                    # Utiliser système batch legacy seulement si aucune taxonomie configurée
+                    self._configure_taxonomy_batch()
+                    self.taxonomy_configured = True
 
             if mode == SimulationMode.FEASIBILITY:
                 # Mode FEASIBILITY standard
