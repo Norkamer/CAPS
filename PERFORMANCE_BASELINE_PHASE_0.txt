@@ -1,0 +1,55 @@
+============================================================
+PERFORMANCE BASELINE REPORT - PHASE 0
+============================================================
+
+🔍 REGEX_PARSER
+----------------------------------------
+Pattern: [A-Z]
+  Time: 0.000168s
+  Memory: 0.01MB
+Pattern: [A-Za-z0-9]+
+  Time: 0.000500s
+  Memory: 0.01MB
+Pattern: .*N.*
+  Time: 0.000039s
+  Memory: 0.00MB
+Pattern: [^abc]+
+  Time: 0.000050s
+  Memory: 0.00MB
+Pattern: (abc|def)
+  Time: 0.000199s
+  Memory: 0.01MB
+Pattern: [A-Z][a-z]*
+  Time: 0.000442s
+  Memory: 0.01MB
+
+🔍 NFA_CONSTRUCTION
+----------------------------------------
+Pattern: [A-Z]
+  Time: 0.000292s
+  Memory: 0.01MB
+  NFA: 2 states, 1 transitions
+Pattern: [A-Za-z0-9]+
+  Time: 0.000819s
+  Memory: 0.02MB
+  NFA: 3 states, 3 transitions
+Pattern: .*N.*
+  Time: 0.000913s
+  Memory: 0.02MB
+  NFA: 10 states, 13 transitions
+Pattern: (abc)+
+  Time: 0.000850s
+  Memory: 0.02MB
+  NFA: 11 states, 11 transitions
+Pattern: [A-Z][a-z]*[0-9]?
+  Time: 0.001466s
+  Memory: 0.03MB
+  NFA: 10 states, 12 transitions
+
+🔍 DAG_OPERATIONS
+----------------------------------------
+
+🎯 OPTIMIZATION RECOMMENDATIONS
+----------------------------------------
+• REGEX PARSER: Optimize [A-Za-z0-9]+ parsing (0.000500s)
+• NFA CONSTRUCTION: Optimize [A-Z][a-z]*[0-9]? building (0.001466s)
