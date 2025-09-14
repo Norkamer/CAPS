@@ -29,6 +29,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 from icgs_simulation import EconomicSimulation, SECTORS
 from icgs_simulation.api.icgs_bridge import SimulationMode, SimulationResult
 
+# Import Web-Native Manager
+from icgs_web_native import WebNativeICGS
+
 # Import 3D analyzer
 try:
     from icgs_3d_space_analyzer import ICGS3DSpaceAnalyzer
@@ -40,8 +43,8 @@ except ImportError:
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'icgs_demo_2024'
 
-# Global simulation instance
-global_simulation = None
+# Global Web-Native ICGS Manager
+web_manager = None
 global_3d_analyzer = None  # PHASE 2A: Analyseur 3D global
 simulation_history = []
 performance_metrics = {
@@ -53,22 +56,29 @@ performance_metrics = {
     'sectors_used': set()
 }
 
-def init_simulation():
-    """Initialize global ICGS simulation"""
-    global global_simulation, global_3d_analyzer
-    if global_simulation is None:
-        global_simulation = EconomicSimulation("web_demo")
-        print("🚀 ICGS Web Simulation initialized")
+def init_web_manager():
+    """Initialize global Web-Native ICGS Manager with pre-configured pool"""
+    global web_manager, global_3d_analyzer
+    if web_manager is None:
+        # Créer Web-Native ICGS Manager avec pool pré-configuré
+        web_manager = WebNativeICGS()
+        print("🚀 WebNative ICGS Manager initialized")
+        print(f"🏗️ Pool virtuel configuré avec {len(web_manager.virtual_pool)} slots")
+        print(f"   Secteurs disponibles: {list(web_manager.virtual_pool.keys())}")
+
+        # Afficher capacités des pools
+        for sector, slots in web_manager.virtual_pool.items():
+            print(f"   {sector}: {len(slots)} agents max - chars: {','.join([slot[1] for slot in slots])}")
 
         # PHASE 2A: Initialiser analyseur 3D avec mode authentique
         if ANALYZER_3D_AVAILABLE:
-            global_3d_analyzer = ICGS3DSpaceAnalyzer(global_simulation)
-            success = global_3d_analyzer.enable_authentic_simplex_data(global_simulation)
+            global_3d_analyzer = ICGS3DSpaceAnalyzer(web_manager.icgs_core)
+            success = global_3d_analyzer.enable_authentic_simplex_data(web_manager.icgs_core)
             if success:
-                print("🌌 Analyseur 3D Mode Authentique activé")
+                print("🌌 Analyseur 3D Mode Authentique activé avec WebNativeICGS")
             else:
                 print("⚠️  Analyseur 3D Mode Authentique échoué")
-    return global_simulation
+    return web_manager
 
 @app.route('/')
 def index():
@@ -92,24 +102,34 @@ def api_sectors():
 
 @app.route('/api/agents', methods=['GET', 'POST'])
 def api_agents():
-    """API: Gestion des agents économiques"""
-    sim = init_simulation()
+    """API: Gestion des agents économiques avec WebNativeICGS"""
+    manager = init_web_manager()
 
     if request.method == 'GET':
-        # Retourner liste des agents actuels
+        # Retourner liste des agents actuels avec info pool
         agents_data = []
-        if hasattr(sim, 'agents'):
-            for agent_id, agent in sim.agents.items():
+        if hasattr(manager.icgs_core, 'agents'):
+            for agent_id, agent in manager.icgs_core.agents.items():
+                # Récupérer info allocation pool
+                virtual_id = manager.real_to_virtual.get(agent_id, agent_id)
+                agent_info = manager.agent_registry.get(agent_id, None)
+
                 agents_data.append({
                     'agent_id': agent_id,
+                    'virtual_slot': virtual_id,
                     'sector': agent.sector,
                     'balance': float(agent.balance),
-                    'metadata': agent.metadata
+                    'metadata': agent.metadata,
+                    'pool_info': {
+                        'virtual_slot': virtual_id,
+                        'taxonomic_char': agent_info.taxonomic_char if agent_info else 'N/A',
+                        'allocated': agent_id in manager.real_to_virtual
+                    }
                 })
         return jsonify(agents_data)
 
     elif request.method == 'POST':
-        # Créer nouvel agent
+        # Créer nouvel agent avec allocation automatique de slot
         data = request.json
         try:
             agent_id = data['agent_id']
@@ -117,7 +137,8 @@ def api_agents():
             balance = Decimal(str(data['balance']))
             metadata = data.get('metadata', {})
 
-            agent = sim.create_agent(agent_id, sector, balance, metadata)
+            # Utiliser WebNativeICGS pour allocation automatique
+            agent_info = manager.add_agent(agent_id, sector, balance, metadata)
 
             # Mise à jour métriques
             performance_metrics['agents_count'] += 1
@@ -125,12 +146,18 @@ def api_agents():
 
             return jsonify({
                 'success': True,
-                'message': f'Agent {agent_id} créé avec succès',
+                'message': f'Agent {agent_id} alloué sur slot {agent_info.virtual_slot}',
                 'agent': {
                     'agent_id': agent_id,
+                    'virtual_slot': agent_info.virtual_slot,
                     'sector': sector,
                     'balance': float(balance),
-                    'metadata': metadata
+                    'metadata': metadata,
+                    'pool_info': {
+                        'virtual_slot': agent_info.virtual_slot,
+                        'taxonomic_char': agent_info.taxonomic_char,
+                        'allocated': True
+                    }
                 }
             })
 
@@ -142,8 +169,8 @@ def api_agents():
 
 @app.route('/api/transaction', methods=['POST'])
 def api_transaction():
-    """API: Créer et valider une transaction"""
-    sim = init_simulation()
+    """API: Créer et valider une transaction avec WebNativeICGS"""
+    manager = init_web_manager()
 
     try:
         data = request.json
@@ -151,61 +178,68 @@ def api_transaction():
         target_id = data['target_id']
         amount = Decimal(str(data['amount']))
 
-        # Créer transaction
-        tx_id = sim.create_transaction(source_id, target_id, amount)
+        # Utiliser WebNativeICGS pour traitement transaction
+        result = manager.process_transaction(source_id, target_id, amount)
 
-        # Valider en mode FEASIBILITY
-        start_time = time.time()
-        result_feas = sim.validate_transaction(tx_id, SimulationMode.FEASIBILITY)
-        feas_time = (time.time() - start_time) * 1000
+        if result['success']:
+            transaction_record = result['transaction_record']
 
-        # Valider en mode OPTIMIZATION
-        start_time = time.time()
-        result_opt = sim.validate_transaction(tx_id, SimulationMode.OPTIMIZATION)
-        opt_time = (time.time() - start_time) * 1000
+            # Mise à jour métriques
+            performance_metrics['total_transactions'] += 1
+            if transaction_record['feasibility']['success']:
+                performance_metrics['successful_feasibility'] += 1
+            if transaction_record['optimization']['success']:
+                performance_metrics['successful_optimization'] += 1
 
-        # Mise à jour métriques
-        performance_metrics['total_transactions'] += 1
-        if result_feas.success:
-            performance_metrics['successful_feasibility'] += 1
-        if result_opt.success:
-            performance_metrics['successful_optimization'] += 1
+            avg_time = (transaction_record['feasibility']['time_ms'] + transaction_record['optimization']['time_ms']) / 2
+            current_avg = performance_metrics['avg_validation_time_ms']
+            total_tx = performance_metrics['total_transactions']
+            performance_metrics['avg_validation_time_ms'] = (current_avg * (total_tx - 1) + avg_time) / total_tx
 
-        avg_time = (feas_time + opt_time) / 2
-        current_avg = performance_metrics['avg_validation_time_ms']
-        total_tx = performance_metrics['total_transactions']
-        performance_metrics['avg_validation_time_ms'] = (current_avg * (total_tx - 1) + avg_time) / total_tx
+            # PHASE 2A: Collecter données animation 3D pour cette transaction
+            animation_data = None
+            if manager.icgs_core and hasattr(manager.icgs_core, 'get_3d_collector'):
+                collector = manager.icgs_core.get_3d_collector()
+                if collector and len(collector.states_history) > 0:
+                    animation_data = collector.export_animation_data()
+                    transaction_record['animation'] = animation_data
 
-        # PHASE 2A: Collecter données animation 3D pour cette transaction
-        animation_data = None
-        if global_simulation and hasattr(global_simulation, 'get_3d_collector'):
-            collector = global_simulation.get_3d_collector()
-            if collector and len(collector.states_history) > 0:
-                animation_data = collector.export_animation_data()
+            simulation_history.append(transaction_record)
 
-        # Enregistrer dans l'historique avec données 3D intégrées
-        transaction_record = {
-            'timestamp': datetime.now().isoformat(),
-            'tx_id': tx_id,
-            'source_id': source_id,
-            'target_id': target_id,
-            'amount': float(amount),
-            'feasibility': {
-                'success': result_feas.success,
-                'time_ms': round(feas_time, 2)
-            },
-            'optimization': {
-                'success': result_opt.success,
-                'time_ms': round(opt_time, 2),
-                'optimal_price': float(getattr(result_opt, 'optimal_price', 0))
-            },
-            'animation': animation_data  # NOUVEAU: Données animation 3D intégrées
-        }
-        simulation_history.append(transaction_record)
+            return jsonify({
+                'success': True,
+                'transaction': transaction_record,
+                'suggestions': result.get('suggestions', [])  # Inclure suggestions contextuelles
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 400
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+@app.route('/api/transaction/suggestions', methods=['POST'])
+def api_transaction_suggestions():
+    """API: Obtenir suggestions contextuelles pour transaction"""
+    manager = init_web_manager()
+
+    try:
+        data = request.json
+        source_id = data.get('source_id')
+        target_id = data.get('target_id')
+        amount = data.get('amount')
+
+        # Obtenir suggestions contextuelles sans imposer
+        suggestions = manager.get_contextual_suggestions(source_id, target_id, amount)
 
         return jsonify({
             'success': True,
-            'transaction': transaction_record
+            'suggestions': suggestions
         })
 
     except Exception as e:
@@ -216,16 +250,18 @@ def api_transaction():
 
 @app.route('/api/metrics')
 def api_metrics():
-    """API: Métriques de performance actuelles + données 3D intégrées"""
+    """API: Métriques de performance actuelles + données WebNativeICGS + pool info"""
+    manager = init_web_manager()
+
     # Obtenir stats DAG si disponibles
     dag_stats = {}
-    if global_simulation and hasattr(global_simulation, 'dag'):
-        dag_stats = getattr(global_simulation.dag, 'stats', {})
+    if manager.icgs_core and hasattr(manager.icgs_core, 'dag'):
+        dag_stats = getattr(manager.icgs_core.dag, 'stats', {})
 
     # PHASE 2A: Intégrer données 3D dans métriques existantes
     simplex_3d_data = {}
-    if global_simulation and hasattr(global_simulation, 'get_3d_collector'):
-        collector = global_simulation.get_3d_collector()
+    if manager.icgs_core and hasattr(manager.icgs_core, 'get_3d_collector'):
+        collector = manager.icgs_core.get_3d_collector()
         if collector:
             simplex_3d_data = {
                 'states_captured': len(collector.states_history),
@@ -234,6 +270,18 @@ def api_metrics():
                 'last_animation_data': collector.export_animation_data() if len(collector.states_history) > 0 else None
             }
 
+    # WebNativeICGS: Informations pool
+    pool_info = {}
+    for sector, slots in manager.virtual_pool.items():
+        # Check allocated slots based on real mappings
+        allocated = len(manager.allocated_slots.get(sector, set()))
+        pool_info[sector] = {
+            'total_capacity': len(slots),
+            'allocated': allocated,
+            'available': len(slots) - allocated,
+            'characters': [slot[1] for slot in slots]  # slot[1] is the character
+        }
+
     return jsonify({
         'performance': {
             **performance_metrics,
@@ -241,7 +289,8 @@ def api_metrics():
         },
         'dag_stats': dag_stats,
         'history_count': len(simulation_history),
-        'simplex_3d': simplex_3d_data  # NOUVEAU: Données 3D intégrées
+        'simplex_3d': simplex_3d_data,  # PHASE 2A: Données 3D intégrées
+        'pool_status': pool_info  # NOUVEAU: Status du pool WebNativeICGS
     })
 
 @app.route('/api/history')
@@ -252,8 +301,8 @@ def api_history():
 
 @app.route('/api/simulation/run_demo')
 def api_run_demo():
-    """API: Lancer simulation de démonstration"""
-    sim = init_simulation()
+    """API: Lancer simulation de démonstration avec WebNativeICGS"""
+    manager = init_web_manager()
 
     try:
         # Reset simulation
@@ -268,17 +317,24 @@ def api_run_demo():
             'sectors_used': set()
         }
 
-        # Créer agents de démonstration
+        # Créer agents de démonstration avec allocation automatique de slots
         demo_agents = [
             ('ALICE_FARM', 'AGRICULTURE', Decimal('1500'), {'name': 'Alice Farm', 'region': 'Nord'}),
             ('BOB_INDUSTRY', 'INDUSTRY', Decimal('800'), {'name': 'Bob Manufacturing', 'type': 'primary'}),
             ('CAROL_SERVICES', 'SERVICES', Decimal('600'), {'name': 'Carol Logistics', 'type': 'transport'})
         ]
 
+        created_agents = []
         for agent_id, sector, balance, metadata in demo_agents:
-            sim.create_agent(agent_id, sector, balance, metadata)
-            performance_metrics['agents_count'] += 1
-            performance_metrics['sectors_used'].add(sector)
+            result = manager.add_agent(agent_id, sector, balance, metadata)
+            if result['success']:
+                performance_metrics['agents_count'] += 1
+                performance_metrics['sectors_used'].add(sector)
+                created_agents.append({
+                    'agent_id': agent_id,
+                    'virtual_slot': result['virtual_slot'],
+                    'sector': sector
+                })
 
         # Créer transactions de démonstration
         demo_transactions = [
@@ -288,33 +344,34 @@ def api_run_demo():
 
         results = []
         for source, target, amount in demo_transactions:
-            tx_id = sim.create_transaction(source, target, amount)
+            result = manager.process_transaction(source, target, amount)
 
-            # Validation
-            result_feas = sim.validate_transaction(tx_id, SimulationMode.FEASIBILITY)
-            result_opt = sim.validate_transaction(tx_id, SimulationMode.OPTIMIZATION)
+            if result['success']:
+                tx_record = result['transaction_record']
+                performance_metrics['total_transactions'] += 1
+                if tx_record['feasibility']['success']:
+                    performance_metrics['successful_feasibility'] += 1
+                if tx_record['optimization']['success']:
+                    performance_metrics['successful_optimization'] += 1
 
-            performance_metrics['total_transactions'] += 1
-            if result_feas.success:
-                performance_metrics['successful_feasibility'] += 1
-            if result_opt.success:
-                performance_metrics['successful_optimization'] += 1
+                results.append({
+                    'tx_id': tx_record['tx_id'],
+                    'source': source,
+                    'target': target,
+                    'amount': float(amount),
+                    'feasibility_success': tx_record['feasibility']['success'],
+                    'optimization_success': tx_record['optimization']['success']
+                })
 
-            results.append({
-                'tx_id': tx_id,
-                'source': source,
-                'target': target,
-                'amount': float(amount),
-                'feasibility_success': result_feas.success,
-                'optimization_success': result_opt.success
-            })
+                simulation_history.append(tx_record)
 
         return jsonify({
             'success': True,
-            'message': 'Simulation de démonstration terminée',
+            'message': 'Simulation de démonstration WebNativeICGS terminée',
             'results': results,
-            'agents_created': len(demo_agents),
-            'transactions_processed': len(demo_transactions)
+            'agents_created': len(created_agents),
+            'transactions_processed': len([r for r in results]),
+            'pool_allocations': created_agents
         })
 
     except Exception as e:
