@@ -249,6 +249,27 @@
             <div class="control-group">
                 <button id="analyzeNew">🔄 Nouvelle Analyse</button>
             </div>
+
+            <!-- Contrôles Évolution Temporelle -->
+            <div class="control-group">
+                <label for="timeline">📽️ Évolution Temporelle</label>
+                <input type="range" id="timeline" min="0" max="0" value="0" step="1">
+                <span id="stepInfo">Step 0/0</span>
+            </div>
+
+            <div class="control-group">
+                <button id="playPause">▶️ Play Animation</button>
+            </div>
+
+            <div class="control-group">
+                <label for="animSpeed">⏱️ Vitesse Animation</label>
+                <input type="range" id="animSpeed" min="100" max="2000" value="500" step="100">
+                <span id="speedInfo">500ms</span>
+            </div>
+
+            <div class="control-group">
+                <button id="toggleConstraints">📐 Afficher Plans Contraintes</button>
+            </div>
         </div>
 
         <!-- Légende -->
@@ -326,7 +347,7 @@
 
     <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
 
     <script>
         // Variables globales
@@ -337,6 +358,14 @@
         let animationId;
         let tooltip;
         let solutionData = null;
+
+        // Variables évolution temporelle
+        let animationSteps = [];
+        let currentAnimationStep = 0;
+        let isAnimationPlaying = false;
+        let animationInterval = null;
+        let animationSpeed = 500; // ms entre étapes
+        let showConstraintPlanes = true; // Affichage plans contraintes
 
         // Configuration
         const config = {
@@ -367,10 +396,39 @@
         document.addEventListener('DOMContentLoaded', async function() {
             tooltip = document.getElementById('tooltip');
 
+            // Vérifier que Three.js est chargé
+            if (typeof THREE === 'undefined') {
+                console.error('THREE.js non chargé');
+                showError('THREE.js CDN non accessible');
+                return;
+            }
+
+            // Attendre le chargement complet de OrbitControls
+            let retries = 0;
+            while (typeof THREE.OrbitControls === 'undefined' && retries < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retries++;
+            }
+
+            if (typeof THREE.OrbitControls === 'undefined') {
+                console.warn('OrbitControls non disponible, contrôles limités');
+            }
+
             try {
-                await loadSolutionData();
+                // 🔍 DEBUG: Instructions pour l'utilisateur
+                console.log('🔍 DEBUG MODE ACTIVÉ');
+                console.log('💡 Pour voir toutes les informations de debug:');
+                console.log('  1. Ouvrez les outils développeur (F12)');
+                console.log('  2. Allez dans l\'onglet Console');
+                console.log('  3. Recherchez les messages 🔍 DEBUG');
+                console.log('=====================================');
+
+                // ORDRE CRITIQUE: initThreeJS AVANT loadSolutionData
+                // car loadSolutionData() appelle initializeAnimation() qui utilise scene.add()
                 initThreeJS();
                 createAxes();
+
+                await loadSolutionData();
                 createSolutionPoints();
                 createSimplexEdges();
                 setupControls();
@@ -385,21 +443,30 @@
         // Chargement données 3D
         async function loadSolutionData() {
             try {
-                // Essayer de charger depuis fichier local d'abord
-                const response = await fetch('icgs_3d_space.json');
+                // Charger données polytope authentiques depuis API
+                const response = await fetch('/api/animation/polytope_data');
                 if (response.ok) {
-                    solutionData = await response.json();
+                    const result = await response.json();
+                    if (result.success && result.polytope_data) {
+                        solutionData = result.polytope_data;
+                        solutionData.data_source = result.data_source;
+                        console.log(`✅ Données polytope chargées (${result.data_source}):`, solutionData.metadata);
+                    } else {
+                        throw new Error('API polytope data invalid');
+                    }
                 } else {
-                    // Fallback vers données démo si fichier pas trouvé
+                    // Fallback vers données démo si API échoue
                     solutionData = generateDemoData();
+                    console.warn('Fallback vers données démo (API indisponible)');
                 }
 
                 updateStats();
-                console.log('✅ Données 3D chargées:', solutionData.metadata);
+                initializeAnimation();
             } catch (error) {
                 console.warn('Fallback vers données démo:', error);
                 solutionData = generateDemoData();
                 updateStats();
+                initializeAnimation();
             }
         }
 
@@ -470,8 +537,397 @@
                     x: "Contraintes SOURCE (Débiteur)",
                     y: "Contraintes TARGET (Créditeur)",
                     z: "Contraintes SECONDARY (Bonus/Malus)"
-                }
+                },
+                simplex_states: [
+                    {
+                        step: 0,
+                        coordinates: [825, 780, 150],
+                        is_feasible: true,
+                        is_optimal: false,
+                        timestamp: 0.0
+                    },
+                    {
+                        step: 1,
+                        coordinates: [432, 300, 30],
+                        is_feasible: true,
+                        is_optimal: false,
+                        timestamp: 100.0
+                    },
+                    {
+                        step: 2,
+                        coordinates: [208, 270, 20],
+                        is_feasible: true,
+                        is_optimal: false,
+                        timestamp: 200.0
+                    },
+                    {
+                        step: 3,
+                        coordinates: [100, 50, -10],
+                        is_feasible: true,
+                        is_optimal: true,
+                        timestamp: 300.0
+                    }
+                ]
             };
+        }
+
+        // ===== FONCTIONS ANIMATION TEMPORELLE =====
+
+        // Initialisation animation
+        function initializeAnimation() {
+            if (solutionData && solutionData.simplex_states) {
+                animationSteps = solutionData.simplex_states;
+                currentAnimationStep = 0;
+
+                // Configurer contrôles
+                const timeline = document.getElementById('timeline');
+                timeline.max = animationSteps.length - 1;
+                timeline.value = 0;
+
+                updateStepInfo();
+                updateSpeedInfo();
+
+                // Afficher step initial (step 0) avec plans de contraintes
+                updatePolytopeWithConstraints(0);
+
+                console.log(`🎬 Animation initialisée: ${animationSteps.length} étapes`);
+            }
+        }
+
+        // Mise à jour affichage step
+        function updateStepInfo() {
+            const stepInfo = document.getElementById('stepInfo');
+            if (animationSteps.length > 0) {
+                stepInfo.textContent = `Step ${currentAnimationStep}/${animationSteps.length - 1}`;
+            } else {
+                stepInfo.textContent = 'Step 0/0';
+            }
+        }
+
+        // Mise à jour affichage vitesse
+        function updateSpeedInfo() {
+            const speedInfo = document.getElementById('speedInfo');
+            speedInfo.textContent = `${animationSpeed}ms`;
+        }
+
+        // Nettoyage scène
+        function clearScene() {
+            // Supprimer points existants
+            solutionPoints.forEach(point => {
+                scene.remove(point);
+            });
+            solutionPoints = [];
+
+            // Supprimer arêtes existantes
+            simplexEdges.forEach(edge => {
+                scene.remove(edge);
+            });
+            simplexEdges = [];
+        }
+
+        // Création points pour un step spécifique
+        function createSolutionPointsForStep(stepIndex) {
+            if (stepIndex >= animationSteps.length) return;
+            if (!scene) {
+                console.warn('createSolutionPointsForStep: scene non initialisée');
+                return;
+            }
+
+            const currentState = animationSteps[stepIndex];
+            const coords = currentState.coordinates;
+
+            // Géométrie point - taille variable selon valeur objective
+            const baseSize = config.pointSize;
+            const objectiveScale = currentState.objective_value ? Math.log(currentState.objective_value / 100 + 1) : 1;
+            const scaledSize = baseSize * (0.5 + objectiveScale * 0.5);
+            const geometry = new THREE.SphereGeometry(scaledSize, 16, 12);
+
+            // Couleur selon état avec gradient pour valeur objective
+            let color = colors.considered; // Défaut
+            if (currentState.is_optimal) {
+                color = colors.optimal;
+            } else if (currentState.is_feasible) {
+                color = colors.traversed;
+            }
+
+            const material = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: false,
+                opacity: 0.8
+            });
+            const point = new THREE.Mesh(geometry, material);
+
+            // Position dans l'espace 3D - Centrage amélioré
+            // Centrer autour des valeurs moyennes typiques des données ICGS
+            const centerX = 500; // Centre X autour de 500 (valeurs typiques 0-1000)
+            const centerY = 400; // Centre Y autour de 400 (valeurs typiques 0-800)
+            const centerZ = 200; // Centre Z autour de 200 (valeurs typiques 0-400)
+
+            const transformedX = (coords[0] - centerX) * 0.6;
+            const transformedY = (coords[1] - centerY) * 0.6;
+            const transformedZ = (coords[2] - centerZ) * 0.6;
+
+            point.position.set(transformedX, transformedY, transformedZ);
+
+            // 🔍 DEBUG: Transformation points (afficher seulement le premier)
+            if (stepIndex === 0) {
+                console.log('🔍 DEBUG createSolutionPointsForStep:');
+                console.log('  - Step:', stepIndex);
+                console.log('  - Original coords:', coords);
+                console.log('  - Centers (X,Y,Z):', centerX, centerY, centerZ);
+                console.log('  - Transformed pos:', transformedX, transformedY, transformedZ);
+                console.log('  - Scale factor: 0.6');
+            }
+
+            // Métadonnées enrichies
+            point.userData = {
+                step: stepIndex,
+                feasible: currentState.is_feasible,
+                optimal: currentState.is_optimal,
+                coordinates: coords,
+                timestamp: currentState.timestamp || (stepIndex * 100),
+                variables_fi: currentState.variables_fi || {},
+                constraint_contributions: currentState.constraint_contributions || {},
+                basic_variables: currentState.basic_variables || [],
+                objective_value: currentState.objective_value || 0
+            };
+
+            scene.add(point);
+            solutionPoints.push(point);
+        }
+
+        // Création arêtes pour un step spécifique
+        function createSimplexEdgesForStep(stepIndex) {
+            if (stepIndex === 0) return; // Pas d'arête pour le premier point
+            if (!scene) {
+                console.warn('createSimplexEdgesForStep: scene non initialisée');
+                return;
+            }
+
+            const currentState = animationSteps[stepIndex];
+            const previousState = animationSteps[stepIndex - 1];
+
+            // Créer arête entre point précédent et actuel - Transformation cohérente
+            const centerX = 500, centerY = 400, centerZ = 200; // Mêmes centres que pour les points
+            const scale = 0.6;
+
+            const points = [
+                new THREE.Vector3(
+                    (previousState.coordinates[0] - centerX) * scale,
+                    (previousState.coordinates[1] - centerY) * scale,
+                    (previousState.coordinates[2] - centerZ) * scale
+                ),
+                new THREE.Vector3(
+                    (currentState.coordinates[0] - centerX) * scale,
+                    (currentState.coordinates[1] - centerY) * scale,
+                    (currentState.coordinates[2] - centerZ) * scale
+                )
+            ];
+
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({
+                color: colors.edgeTraversed,
+                linewidth: 2
+            });
+
+            const line = new THREE.Line(geometry, material);
+
+            // Métadonnées
+            line.userData = {
+                fromStep: stepIndex - 1,
+                toStep: stepIndex,
+                edgeType: 'traversed'
+            };
+
+            scene.add(line);
+            simplexEdges.push(line);
+        }
+
+        // Mise à jour polytope pour un step donné
+        function updatePolytope(stepIndex) {
+            if (stepIndex >= animationSteps.length) return;
+
+            // Nettoyage
+            clearScene();
+
+            // Recréer scène pour étapes jusqu'à stepIndex
+            for (let i = 0; i <= stepIndex; i++) {
+                createSolutionPointsForStep(i);
+                if (i > 0) {
+                    createSimplexEdgesForStep(i);
+                }
+            }
+
+            // Mettre à jour affichage
+            updateStepInfo();
+            currentAnimationStep = stepIndex;
+        }
+
+        // Animation automatique
+        function playAnimation() {
+            if (currentAnimationStep < animationSteps.length - 1) {
+                currentAnimationStep++;
+                updatePolytopeWithConstraints(currentAnimationStep);
+                document.getElementById('timeline').value = currentAnimationStep;
+            } else {
+                stopAnimation(); // Arrêter à la fin
+            }
+        }
+
+        // Démarrer animation
+        function startAnimation() {
+            if (isAnimationPlaying) return;
+
+            isAnimationPlaying = true;
+            document.getElementById('playPause').textContent = '⏸️ Pause';
+
+            animationInterval = setInterval(playAnimation, animationSpeed);
+        }
+
+        // Arrêter animation
+        function stopAnimation() {
+            if (!isAnimationPlaying) return;
+
+            isAnimationPlaying = false;
+            document.getElementById('playPause').textContent = '▶️ Play Animation';
+
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+        }
+
+        // Toggle play/pause
+        function toggleAnimation() {
+            if (isAnimationPlaying) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        }
+
+        // ===== FONCTIONS VISUALISATION POLYTOPE =====
+
+        // Création plans de contraintes
+        function createConstraintPlanes(stepIndex) {
+            if (!solutionData.constraint_planes || !showConstraintPlanes) return;
+            if (!scene) {
+                console.warn('createConstraintPlanes: scene non initialisée');
+                return;
+            }
+
+            solutionData.constraint_planes.forEach((plane, index) => {
+                // Vérifier si plan actif pour ce step
+                if (plane.active_steps && !plane.active_steps.includes(stepIndex)) return;
+
+                // Créer géométrie plan
+                const size = 800; // Taille du plan
+                const geometry = new THREE.PlaneGeometry(size, size);
+
+                // Couleur selon type de contrainte
+                const colors_planes = {
+                    'SOURCE': 0xff6b6b,      // Rouge clair
+                    'TARGET': 0x4ecdc4,      // Cyan
+                    'SECONDARY': 0xffa726    // Orange
+                };
+                const planeColor = colors_planes[plane.type] || 0x888888;
+
+                const material = new THREE.MeshBasicMaterial({
+                    color: planeColor,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.15,
+                    wireframe: false
+                });
+
+                const planeMesh = new THREE.Mesh(geometry, material);
+
+                // Position et orientation selon l'équation ax + by + cz = d
+                const eq = plane.equation;
+                if (eq.a === 1 && eq.b === 0 && eq.c === 0) {
+                    // Plan vertical X = d
+                    planeMesh.rotation.y = Math.PI / 2;
+                    planeMesh.position.set(eq.d - 500, 0, 0);
+                } else if (eq.a === 0 && eq.b === 1 && eq.c === 0) {
+                    // Plan vertical Y = d
+                    planeMesh.rotation.x = Math.PI / 2;
+                    planeMesh.position.set(0, eq.d - 400, 0);
+                } else if (eq.a === 0 && eq.b === 0 && eq.c === 1) {
+                    // Plan horizontal Z = d
+                    planeMesh.position.set(0, 0, eq.d);
+                }
+
+                // Wireframe pour les bords
+                const wireframeGeometry = new THREE.EdgesGeometry(geometry);
+                const wireframeMaterial = new THREE.LineBasicMaterial({
+                    color: planeColor,
+                    opacity: 0.5,
+                    transparent: true
+                });
+                const wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
+                wireframe.position.copy(planeMesh.position);
+                wireframe.rotation.copy(planeMesh.rotation);
+
+                // Métadonnées
+                planeMesh.userData = {
+                    constraintType: plane.type,
+                    equation: plane.equation,
+                    bounds: plane.bounds,
+                    step: stepIndex,
+                    isConstraintPlane: true
+                };
+
+                wireframe.userData = {
+                    constraintType: plane.type,
+                    isWireframe: true,
+                    parentPlane: planeMesh
+                };
+
+                scene.add(planeMesh);
+                scene.add(wireframe);
+                meshPoints.push(planeMesh);
+                meshPoints.push(wireframe);
+            });
+        }
+
+        // Nettoyage plans contraintes
+        function clearConstraintPlanes() {
+            const planesToRemove = meshPoints.filter(mesh =>
+                mesh.userData.isConstraintPlane || mesh.userData.isWireframe
+            );
+
+            planesToRemove.forEach(plane => {
+                scene.remove(plane);
+            });
+
+            // Garder seulement les objets qui ne sont pas des plans
+            meshPoints = meshPoints.filter(mesh =>
+                !mesh.userData.isConstraintPlane && !mesh.userData.isWireframe
+            );
+        }
+
+        // Mise à jour polytope avec plans de contraintes
+        function updatePolytopeWithConstraints(stepIndex) {
+            if (stepIndex >= animationSteps.length) return;
+
+            // Nettoyage
+            clearScene();
+            clearConstraintPlanes();
+
+            // Recréer points et arêtes
+            for (let i = 0; i <= stepIndex; i++) {
+                createSolutionPointsForStep(i);
+                if (i > 0) {
+                    createSimplexEdgesForStep(i);
+                }
+            }
+
+            // Ajouter plans de contraintes pour step actuel
+            createConstraintPlanes(stepIndex);
+
+            // Mettre à jour affichage
+            updateStepInfo();
+            currentAnimationStep = stepIndex;
         }
 
         // Initialisation Three.js
@@ -489,7 +945,18 @@
                 1,
                 10000
             );
-            camera.position.set(1500, 1200, 1000);
+            // Position caméra ajustée pour nouveau centrage
+            camera.position.set(400, 300, 400);
+
+            // FORCER la caméra à regarder l'origine (0,0,0)
+            camera.lookAt(0, 0, 0);
+
+            // 🔍 DEBUG: Caméra et scene
+            console.log('🔍 DEBUG initThreeJS:');
+            console.log('  - Camera position:', camera.position);
+            console.log('  - Camera FOV:', camera.fov);
+            console.log('  - Scene background:', scene.background);
+            console.log('  - ✅ Camera.lookAt(0,0,0) forcé pour centrer sur origine');
 
             // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -508,10 +975,28 @@
             scene.add(directionalLight);
 
             // Controls
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.enableZoom = true;
+            if (typeof THREE.OrbitControls !== 'undefined') {
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+                controls.enableZoom = true;
+
+                // FORCER OrbitControls à cibler l'origine (0,0,0)
+                controls.target.set(0, 0, 0);
+                controls.update();
+
+                // 🔍 DEBUG: OrbitControls configuration
+                console.log('🔍 DEBUG OrbitControls:');
+                console.log('  - Target (center of rotation):', controls.target);
+                console.log('  - Camera looks at origin:', controls.target.x === 0 && controls.target.y === 0 && controls.target.z === 0);
+                console.log('  - Distance from target:', camera.position.distanceTo(controls.target));
+
+                console.log('✅ OrbitControls initialisés et forcés sur origine (0,0,0)');
+            } else {
+                console.warn('⚠️ OrbitControls indisponibles, rotation basique activée');
+                console.log('⚠️ Mais camera.lookAt(0,0,0) déjà appliqué pour centrer sur origine');
+                controls = null;
+            }
 
             // Resize handler
             window.addEventListener('resize', onWindowResize);
@@ -521,45 +1006,85 @@
             renderer.domElement.addEventListener('click', onMouseClick);
         }
 
-        // Création axes 3D
+        // Création axes 3D centrés
         function createAxes() {
-            const axisLength = 1000;
-            const axisGeometry = new THREE.BufferGeometry();
-            const axisMaterial = new THREE.LineBasicMaterial({ color: colors.axis });
+            const axisLength = 600;
+            const axisOffset = axisLength / 2; // Centrer les axes autour de l'origine
 
-            // Axe X (rouge)
+            // Axe X (rouge) centré
             const xPoints = [
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(axisLength, 0, 0)
+                new THREE.Vector3(-axisOffset, 0, 0),
+                new THREE.Vector3(axisOffset, 0, 0)
             ];
             const xGeometry = new THREE.BufferGeometry().setFromPoints(xPoints);
             const xLine = new THREE.Line(xGeometry, new THREE.LineBasicMaterial({ color: 0xff0000 }));
             scene.add(xLine);
 
-            // Axe Y (vert)
+            // Axe Y (vert) centré
             const yPoints = [
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(0, axisLength, 0)
+                new THREE.Vector3(0, -axisOffset, 0),
+                new THREE.Vector3(0, axisOffset, 0)
             ];
             const yGeometry = new THREE.BufferGeometry().setFromPoints(yPoints);
             const yLine = new THREE.Line(yGeometry, new THREE.LineBasicMaterial({ color: 0x00ff00 }));
             scene.add(yLine);
 
-            // Axe Z (bleu)
+            // Axe Z (bleu) centré
             const zPoints = [
-                new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(0, 0, axisLength)
+                new THREE.Vector3(0, 0, -axisOffset),
+                new THREE.Vector3(0, 0, axisOffset)
             ];
             const zGeometry = new THREE.BufferGeometry().setFromPoints(zPoints);
             const zLine = new THREE.Line(zGeometry, new THREE.LineBasicMaterial({ color: 0x0000ff }));
             scene.add(zLine);
+
+            // Marquer l'origine avec une sphère visible
+            const originGeometry = new THREE.SphereGeometry(8, 16, 16); // Plus grande et plus détaillée
+            const originMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                wireframe: true,  // Wireframe pour mieux la voir
+                transparent: false
+            });
+            const originMarker = new THREE.Mesh(originGeometry, originMaterial);
+            originMarker.position.set(0, 0, 0);
+            scene.add(originMarker);
+
+            // Ajouter aussi une sphère pleine plus petite au centre
+            const originCoreGeometry = new THREE.SphereGeometry(3, 8, 8);
+            const originCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Rouge pour contraste
+            const originCore = new THREE.Mesh(originCoreGeometry, originCoreMaterial);
+            originCore.position.set(0, 0, 0);
+            scene.add(originCore);
+
+            // 🔍 DEBUG: Position origine et axes
+            console.log('🔍 DEBUG createAxes:');
+            console.log('  - Origin marker position:', originMarker.position);
+            console.log('  - Axes length:', axisLength);
+            console.log('  - Axes offset:', axisOffset);
+            console.log('  - X axis: from', -axisOffset, 'to', axisOffset);
+            console.log('  - Y axis: from', -axisOffset, 'to', axisOffset);
+            console.log('  - Z axis: from', -axisOffset, 'to', axisOffset);
         }
 
         // Création points solutions
         function createSolutionPoints() {
             solutionPoints = [];
 
-            solutionData.solution_points.forEach(point => {
+            // Compatibilité avec nouvelle structure données polytope (simplex_states)
+            const dataPoints = solutionData.solution_points || solutionData.simplex_states || [];
+
+            if (dataPoints.length === 0) {
+                console.warn('createSolutionPoints: Aucune donnée de points disponible');
+                return;
+            }
+
+            dataPoints.forEach(point => {
+                // Vérification structure du point
+                if (!point.coordinates || !Array.isArray(point.coordinates) || point.coordinates.length < 3) {
+                    console.warn('createSolutionPoints: Point avec coordonnées invalides', point);
+                    return;
+                }
+
                 const [x, y, z] = point.coordinates;
 
                 // Géométrie et matériel selon statut
@@ -582,10 +1107,10 @@
                             color = colors.infeasible;
                     }
                 } else {
-                    // Fallback pour ancienne structure
-                    if (point.optimal) {
+                    // Fallback pour structures multiples (optimal/feasible ou is_optimal/is_feasible)
+                    if (point.optimal || point.is_optimal) {
                         color = colors.optimal;
-                    } else if (point.feasible) {
+                    } else if (point.feasible || point.is_feasible) {
                         color = colors.traversed;
                     } else {
                         color = colors.infeasible;
@@ -599,7 +1124,15 @@
                 });
 
                 const sphere = new THREE.Mesh(geometry, material);
-                sphere.position.set(x, y, z);
+
+                // Position avec transformation cohérente pour centrage
+                const centerX = 500, centerY = 400, centerZ = 200;
+                const scale = 0.6;
+                sphere.position.set(
+                    (x - centerX) * scale,
+                    (y - centerY) * scale,
+                    (z - centerZ) * scale
+                );
                 sphere.userData = point;
                 sphere.castShadow = true;
                 sphere.receiveShadow = true;
@@ -706,8 +1239,18 @@
 
             // Reset caméra
             document.getElementById('resetCamera').addEventListener('click', () => {
-                camera.position.set(1500, 1200, 1000);
-                controls.reset();
+                // Position caméra ajustée pour nouveau centrage
+                camera.position.set(400, 300, 400);
+                camera.lookAt(0, 0, 0); // FORCER regard vers origine
+
+                if (controls) {
+                    controls.target.set(0, 0, 0); // FORCER target OrbitControls sur origine
+                    controls.update();
+                } else {
+                    console.log('📷 Camera reset sans OrbitControls - camera.lookAt(0,0,0) appliqué');
+                }
+
+                console.log('📷 Camera reset - Position:', camera.position, 'Target: (0,0,0)');
             });
 
             // Générer maillage
@@ -715,6 +1258,43 @@
 
             // Nouvelle analyse
             document.getElementById('analyzeNew').addEventListener('click', runNewAnalysis);
+
+            // ===== EVENT LISTENERS ANIMATION TEMPORELLE =====
+
+            // Timeline scrubber
+            document.getElementById('timeline').addEventListener('input', (e) => {
+                const stepIndex = parseInt(e.target.value);
+                updatePolytopeWithConstraints(stepIndex);
+                // Arrêter animation si en cours
+                if (isAnimationPlaying) {
+                    stopAnimation();
+                }
+            });
+
+            // Play/Pause animation
+            document.getElementById('playPause').addEventListener('click', toggleAnimation);
+
+            // Vitesse animation
+            document.getElementById('animSpeed').addEventListener('input', (e) => {
+                animationSpeed = parseInt(e.target.value);
+                updateSpeedInfo();
+
+                // Si animation en cours, redémarrer avec nouvelle vitesse
+                if (isAnimationPlaying) {
+                    stopAnimation();
+                    startAnimation();
+                }
+            });
+
+            // Toggle plans de contraintes
+            document.getElementById('toggleConstraints').addEventListener('click', (e) => {
+                showConstraintPlanes = !showConstraintPlanes;
+                e.target.textContent = showConstraintPlanes ?
+                    '📐 Masquer Plans Contraintes' : '📐 Afficher Plans Contraintes';
+
+                // Rafraîchir affichage
+                updatePolytopeWithConstraints(currentAnimationStep);
+            });
         }
 
         // Mise à jour taille points
@@ -787,7 +1367,11 @@
                 scene.rotation.y += config.rotationSpeed;
             }
 
-            controls.update();
+            // Mise à jour contrôles si disponibles
+            if (controls && controls.update) {
+                controls.update();
+            }
+
             renderer.render(scene, camera);
         }
 
