@@ -40,6 +40,14 @@ except ImportError:
     ANALYZER_3D_AVAILABLE = False
     print("⚠️  3D Analyzer not available")
 
+# Import extensions avancées
+try:
+    from icgs_web_extensions import register_all_extensions
+    EXTENSIONS_AVAILABLE = True
+except ImportError:
+    EXTENSIONS_AVAILABLE = False
+    print("⚠️  Extensions avancées not available")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'icgs_demo_2024'
 
@@ -820,13 +828,22 @@ with open(os.path.join(template_dir, 'index.html'), 'w', encoding='utf-8') as f:
 
 if __name__ == '__main__':
     print("🚀 Démarrage ICGS Web Visualizer...")
-    print("📊 Interface disponible sur: http://localhost:5000")
+    # Enregistrer extensions avancées
+    if EXTENSIONS_AVAILABLE:
+        register_all_extensions(app)
+
     print("✨ Fonctionnalités:")
     print("   - Création d'agents économiques")
     print("   - Validation de transactions (FEASIBILITY + OPTIMIZATION)")
     print("   - Métriques temps réel")
     print("   - Simulation de démonstration")
     print("   - Historique des transactions")
+    if EXTENSIONS_AVAILABLE:
+        print("   - Simulations académiques avancées")
+        print("   - Analyse contraintes sectorielles")
+        print("   - Validation théorèmes ICGS")
     print()
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    print(f"📊 Interface disponible sur: http://localhost:{port}")
+    app.run(debug=True, host='0.0.0.0', port=port)

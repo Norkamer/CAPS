@@ -22,9 +22,10 @@ from enum import Enum
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from icgs_core import (
-    DAG, Account, Transaction, TransactionMeasure,
+    Account, Transaction, TransactionMeasure,
     TripleValidationOrientedSimplex, ValidationMode, SolutionStatus
 )
+from icgs_core.enhanced_dag import EnhancedDAG
 from ..domains.base import get_sector_info, get_recommended_balance
 
 # Import API Simplex 3D (optionnel)
@@ -103,8 +104,8 @@ class EconomicSimulation:
         self.simulation_id = simulation_id
         self.logger = logging.getLogger(f"icgs_simulation.{simulation_id}")
 
-        # Composants icgs_core
-        self.dag = DAG()
+        # Composants icgs_core avec EnhancedDAG
+        self.dag = EnhancedDAG()
         self.simplex_solver = TripleValidationOrientedSimplex(
             max_iterations=1000,
             tolerance=Decimal('1e-10')
@@ -113,7 +114,6 @@ class EconomicSimulation:
         # État simulation
         self.agents: Dict[str, SimulationAgent] = {}
         self.transactions: List[Transaction] = []
-        self.transaction_counter = 1  # Commencer à 1 pour éviter collisions taxonomie
         self.taxonomy_configured = False  # Flag pour update batch unique
 
         # API Simplex 3D (optionnel)
@@ -123,27 +123,7 @@ class EconomicSimulation:
 
         self._current_linear_program = None  # Cache LinearProgram pour API 3D
 
-        # Note: Configuration taxonomie différée jusqu'à première transaction
-        # pour éviter problèmes de numérotation
-
         self.logger.info(f"EconomicSimulation '{simulation_id}' initialisée")
-
-    def _configure_taxonomy(self):
-        """
-        Configuration initiale vide de la taxonomie
-
-        Pré-configure avec transaction_num=0 pour initialisation.
-        La vraie configuration se fait en batch avant première transaction.
-        """
-        try:
-            # Configuration minimale pour initialisation
-            self.dag.account_taxonomy.update_taxonomy(
-                accounts={},  # Vide initialement
-                transaction_num=0  # Init à 0, batch sera à 1
-            )
-            self.logger.debug("Taxonomie initialisée (configuration batch à venir)")
-        except Exception as e:
-            self.logger.warning(f"Initialisation taxonomie échouée: {e}")
 
     def create_agent(self, agent_id: str, sector: str,
                     balance: Optional[Decimal] = None,
@@ -209,8 +189,7 @@ class EconomicSimulation:
         """
         Configuration batch unique de la taxonomie avec tous les agents
 
-        Fait une seule mise à jour avec tous les comptes nécessaires
-        pour éviter les problèmes de numérotation croissante.
+        Utilise EnhancedDAG pour configuration automatique simplifiée.
         """
         try:
             # Générer mappings caractères basés sur secteurs économiques
@@ -223,51 +202,25 @@ class EconomicSimulation:
                 'ENERGY': 'E'
             }
 
-            # Compteur global pour source/sink pour éviter toute collision
-            global_counter = ord('a')  # Commencer par minuscules
-
-            # Compteurs par secteur pour gérer multiples agents même secteur
-            sector_counters = {}
-            # Compteur global pour caractères de fallback (évite collisions inter-secteurs)
-            fallback_counter = ord('Q')
+            # Générer caractères uniques pour chaque agent
+            char_counter = ord('A')  # Commencer par A, B, C...
 
             for agent_id, agent in self.agents.items():
-                # Caractère de base selon secteur
-                base_char = sector_char_map.get(agent.sector, 'X')
+                # Compte principal: caractère unique séquentiel
+                all_accounts[agent_id] = chr(char_counter)
+                char_counter += 1
 
-                # Compte principal: caractère global unique minuscule
-                all_accounts[agent_id] = chr(global_counter)
-                global_counter += 1
+                # Source et sink: caractères séquentiels uniques
+                all_accounts[f"{agent_id}_source"] = chr(char_counter)
+                char_counter += 1
 
-                # Source: caractère global unique
-                all_accounts[f"{agent_id}_source"] = chr(global_counter)
-                global_counter += 1
+                all_accounts[f"{agent_id}_sink"] = chr(char_counter)
+                char_counter += 1
 
-                # Sink: utiliser caractères secteur + compteur global pour unicité
-                if base_char not in sector_counters:
-                    sector_counters[base_char] = 0
+            # Configuration simple avec EnhancedDAG
+            self.dag.configure_accounts_simple(all_accounts)
 
-                # Pour éviter collisions: premier agent utilise caractère secteur,
-                # agents suivants utilisent caractères globalement uniques
-                if sector_counters[base_char] == 0:
-                    # Premier agent: caractère secteur direct (A, I, S, F, E)
-                    all_accounts[f"{agent_id}_sink"] = base_char
-                else:
-                    # Agents suivants: caractères globalement uniques
-                    all_accounts[f"{agent_id}_sink"] = chr(fallback_counter)
-                    fallback_counter += 1
-
-                sector_counters[base_char] += 1
-
-            # Configuration batch pour toutes transactions possibles (0-9)
-            # Évite les erreurs de synchronisation compteur comme dans test_academic_16_FIXED.py
-            for tx_num in range(10):
-                self.dag.account_taxonomy.update_taxonomy(
-                    accounts=all_accounts,
-                    transaction_num=tx_num
-                )
-
-            self.logger.info(f"Taxonomie configurée en batch pour {len(all_accounts)} comptes")
+            self.logger.info(f"Taxonomie configurée via EnhancedDAG pour {len(all_accounts)} comptes")
             self.logger.debug(f"Mappings: {all_accounts}")
         except Exception as e:
             self.logger.error(f"Configuration batch taxonomie échouée: {e}")
@@ -378,22 +331,13 @@ class EconomicSimulation:
 
             # Configurer taxonomie une seule fois avec tous les agents
             if not self.taxonomy_configured:
-                # OPTION A : Détecter si taxonomie déjà configurée (ex: par WebNativeICGS)
-                existing_accounts = len(getattr(self.dag.account_taxonomy, 'account_registry', set()))
-                existing_history = len(getattr(self.dag.account_taxonomy, 'taxonomy_history', []))
-
-                if existing_accounts > 0 or existing_history > 0:
-                    # Taxonomie déjà configurée par Option A, éviter conflit transaction_counter
-                    self.taxonomy_configured = True
-                    self.logger.info(f"Taxonomie déjà configurée ({existing_accounts} comptes, {existing_history} snapshots) - Skip batch legacy")
-                else:
-                    # Utiliser système batch legacy seulement si aucune taxonomie configurée
-                    self._configure_taxonomy_batch()
-                    self.taxonomy_configured = True
+                # Toujours configurer avec EnhancedDAG (plus simple et robuste)
+                self._configure_taxonomy_batch()
+                self.taxonomy_configured = True
 
             if mode == SimulationMode.FEASIBILITY:
-                # Mode FEASIBILITY standard
-                success = self.dag.add_transaction(transaction)
+                # Mode FEASIBILITY avec EnhancedDAG
+                success = self.dag.add_transaction_auto(transaction)
                 validation_time = (time.time() - start_time) * 1000
 
                 # Hook API Simplex 3D : capturer état après validation FEASIBILITY
