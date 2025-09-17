@@ -348,6 +348,21 @@ class EconomicSimulation:
         """
         Configuration batch unique de la taxonomie avec Character-Set Manager sectoriel
 
+        ARCHITECTURE TRI-CARACTÈRES FONDAMENTALE :
+
+        Chaque agent économique nécessite 3 caractères taxonomiques distincts :
+        1. Caractère principal : pour l'Account object principal
+        2. Caractère "_source" : pour le source_node du DAG
+        3. Caractère "_sink" : pour le sink_node du DAG
+
+        NÉCESSITÉ FONCTIONNELLE :
+        - Path enumeration génère des chemins comme [farm_01_source_node, indu_01_sink_node]
+        - convert_path_to_word() utilise node.node_id pour lookup taxonomique
+        - Validation NFA nécessite caractères distincts pour chaque nœud du chemin
+        - Architecture 65 agents = 195 caractères (65 × 3) obligatoires
+
+        SANS CES MAPPINGS : Path validation échoue, DAG connectivity cassée, NFA non-fonctionnel
+
         Utilise Character-Set Manager pour allocation sectorielle intelligente + EnhancedDAG.
         """
         try:
@@ -355,15 +370,17 @@ class EconomicSimulation:
             all_accounts = {}
 
             for agent_id, agent in self.agents.items():
-                # Allocation 3 caractères uniques par agent dans son secteur
-                char1 = self.character_set_manager.allocate_character_for_sector(agent.sector)
-                char2 = self.character_set_manager.allocate_character_for_sector(agent.sector)
-                char3 = self.character_set_manager.allocate_character_for_sector(agent.sector)
+                # ALLOCATION 3 CARACTÈRES OBLIGATOIRES pour architecture DAG tri-nœuds
+                # Chaque caractère sert à un mapping taxonomique distinct et fonctionnellement nécessaire
+                char1 = self.character_set_manager.allocate_character_for_sector(agent.sector)  # Account principal
+                char2 = self.character_set_manager.allocate_character_for_sector(agent.sector)  # source_node mapping
+                char3 = self.character_set_manager.allocate_character_for_sector(agent.sector)  # sink_node mapping
 
-                # Configuration standard DAG : compte principal + source + sink
-                all_accounts[agent_id] = char1
-                all_accounts[f"{agent_id}_source"] = char2
-                all_accounts[f"{agent_id}_sink"] = char3
+                # Configuration taxonomique DAG : 3 mappings par agent
+                # CRITIQUE : Ces mappings sont utilisés par convert_path_to_word() pour validation chemins
+                all_accounts[agent_id] = char1                    # Account "FARM_01" → caractère principal
+                all_accounts[f"{agent_id}_source"] = char2        # Nœud "FARM_01_source" → caractère source
+                all_accounts[f"{agent_id}_sink"] = char3          # Nœud "FARM_01_sink" → caractère sink
 
             # Configuration avec EnhancedDAG (préservé)
             self.dag.configure_accounts_simple(all_accounts)

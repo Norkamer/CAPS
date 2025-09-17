@@ -726,6 +726,214 @@ print("   quick_start_scenarios(sim) - Scénarios économiques")
 
 ---
 
+## 🏗️ Architecture Fondamentale : Tri-Caractères
+
+### Comprendre l'Architecture Taxonomique
+
+**CAPS** utilise une architecture taxonomique **tri-caractères** fondamentale que tout utilisateur doit comprendre pour optimiser ses simulations économiques.
+
+#### Pourquoi 3 Caractères par Agent ?
+
+Chaque agent économique dans CAPS nécessite **exactement 3 mappings taxonomiques distincts** :
+
+```python
+# Agent économique FARM_01
+agent_mappings = {
+    'FARM_01': 'A',         # Caractère principal (compte économique)
+    'FARM_01_source': 'B',  # Caractère source (nœud source DAG)
+    'FARM_01_sink': 'C'     # Caractère sink (nœud sink DAG)
+}
+```
+
+#### Process de Validation Interne
+
+```python
+# 1. DAG Path Enumeration génère chemins inter-agents
+path_example = [farm_01_source_node, indu_05_sink_node]
+
+# 2. convert_path_to_word() effectue mapping node_id → character
+# farm_01_source_node.node_id = "FARM_01_source" → 'B'
+# indu_05_sink_node.node_id = "INDU_05_sink" → 'X'
+# Résultat: word = "BX"
+
+# 3. NFA validation teste word contre regex sectoriels
+agriculture_pattern = ".*[ABCDEF...].*"  # Matche caractères AGRICULTURE
+industry_pattern = ".*[GHIJKL...].*"     # Matche caractères INDUSTRY
+# word "BX" validé car B ∈ AGRICULTURE et X ∈ INDUSTRY ✅
+```
+
+### Calcul Capacité Agents
+
+#### Distribution 65 Agents - Configuration Massive
+
+```python
+# Capacité requise par secteur
+SECTEUR_DISTRIBUTION = {
+    'AGRICULTURE': 10,  # 10 × 3 = 30 caractères
+    'INDUSTRY': 15,     # 15 × 3 = 45 caractères
+    'SERVICES': 20,     # 20 × 3 = 60 caractères
+    'FINANCE': 8,       # 8 × 3 = 24 caractères
+    'ENERGY': 12        # 12 × 3 = 36 caractères
+}
+
+# TOTAL: 65 agents × 3 caractères = 195 caractères requis minimum
+```
+
+#### Validation Character-Set Manager
+
+```python
+def validate_character_capacity(simulation):
+    """Vérifier capacité character-set pour agents cibles"""
+
+    stats = simulation.character_set_manager.get_allocation_statistics()
+    total_capacity = sum(info['max_capacity'] for info in stats['sectors'].values())
+
+    print(f"Capacité totale: {total_capacity} caractères")
+    print(f"Agents supportés: {total_capacity // 3} maximum")
+
+    # Validation 65 agents
+    if total_capacity >= 195:
+        print("✅ Configuration 65 agents SUPPORTÉE")
+    else:
+        print(f"⚠️  Insuffisant pour 65 agents: {total_capacity} < 195")
+
+    return total_capacity >= 195
+
+# Usage avec mode 65 agents
+simulation = EconomicSimulation("capacity_check", agents_mode="65_agents")
+validate_character_capacity(simulation)
+```
+
+### Implications Pratiques
+
+#### ✅ Ce qui FONCTIONNE
+
+```python
+# Allocation correcte - 3 caractères par agent
+simulation = EconomicSimulation("correct_setup", agents_mode="40_agents")
+# → 40 × 3 = 120 caractères alloués
+
+# Création agents respectant capacité
+for i in range(13):  # 13 agents max avec mode 40 (39 caractères / 3)
+    simulation.create_agent(f"AGENT_{i}", "AGRICULTURE", Decimal('1000'))
+
+# Résultat: 100% FEASIBILITY ✅
+```
+
+#### ❌ Ce qui ÉCHOUE
+
+```python
+# Allocation incorrecte - sous-estimation capacité
+simulation = EconomicSimulation("wrong_setup", agents_mode="40_agents")
+
+# Tentative création trop d'agents
+for i in range(20):  # 20 agents × 3 = 60 caractères > 39 disponibles
+    simulation.create_agent(f"AGENT_{i}", "AGRICULTURE", Decimal('1000'))
+
+# Résultat: RuntimeError - Character capacity exhausted ❌
+```
+
+#### Monitoring Utilisation
+
+```python
+def monitor_character_usage(simulation):
+    """Surveiller utilisation caractères en temps réel"""
+
+    stats = simulation.character_set_manager.get_allocation_statistics()
+
+    print(f"📊 UTILISATION CHARACTER-SET:")
+    print(f"   Total alloué: {stats['total_allocations']} caractères")
+    print(f"   Manager figé: {stats['is_frozen']}")
+
+    for sector, info in stats['sectors'].items():
+        utilisation = info['utilization_rate']
+        status = "🔴" if utilisation > 0.9 else "🟡" if utilisation > 0.7 else "🟢"
+
+        print(f"   {sector}: {info['allocated_count']}/{info['max_capacity']} "
+              f"({utilisation:.1%} {status})")
+
+        if utilisation > 0.85:
+            remaining_agents = (info['max_capacity'] - info['allocated_count']) // 3
+            print(f"      ⚠️  Seulement {remaining_agents} agents supplémentaires possibles")
+
+# Usage recommandé avant création agents massifs
+monitor_character_usage(simulation)
+```
+
+### Troubleshooting Architecture
+
+#### Erreur Courante : "No character mapping found"
+
+```python
+# ERREUR TYPIQUE
+ValueError: No character mapping found for account FARM_01_source at transaction 0
+SYSTÈME FAILURE: Mapping taxonomique manquant pour node_id du chemin DAG
+
+# CAUSE: Tentative transaction avec agent mal configuré
+# SOLUTION: Vérifier que _configure_taxonomy_batch() a été appelé
+```
+
+#### Diagnostic Mappings
+
+```python
+def diagnose_taxonomy_mappings(simulation):
+    """Diagnostique mappings taxonomiques complets"""
+
+    print("🔍 DIAGNOSTIC MAPPINGS TAXONOMIE:")
+
+    for agent_id in simulation.agents.keys():
+        # Vérifier les 3 mappings requis
+        mappings_required = [
+            agent_id,                    # Principal
+            f"{agent_id}_source",       # Source
+            f"{agent_id}_sink"          # Sink
+        ]
+
+        missing_mappings = []
+        for mapping_id in mappings_required:
+            char = simulation.account_taxonomy.get_character_mapping(mapping_id, 0)
+            if char is None:
+                missing_mappings.append(mapping_id)
+            else:
+                print(f"   ✅ {mapping_id} → '{char}'")
+
+        if missing_mappings:
+            print(f"   ❌ {agent_id} MANQUE: {missing_mappings}")
+            return False
+
+    print("✅ Tous les mappings tri-caractères VALIDÉS")
+    return True
+
+# Usage pour debug
+diagnose_taxonomy_mappings(simulation)
+```
+
+### Guidelines d'Utilisation
+
+#### 🎯 Bonnes Pratiques
+
+1. **Toujours vérifier capacité AVANT création agents**
+2. **Utiliser modes agents appropriés** (`"7_agents"`, `"40_agents"`, `"65_agents"`)
+3. **Monitorer utilisation character-set** pendant développement
+4. **Diagnostic mappings** en cas d'erreurs validation
+
+#### 📏 Dimensionnement Projets
+
+```python
+# Règle de dimensionnement : 3 × agents_target ≤ capacity_character_set
+
+CONFIGURATION_RECOMMENDATIONS = {
+    "Prototype (≤7 agents)": "Mode standard",
+    "Development (≤15 agents)": "Mode 40_agents",
+    "Production (≤22 agents)": "Mode 65_agents avec monitoring",
+    "Enterprise (>22 agents)": "Architecture custom requise"
+}
+```
+
+Cette architecture tri-caractères est la **fondation technique** permettant à CAPS d'atteindre **100% FEASIBILITY** avec validation économique complète. Comprendre cette architecture est essentiel pour exploiter pleinement les capacités de simulation massive.
+
+---
+
 ## 📚 Ressources Supplémentaires
 
 ### Documentation Technique

@@ -247,22 +247,52 @@ class AccountTaxonomy:
         return None
     
     def convert_path_to_word(self, path: List['Node'], transaction_num: int) -> str:
-        """Convertit chemin DAG en mot pour évaluation NFA"""
+        """
+        Convertit chemin DAG en mot pour évaluation NFA - FONCTION CRITIQUE
+
+        DÉPENDANCE ARCHITECTURALE FONDAMENTALE :
+        Cette fonction est le pont entre l'énumération de chemins DAG et la validation NFA.
+
+        Process Flow :
+        1. DAG path enumeration génère : [source_node, sink_node]
+           Exemple : [farm_01_source_node, indu_05_sink_node]
+
+        2. convert_path_to_word() effectue mapping node_id → character :
+           farm_01_source_node.node_id = "FARM_01_source" → 'B' (via taxonomy)
+           indu_05_sink_node.node_id = "INDU_05_sink" → 'X' (via taxonomy)
+           Résultat : word = "BX"
+
+        3. NFA validation teste word contre regex sectoriels :
+           agriculture_pattern = ".*[ABCDEF...].*"
+           industry_pattern = ".*[GHIJKL...].*"
+
+        CONSÉQUENCE CRITIQUE :
+        Sans mappings taxonomiques pour TOUS les node_ids (_source, _sink, principal),
+        cette fonction lève KeyError et CASSE la validation de transaction.
+
+        C'est pourquoi l'architecture tri-caractères est NON-NÉGOCIABLE :
+        Chaque agent nécessite 3 mappings : principal + _source + _sink
+        """
         word_chars = []
-        
+
         for node in path:
             # Extraction account_id depuis node DAG - utiliser node_id comme account_id
+            # CRITIQUE: node_id peut être "FARM_01", "FARM_01_source", ou "FARM_01_sink"
+            # Tous ces node_ids DOIVENT avoir un mapping taxonomique valide
             account_id = getattr(node, 'account_id', None) or getattr(node, 'node_id', None)
             if not account_id:
                 raise ValueError(f"Node without account_id or node_id in path: {node}")
-            
-            # Récupération mapping historique
+
+            # Récupération mapping historique - DÉPENDANCE TAXONOMIE
+            # Si account_id manquant dans taxonomie → KeyError → Transaction FAIL
             character = self.get_character_mapping(account_id, transaction_num)
             if character is None:
-                raise ValueError(f"No character mapping found for account {account_id} at transaction {transaction_num}")
-            
+                raise ValueError(f"No character mapping found for account {account_id} at transaction {transaction_num}. "
+                               f"SYSTÈME FAILURE: Mapping taxonomique manquant pour node_id du chemin DAG. "
+                               f"Vérifiez que tous les comptes (_source, _sink, principal) sont configurés en taxonomie.")
+
             word_chars.append(character)
-        
+
         return ''.join(word_chars)
     
     def get_taxonomy_snapshot(self, transaction_num: int) -> Optional[TaxonomySnapshot]:
