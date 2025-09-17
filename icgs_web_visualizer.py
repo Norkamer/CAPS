@@ -90,8 +90,20 @@ def init_web_manager():
 
 @app.route('/')
 def index():
-    """Page d'accueil du visualiseur ICGS"""
+    """Page d'accueil ICGS 3D - Application SPA avec visualisation massive 65 agents"""
     return render_template('index.html')
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Servir les fichiers statiques CSS/JS pour application 3D"""
+    from flask import send_from_directory
+    import os
+
+    # Créer le répertoire static s'il n'existe pas
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    os.makedirs(static_dir, exist_ok=True)
+
+    return send_from_directory(static_dir, filename)
 
 @app.route('/api/sectors')
 def api_sectors():
@@ -514,9 +526,14 @@ def api_launch_massive_economy_3d():
 
         print(f"🌌 Lancement économie 3D massive: {agents_mode}, intensity={flow_intensity}")
 
-        # DIRECT: Utilisation EconomicSimulation sans pool WebNativeICGS
-        from icgs_simulation.api.icgs_bridge import EconomicSimulation
-        simulation = EconomicSimulation(f"web_3d_economy_{int(time.time())}", agents_mode=agents_mode)
+        # Utiliser l'instance partagée web_manager.icgs_core au lieu de créer une nouvelle simulation
+        manager = init_web_manager()
+        if not manager or not manager.icgs_core:
+            return jsonify({
+                'success': False,
+                'error': 'Instance ICGS non initialisée. Créer des agents d\'abord.'
+            }), 400
+        simulation = manager.icgs_core
 
         # Activation analyse 3D native si demandée
         analysis_3d_enabled = False
@@ -1011,7 +1028,81 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICGS Web Visualizer</title>
+    <title>ICGS 3D - Visualisation Économie Massive</title>
+    <link rel="stylesheet" href="/static/styles.css">
+
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+
+    <!-- Orbit Controls pour Three.js -->
+    <script>
+        // OrbitControls inline pour éviter problème CDN
+        !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports,require("three")):"function"==typeof define&&define.amd?define(["exports","three"],t):t((e=e||self).THREE=e.THREE||{},e.THREE)}(this,function(e,t){"use strict";var n=function(e){function n(t,o){e.call(this),this.object=t,this.domElement=void 0!==o?o:document,this.enabled=!0,this.target=new t.Vector3,this.minDistance=0,this.maxDistance=1/0,this.minZoom=0,this.maxZoom=1/0,this.minPolarAngle=0,this.maxPolarAngle=Math.PI,this.minAzimuthAngle=-1/0,this.maxAzimuthAngle=1/0,this.enableDamping=!1,this.dampingFactor=.05,this.enableZoom=!0,this.zoomSpeed=1,this.enableRotate=!0,this.rotateSpeed=1,this.enablePan=!0,this.panSpeed=1,this.screenSpacePanning=!0,this.keyPanSpeed=7,this.autoRotate=!1,this.autoRotateSpeed=2,this.keys={LEFT:37,UP:38,RIGHT:39,BOTTOM:40},this.mouseButtons={LEFT:t.MOUSE.ROTATE,MIDDLE:t.MOUSE.DOLLY,RIGHT:t.MOUSE.PAN},this.touches={ONE:t.TOUCH.ROTATE,TWO:t.TOUCH.DOLLY_PAN},this.target0=this.target.clone(),this.position0=this.object.position.clone(),this.zoom0=this.object.zoom,this._domElementKeyEvents=null,this.getPolarAngle=function(){return l.phi},this.getAzimuthalAngle=function(){return l.theta},this.getDistance=function(){return this.object.position.distanceTo(this.target)},this.listenToKeyEvents=function(e){e.addEventListener("keydown",J),this._domElementKeyEvents=e},this.stopListenToKeyEvents=function(){this._domElementKeyEvents.removeEventListener("keydown",J),this._domElementKeyEvents=null},this.saveState=function(){i.target0.copy(i.target),i.position0.copy(i.object.position),i.zoom0=i.object.zoom},this.reset=function(){i.target.copy(i.target0),i.object.position.copy(i.position0),i.object.zoom=i.zoom0,i.object.updateProjectionMatrix(),i.dispatchEvent(r),i.update(),c=a.NONE},this.update=function(){var e=new t.Vector3,n=(new t.Quaternion).setFromUnitVectors(i.object.up,new t.Vector3(0,1,0)),o=n.clone().invert(),h=new t.Vector3,u=new t.Quaternion,f=2*Math.PI;return function(){var t=i.object.position;e.copy(t).sub(i.target),e.applyQuaternion(n),l.setFromVector3(e),i.autoRotate&&c===a.NONE&&D(2*Math.PI/60/60*i.autoRotateSpeed),i.enableDamping?(l.theta+=m.theta*i.dampingFactor,l.phi+=m.phi*i.dampingFactor):(l.theta+=m.theta,l.phi+=m.phi);var r=i.minAzimuthAngle,g=i.maxAzimuthAngle;isFinite(r)&&isFinite(g)&&(r<-Math.PI?r+=f:r>Math.PI&&(r-=f),g<-Math.PI?g+=f:g>Math.PI&&(g-=f),r<=g?l.theta=Math.max(r,Math.min(g,l.theta)):l.theta=l.theta>(r+g)/2?Math.max(r,l.theta):Math.min(g,l.theta)),l.phi=Math.max(i.minPolarAngle,Math.min(i.maxPolarAngle,l.phi)),l.makeSafe(),l.radius*=d,l.radius=Math.max(i.minDistance,Math.min(i.maxDistance,l.radius)),i.enableDamping===!0?i.target.addScaledVector(p,i.dampingFactor):i.target.add(p),e.setFromSpherical(l),e.applyQuaternion(o),t.copy(i.target).add(e),i.object.lookAt(i.target),i.enableDamping===!0?(m.theta*=1-i.dampingFactor,m.phi*=1-i.dampingFactor,p.multiplyScalar(1-i.dampingFactor)):(m.set(0,0,0),p.set(0,0,0)),d=1,!!(v||h.distanceToSquared(i.object.position)>s||8*(1-u.dot(i.object.quaternion))>s)&&(i.dispatchEvent(r),h.copy(i.object.position),u.copy(i.object.quaternion),v=!1,!0)}}(),this.dispose=function(){i.domElement.removeEventListener("contextmenu",K),i.domElement.removeEventListener("pointerdown",G),i.domElement.removeEventListener("pointercancel",k),i.domElement.removeEventListener("wheel",Y),i.domElement.removeEventListener("pointermove",q),i.domElement.removeEventListener("pointerup",k),null!==i._domElementKeyEvents&&(i._domElementKeyEvents.removeEventListener("keydown",J),i._domElementKeyEvents=null)};var i=this,r={type:"change"},s=1e-6,a={NONE:-1,ROTATE:0,DOLLY:1,PAN:2,TOUCH_ROTATE:3,TOUCH_PAN:4,TOUCH_DOLLY_PAN:5,TOUCH_DOLLY_ROTATE:6},c=a.NONE,l=new t.Spherical,m=new t.Spherical,d=1,p=new t.Vector3,v=!1,g=new t.Vector2,y=new t.Vector2,b=new t.Vector2,w=new t.Vector2,M=new t.Vector2,x=new t.Vector2,E=new t.Vector2,A=new t.Vector2,P=new t.Vector2,L=[],S={};function T(){return Math.pow(.95,i.zoomSpeed)}function R(e){m.theta-=e}function D(e){m.phi-=e}function C(e){i.object.isPerspectiveCamera?d/=e:i.object.isOrthographicCamera?(i.object.zoom=Math.max(i.minZoom,Math.min(i.maxZoom,i.object.zoom*e)),i.object.updateProjectionMatrix(),v=!0):(console.warn("WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled."),i.enableZoom=!1)}function I(e){i.object.isPerspectiveCamera?d*=e:i.object.isOrthographicCamera?(i.object.zoom=Math.max(i.minZoom,Math.min(i.maxZoom,i.object.zoom/e)),i.object.updateProjectionMatrix(),v=!0):(console.warn("WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled."),i.enableZoom=!1)}function U(e){g.set(e.clientX,e.clientY)}function z(e){E.set(e.clientX,e.clientY)}function F(e){w.set(e.clientX,e.clientY)}function O(e){y.set(e.clientX,e.clientY),b.subVectors(y,g).multiplyScalar(i.rotateSpeed);var t=i.domElement;R(2*Math.PI*b.x/t.clientHeight),D(2*Math.PI*b.y/t.clientHeight),g.copy(y),i.update()}function N(e){A.set(e.clientX,e.clientY),P.subVectors(A,E),P.y>0?C(T()):P.y<0&&I(T()),E.copy(A),i.update()}function V(e){M.set(e.clientX,e.clientY),x.subVectors(M,w).multiplyScalar(i.panSpeed),B(x.x,x.y),w.copy(M),i.update()}function B(e,t){i.object.isPerspectiveCamera?function(e,t){var n=i.object.position;p.copy(n).sub(i.target);var o=p.length();o*=Math.tan(i.object.fov/2*Math.PI/180),H(2*e*o/i.domElement.clientHeight,2*t*o/i.domElement.clientHeight)}(e,t):i.object.isOrthographicCamera?function(e,t){H(e*(i.object.right-i.object.left)/i.object.zoom/i.domElement.clientWidth,t*(i.object.top-i.object.bottom)/i.object.zoom/i.domElement.clientHeight)}(e,t):(console.warn("WARNING: OrbitControls.js encountered an unknown camera type - pan disabled."),i.enablePan=!1)}function H(e,t){var n=i.object.matrix.elements;p.set(n[0],n[1],n[2]),p.multiplyScalar(-e);var o=i.object.matrix.elements;p.add((new t.Vector3).set(o[4],o[5],o[6]).multiplyScalar(t)),i.target.add(p)}function j(){return 2*Math.PI/60*(i.autoRotateSpeed*60)}function W(e){if(1==L.length)g.set(e.pageX,e.pageY);else{var t=Q(e),n=.5*(e.pageX+t.x),o=.5*(e.pageY+t.y);g.set(n,o)}}function X(e){if(1==L.length)w.set(e.pageX,e.pageY);else{var t=Q(e),n=.5*(e.pageX+t.x),o=.5*(e.pageY+t.y);w.set(n,o)}}function _(e){var t=Q(e),n=e.pageX-t.x,o=e.pageY-t.y,i=Math.sqrt(n*n+o*o);E.set(0,i)}function Q(e){for(var t=0;t<L.length;t++)if(L[t].pointerId!==e.pointerId)return L[t];return null}function G(e){var t;switch(L.push(e),L.length){case 1:switch(i.touches.ONE){case t.TOUCH.ROTATE:if(i.enableRotate===!1)return;W(e),c=a.TOUCH_ROTATE;break;case t.TOUCH.PAN:if(i.enablePan===!1)return;X(e),c=a.TOUCH_PAN;break;default:c=a.NONE}break;case 2:switch(i.touches.TWO){case t.TOUCH.DOLLY_PAN:if(i.enableZoom===!1&&i.enablePan===!1)return;!function(e){i.enableZoom&&_(e),i.enablePan&&X(e)}(e),c=a.TOUCH_DOLLY_PAN;break;case t.TOUCH.DOLLY_ROTATE:if(i.enableZoom===!1&&i.enableRotate===!1)return;!function(e){i.enableZoom&&_(e),i.enableRotate&&W(e)}(e),c=a.TOUCH_DOLLY_ROTATE;break;default:c=a.NONE}break;default:c=a.NONE}c!==a.NONE&&i.dispatchEvent(r)}function q(e){switch(e.pointerType){case"mouse":case"pen":!function(e){switch(e.button){case 0:switch(i.mouseButtons.LEFT){case t.MOUSE.ROTATE:if(e.ctrlKey||e.metaKey||e.shiftKey){if(i.enablePan===!1)return;F(e),c=a.PAN}else{if(i.enableRotate===!1)return;U(e),c=a.ROTATE}break;case t.MOUSE.PAN:if(e.ctrlKey||e.metaKey||e.shiftKey){if(i.enableRotate===!1)return;U(e),c=a.ROTATE}else{if(i.enablePan===!1)return;F(e),c=a.PAN}break;default:c=a.NONE}break;case 1:switch(i.mouseButtons.MIDDLE){case t.MOUSE.DOLLY:if(i.enableZoom===!1)return;z(e),c=a.DOLLY;break;default:c=a.NONE}break;case 2:switch(i.mouseButtons.RIGHT){case t.MOUSE.ROTATE:if(i.enableRotate===!1)return;U(e),c=a.ROTATE;break;case t.MOUSE.PAN:if(i.enablePan===!1)return;F(e),c=a.PAN;break;default:c=a.NONE}break;default:c=a.NONE}c!==a.NONE&&i.dispatchEvent(r)}(e);break;default:!function(e){var t,n,o;switch(L.length){case 1:switch(i.touches.ONE){case t.TOUCH.ROTATE:if(i.enableRotate===!1)return;O(e);break;case t.TOUCH.PAN:if(i.enablePan===!1)return;V(e);break;default:c=a.NONE}break;case 2:switch(i.touches.TWO){case t.TOUCH.DOLLY_PAN:if(i.enableZoom===!1&&i.enablePan===!1)return;t=e,n=Q(t),o=.5*(t.pageX+n.x),r=.5*(t.pageY+n.y),M.set(o,r),x.subVectors(M,w).multiplyScalar(i.panSpeed),B(x.x,x.y),w.copy(M),function(e){var t=Q(e),n=e.pageX-t.x,o=e.pageY-t.y,i=Math.sqrt(n*n+o*o);A.set(0,i),P.subVectors(A,E),P.y>0?C(T()):P.y<0&&I(T()),E.copy(A)}(t);break;case t.TOUCH.DOLLY_ROTATE:if(i.enableZoom===!1&&i.enableRotate===!1)return;!function(e){i.enableZoom&&function(e){var t=Q(e),n=e.pageX-t.x,o=e.pageY-t.y,i=Math.sqrt(n*n+o*o);A.set(0,i),P.subVectors(A,E),P.y>0?C(T()):P.y<0&&I(T()),E.copy(A)}(e),i.enableRotate&&O(e)}(e);break;default:c=a.NONE}break;default:c=a.NONE}var r}(e)}}function k(e){$(),L.length===0?i.domElement.releasePointerCapture(e.pointerId):L.length===1&&(c=a.NONE)}function $(e){delete S[e.pointerId];for(var t=0;t<L.length;t++)if(L[t].pointerId==e.pointerId)return void L.splice(t,1)}function J(e){var t=!1;switch(e.code){case i.keys.UP:B(0,i.keyPanSpeed),t=!0;break;case i.keys.BOTTOM:B(0,-i.keyPanSpeed),t=!0;break;case i.keys.LEFT:B(i.keyPanSpeed,0),t=!0;break;case i.keys.RIGHT:B(-i.keyPanSpeed,0),t=!0}t&&(e.preventDefault(),i.update())}function Y(e){if(i.enabled===!1||i.enableZoom===!1||c!==a.NONE&&c!==a.ROTATE)return;e.preventDefault(),i.dispatchEvent(r),function(e){e.deltaY<0?I(T()):e.deltaY>0&&C(T()),i.update()}(e),i.dispatchEvent(s)}function K(e){i.enabled===!1||e.preventDefault()}i.domElement.style.touchAction="none",i.domElement.addEventListener("contextmenu",K),i.domElement.addEventListener("pointerdown",G),i.domElement.addEventListener("pointercancel",k),i.domElement.addEventListener("wheel",Y),i.update()}return n.prototype=Object.assign(Object.create(e.prototype),{constructor:n,getPolarAngle:function(){return this.spherical.phi},getAzimuthalAngle:function(){return this.spherical.theta},getDistance:function(){return this.object.position.distanceTo(this.target)},listenToKeyEvents:function(e){e.addEventListener("keydown",this.onKeyDown),this._domElementKeyEvents=e},stopListenToKeyEvents:function(){this._domElementKeyEvents.removeEventListener("keydown",this.onKeyDown),this._domElementKeyEvents=null},saveState:function(){this.target0.copy(this.target),this.position0.copy(this.object.position),this.zoom0=this.object.zoom},reset:function(){this.target.copy(this.target0),this.object.position.copy(this.position0),this.object.zoom=this.zoom0,this.object.updateProjectionMatrix(),this.dispatchEvent({type:"change"}),this.update(),this.state=this.STATE.NONE},update:function(){return this.update}(),dispose:function(){this.domElement.removeEventListener("contextmenu",this.onContextMenu),this.domElement.removeEventListener("pointerdown",this.onPointerDown),this.domElement.removeEventListener("pointercancel",this.onPointerCancel),this.domElement.removeEventListener("wheel",this.onMouseWheel),this.domElement.removeEventListener("pointermove",this.onPointerMove),this.domElement.removeEventListener("pointerup",this.onPointerUp),null!==this._domElementKeyEvents&&(this._domElementKeyEvents.removeEventListener("keydown",this.onKeyDown),this._domElementKeyEvents=null)}}),n}(t.EventDispatcher);e.OrbitControls=n,Object.defineProperty(e,"__esModule",{value:!0})});
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="app-header">
+                <div class="app-title">ICGS 3D</div>
+                <div class="app-subtitle">Économie Massive 65 Agents</div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-button active" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    Dashboard 3D
+                </button>
+                <button class="nav-button" data-page="transactions">
+                    <span class="nav-icon">💰</span>
+                    Transaction Navigator
+                </button>
+                <button class="nav-button" data-page="sectors">
+                    <span class="nav-icon">🏭</span>
+                    Sector Analysis
+                </button>
+                <button class="nav-button" data-page="simplex">
+                    <span class="nav-icon">📈</span>
+                    Simplex Viewer
+                </button>
+                <button class="nav-button" data-page="export">
+                    <span class="nav-icon">📁</span>
+                    Data Export
+                </button>
+            </nav>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div class="content-area">
+                <!-- Three.js Container -->
+                <div id="three-container"></div>
+
+                <!-- Dashboard Page -->
+                <div id="dashboard-page" class="page-content">
+                    <div class="page-header">
+                        <h2 class="page-title">Dashboard 3D</h2>
+                        <p class="page-subtitle">Vue d'ensemble économie massive</p>
+                    </div>
+
+                    <div id="dashboard-metrics">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Chargement métriques...</p>
+                        </div>
+                    </div>
+
+                    <div class="controls-section">
+                        <h4 style="margin-bottom: 10px;">Contrôles Vue 3D</h4>
+                        <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px;">
+                            • Clic gauche + glisser : Rotation<br>
+                            • Molette : Zoom<br>
+                            • Clic droit + glisser : Panoramique
+                        </p>
+                    </div>
+                </div>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
