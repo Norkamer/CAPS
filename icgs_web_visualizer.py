@@ -48,12 +48,24 @@ except ImportError:
     EXTENSIONS_AVAILABLE = False
     print("⚠️  Extensions avancées not available")
 
+# Import Transaction Simplex Analyzer
+try:
+    from icgs_transaction_simplex_analyzer import (
+        TransactionSimplexAnalyzer, TransactionSimplexData,
+        SimulationSequenceData, create_transaction_simplex_analyzer
+    )
+    TRANSACTION_SIMPLEX_AVAILABLE = True
+except ImportError:
+    TRANSACTION_SIMPLEX_AVAILABLE = False
+    print("⚠️  Transaction Simplex Analyzer not available")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'icgs_demo_2024'
 
 # Global Web-Native ICGS Manager
 web_manager = None
 global_3d_analyzer = None  # PHASE 2A: Analyseur 3D global
+global_transaction_simplex_analyzer = None  # PHASE 2B: Analyseur Simplex Transaction
 simulation_history = []
 performance_metrics = {
     'total_transactions': 0,
@@ -66,7 +78,7 @@ performance_metrics = {
 
 def init_web_manager():
     """Initialize global Web-Native ICGS Manager with pre-configured pool"""
-    global web_manager, global_3d_analyzer
+    global web_manager, global_3d_analyzer, global_transaction_simplex_analyzer
     if web_manager is None:
         # Créer Web-Native ICGS Manager avec pool pré-configuré
         web_manager = WebNativeICGS()
@@ -86,6 +98,19 @@ def init_web_manager():
                 print("🌌 Analyseur 3D Mode Authentique activé avec WebNativeICGS")
             else:
                 print("⚠️  Analyseur 3D Mode Authentique échoué")
+
+        # PHASE 2B: Initialiser analyseur Simplex Transaction
+        if TRANSACTION_SIMPLEX_AVAILABLE:
+            try:
+                global_transaction_simplex_analyzer = create_transaction_simplex_analyzer(web_manager.icgs_core)
+                print("🎯 Transaction Simplex Analyzer initialisé avec WebNativeICGS")
+            except Exception as e:
+                print(f"❌ Erreur initialisation Transaction Simplex Analyzer: {e}")
+                global_transaction_simplex_analyzer = None
+        else:
+            print("⚠️  Transaction Simplex Analyzer non disponible")
+            global_transaction_simplex_analyzer = None
+
     return web_manager
 
 @app.route('/')
@@ -646,7 +671,7 @@ def api_get_transactions_3d():
                 'error': 'Économie 3D non lancée - Utilisez /api/economy/launch_3d d\'abord'
             }), 400
 
-        simulation = web_manager.icgs_core
+        simulation = manager.icgs_core
 
         # Récupérer toutes les transactions
         all_transactions = []
@@ -722,7 +747,7 @@ def api_get_transaction_3d_detail(tx_id):
                 'error': 'Économie 3D non disponible'
             }), 400
 
-        simulation = web_manager.icgs_core
+        simulation = manager.icgs_core
 
         # Trouver la transaction
         transaction = next((tx for tx in simulation.transactions if tx.transaction_id == tx_id), None)
@@ -817,7 +842,7 @@ def api_get_sectoral_3d_matrix():
                 'error': 'Économie 3D non disponible'
             }), 400
 
-        simulation = web_manager.icgs_core
+        simulation = manager.icgs_core
 
         # Calculer matrice flux inter-sectoriels
         sectors = ['AGRICULTURE', 'INDUSTRY', 'SERVICES', 'FINANCE', 'ENERGY']
@@ -916,7 +941,7 @@ def api_performance_stats():
                 'error': 'Simulation non disponible'
             }), 400
 
-        simulation = web_manager.icgs_core
+        simulation = manager.icgs_core
 
         # Statistiques performance complètes
         if hasattr(simulation, 'get_performance_stats'):
@@ -956,7 +981,7 @@ def api_optimize_for_web():
                 'error': 'Simulation non disponible'
             }), 400
 
-        simulation = web_manager.icgs_core
+        simulation = manager.icgs_core
 
         # Appliquer optimisations web
         if hasattr(simulation, 'optimize_for_web_load'):
@@ -1000,7 +1025,7 @@ def api_clear_performance_cache():
                 'error': 'Simulation non disponible'
             }), 400
 
-        simulation = web_manager.icgs_core
+        simulation = manager.icgs_core
 
         # Vider cache
         if hasattr(simulation, 'clear_performance_cache'):
@@ -1014,6 +1039,201 @@ def api_clear_performance_cache():
             'message': message,
             'timestamp': time.time()
         })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ==========================================
+# SIMPLEX 3D ANIMATION API ENDPOINTS
+# ==========================================
+
+@app.route('/api/simplex_3d/transactions')
+def api_list_simplex_transactions():
+    """API: Liste des transactions disponibles pour animation Simplex"""
+    try:
+        manager = init_web_manager()
+        global global_transaction_simplex_analyzer
+
+        if not manager or not hasattr(manager, 'icgs_core'):
+            return jsonify({
+                'success': False,
+                'error': 'Simulation non disponible'
+            }), 400
+
+        if not global_transaction_simplex_analyzer:
+            return jsonify({
+                'success': False,
+                'error': 'Analyseur Simplex Transaction non initialisé'
+            }), 400
+
+        # Obtenir toutes transactions via analyseur
+        simulation = manager.icgs_core
+        transactions_list = []
+
+        # Extraire transactions depuis DAG enhanced
+        if hasattr(simulation, 'enhanced_dag') and simulation.enhanced_dag:
+            for tx in simulation.enhanced_dag.transactions:
+                # Analyser rapidement pour obtenir nombre d'étapes
+                step_count = global_transaction_simplex_analyzer.get_transaction_step_count(tx.transaction_id)
+
+                transactions_list.append({
+                    'id': tx.transaction_id,
+                    'source': tx.source_account,
+                    'target': tx.target_account,
+                    'amount': float(tx.amount),
+                    'status': getattr(tx, 'status', 'unknown'),
+                    'step_count': step_count,
+                    'estimated_duration_ms': step_count * 200,  # 200ms par étape
+                    'complexity': 'LOW' if step_count < 5 else 'MEDIUM' if step_count < 15 else 'HIGH'
+                })
+
+        return jsonify({
+            'success': True,
+            'transactions': transactions_list,
+            'total_count': len(transactions_list),
+            'timestamp': time.time()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/simplex_3d/transaction/<tx_id>')
+def api_get_transaction_simplex_data(tx_id):
+    """API: Données Simplex détaillées pour une transaction spécifique"""
+    try:
+        manager = init_web_manager()
+        global global_transaction_simplex_analyzer
+
+        if not manager or not global_transaction_simplex_analyzer:
+            return jsonify({
+                'success': False,
+                'error': 'Services non disponibles'
+            }), 400
+
+        # Analyser transaction en détail
+        transaction_data = global_transaction_simplex_analyzer.analyze_single_transaction(tx_id)
+
+        # Convertir en format JSON serializable
+        response_data = {
+            'success': True,
+            'transaction_id': transaction_data.transaction_id,
+            'step_count': transaction_data.step_count,
+            'estimated_duration_ms': transaction_data.estimated_duration_ms,
+            'complexity_level': transaction_data.complexity.value,
+            'simplex_steps': transaction_data.simplex_steps,
+            'optimal_solution': transaction_data.optimal_solution,
+            'convergence_info': transaction_data.convergence_info,
+            'transaction_info': {
+                'source_account': transaction_data.source_account,
+                'target_account': transaction_data.target_account,
+                'amount': float(transaction_data.amount),
+                'feasible': transaction_data.feasible
+            },
+            'performance_metrics': {
+                'actual_solving_time_ms': transaction_data.actual_solving_time_ms,
+                'iterations_used': transaction_data.iterations_used,
+                'pivot_count': transaction_data.pivot_count
+            },
+            'timestamp': time.time()
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'transaction_id': tx_id
+        }), 500
+
+
+@app.route('/api/simplex_3d/simulation/run', methods=['POST'])
+def api_run_complete_simplex_simulation():
+    """API: Lancement simulation complète avec animation enchaînée"""
+    try:
+        manager = init_web_manager()
+        global global_transaction_simplex_analyzer
+
+        if not manager or not global_transaction_simplex_analyzer:
+            return jsonify({
+                'success': False,
+                'error': 'Services non disponibles'
+            }), 400
+
+        # Préparer séquence simulation complète
+        sequence_data = global_transaction_simplex_analyzer.prepare_simulation_sequence()
+
+        # Convertir en format JSON serializable
+        response_data = {
+            'success': True,
+            'simulation_id': sequence_data.simulation_id,
+            'total_transactions': sequence_data.total_transactions,
+            'total_steps': sequence_data.total_steps,
+            'estimated_duration_ms': sequence_data.estimated_duration_ms,
+            'transactions': [
+                {
+                    'transaction_id': tx.transaction_id,
+                    'step_count': tx.step_count,
+                    'estimated_duration_ms': tx.estimated_duration_ms,
+                    'complexity': tx.complexity.value,
+                    'simplex_steps': tx.simplex_steps,
+                    'source_account': tx.source_account,
+                    'target_account': tx.target_account,
+                    'amount': float(tx.amount),
+                    'feasible': tx.feasible
+                }
+                for tx in sequence_data.transactions
+            ],
+            'transition_points': sequence_data.transition_points,
+            'sequence_metadata': sequence_data.sequence_metadata,
+            'timestamp': time.time()
+        }
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/simplex_3d/simulation/status')
+def api_get_simulation_status():
+    """API: Status simulation en cours (pour progression temps réel)"""
+    try:
+        manager = init_web_manager()
+        global global_transaction_simplex_analyzer
+
+        if not manager:
+            return jsonify({
+                'success': False,
+                'error': 'Simulation non disponible'
+            }), 400
+
+        # Pour l'instant, retourner status basique
+        # Peut être étendu pour tracking progression temps réel
+        simulation = manager.icgs_core
+
+        status_info = {
+            'success': True,
+            'simulation_running': True,
+            'total_agents': len(getattr(simulation, 'enhanced_dag', {}).accounts or []),
+            'total_transactions': len(getattr(simulation, 'enhanced_dag', {}).transactions or []),
+            'analyzer_available': global_transaction_simplex_analyzer is not None,
+            'cache_stats': global_transaction_simplex_analyzer._transaction_cache.keys() if global_transaction_simplex_analyzer else [],
+            'timestamp': time.time()
+        }
+
+        return jsonify(status_info)
 
     except Exception as e:
         return jsonify({
