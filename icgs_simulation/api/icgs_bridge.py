@@ -26,7 +26,11 @@ from icgs_core import (
     TripleValidationOrientedSimplex, ValidationMode, SolutionStatus
 )
 from icgs_core.enhanced_dag import EnhancedDAG
-from icgs_core.character_set_manager import create_default_character_set_manager
+from icgs_core.character_set_manager import (
+    create_default_character_set_manager,
+    create_40_agents_character_set_manager,
+    create_massive_character_set_manager_65_agents
+)
 from ..domains.base import get_sector_info, get_recommended_balance
 
 # Import API Simplex 3D (optionnel)
@@ -95,14 +99,16 @@ class EconomicSimulation:
     - Gestion erreurs transparente
     """
 
-    def __init__(self, simulation_id: str = "default_simulation"):
+    def __init__(self, simulation_id: str = "default_simulation", agents_mode: str = "7_agents"):
         """
         Initialise simulateur avec configuration automatique
 
         Args:
             simulation_id: Identifiant unique de la simulation
+            agents_mode: Mode configuration agents ("7_agents", "40_agents", "65_agents")
         """
         self.simulation_id = simulation_id
+        self.agents_mode = agents_mode
         self.logger = logging.getLogger(f"icgs_simulation.{simulation_id}")
 
         # Composants icgs_core avec EnhancedDAG
@@ -131,26 +137,46 @@ class EconomicSimulation:
 
     def _create_extended_character_set_manager(self):
         """
-        Créer Character-Set Manager avec capacités étendues pour 15+ agents
+        Créer Character-Set Manager avec capacités selon mode agents
 
-        Capacités par secteur étendues pour simulation massive.
+        Modes supportés:
+        - "7_agents": Configuration actuelle (21 caractères)
+        - "40_agents": Configuration étendue Semaine 2 (108+ caractères)
+        - "65_agents": Configuration massive Semaine 3 (195 caractères)
         """
-        from icgs_core.character_set_manager import NamedCharacterSetManager
+        if self.agents_mode == "40_agents":
+            manager = create_40_agents_character_set_manager()
+            self.logger.info(f"Character-Set Manager configuré mode 40 agents (108+ caractères)")
 
-        manager = NamedCharacterSetManager()
+        elif self.agents_mode == "65_agents":
+            manager = create_massive_character_set_manager_65_agents()
+            self.logger.info(f"Character-Set Manager configuré mode 65 agents (195 caractères)")
 
-        # Configuration pour 7 agents actuels (21 caractères total)
-        # Chaque agent nécessite 3 caractères (principal + source + sink)
-        extended_sectors = {
-            'AGRICULTURE': ['A', 'B', 'C'],                             # 1 agent × 3 = 3 chars
-            'INDUSTRY': ['I', 'J', 'K', 'L', 'M', 'N'],                 # 2 agents × 3 = 6 chars
-            'SERVICES': ['S', 'T', 'U', 'V', 'W', 'X'],                 # 2 agents × 3 = 6 chars
-            'FINANCE': ['F', 'G', 'H'],                                 # 1 agent × 3 = 3 chars
-            'ENERGY': ['E', 'Q', 'R'],                                  # 1 agent × 3 = 3 chars
-        }
+        else:  # "7_agents" par défaut
+            from icgs_core.character_set_manager import NamedCharacterSetManager
 
-        for sector_name, characters in extended_sectors.items():
-            manager.define_character_set(sector_name, characters)
+            manager = NamedCharacterSetManager()
+
+            # Configuration pour 7 agents actuels (21 caractères total)
+            # Chaque agent nécessite 3 caractères (principal + source + sink)
+            extended_sectors = {
+                'AGRICULTURE': ['A', 'B', 'C'],                             # 1 agent × 3 = 3 chars
+                'INDUSTRY': ['I', 'J', 'K', 'L', 'M', 'N'],                 # 2 agents × 3 = 6 chars
+                'SERVICES': ['S', 'T', 'U', 'V', 'W', 'X'],                 # 2 agents × 3 = 6 chars
+                'FINANCE': ['F', 'G', 'H'],                                 # 1 agent × 3 = 3 chars
+                'ENERGY': ['E', 'Q', 'R'],                                  # 1 agent × 3 = 3 chars
+            }
+
+            for sector_name, characters in extended_sectors.items():
+                manager.define_character_set(sector_name, characters)
+
+            self.logger.info(f"Character-Set Manager configuré mode 7 agents (21 caractères)")
+
+        # Affichage statistiques capacité
+        stats = manager.get_allocation_statistics()
+        total_capacity = sum(info['max_capacity'] for info in stats['sectors'].values())
+        agents_capacity = total_capacity // 3
+        self.logger.info(f"Capacité totale: {total_capacity} caractères = {agents_capacity} agents maximum")
 
         return manager
 
@@ -213,6 +239,110 @@ class EconomicSimulation:
 
         self.logger.info(f"Agent créé: {agent_id} ({sector}, balance={balance})")
         return agent
+
+    def create_inter_sectoral_flows_batch(self, flow_intensity: float = 0.5) -> List[str]:
+        """
+        Crée automatiquement des transactions inter-sectorielles selon patterns économiques
+
+        Flux économiques réalistes:
+        - AGRICULTURE → INDUSTRY (40-60% production flow)
+        - INDUSTRY → SERVICES (60-80% distribution flow)
+        - SERVICES ↔ FINANCE (20-30% financial flow)
+        - ENERGY → ALL (5-10% infrastructure flow)
+
+        Args:
+            flow_intensity: Intensité des flux (0.0 à 1.0, défaut 0.5)
+
+        Returns:
+            Liste des transaction_ids créés
+        """
+        if not self.agents:
+            raise ValueError("Aucun agent créé. Créer des agents avant les flux inter-sectoriels.")
+
+        created_transactions = []
+
+        # Grouper agents par secteur
+        agents_by_sector = {}
+        for agent_id, agent in self.agents.items():
+            sector = agent.sector
+            if sector not in agents_by_sector:
+                agents_by_sector[sector] = []
+            agents_by_sector[sector].append(agent)
+
+        try:
+            # 1. AGRICULTURE → INDUSTRY (production flow)
+            if 'AGRICULTURE' in agents_by_sector and 'INDUSTRY' in agents_by_sector:
+                for agri_agent in agents_by_sector['AGRICULTURE']:
+                    for indus_agent in agents_by_sector['INDUSTRY']:
+                        flow_amount = agri_agent.balance * Decimal(str(0.4 + 0.2 * flow_intensity))
+                        if flow_amount >= 50:  # Minimum economically meaningful
+                            tx_id = self.create_transaction(
+                                agri_agent.agent_id,
+                                indus_agent.agent_id,
+                                flow_amount
+                            )
+                            created_transactions.append(tx_id)
+
+            # 2. INDUSTRY → SERVICES (distribution flow)
+            if 'INDUSTRY' in agents_by_sector and 'SERVICES' in agents_by_sector:
+                for indus_agent in agents_by_sector['INDUSTRY']:
+                    for services_agent in agents_by_sector['SERVICES']:
+                        flow_amount = indus_agent.balance * Decimal(str(0.6 + 0.2 * flow_intensity))
+                        if flow_amount >= 50:
+                            tx_id = self.create_transaction(
+                                indus_agent.agent_id,
+                                services_agent.agent_id,
+                                flow_amount
+                            )
+                            created_transactions.append(tx_id)
+
+            # 3. SERVICES ↔ FINANCE (bidirectional financial flow)
+            if 'SERVICES' in agents_by_sector and 'FINANCE' in agents_by_sector:
+                for services_agent in agents_by_sector['SERVICES']:
+                    for finance_agent in agents_by_sector['FINANCE']:
+                        # SERVICES → FINANCE (deposits/investments)
+                        flow_amount = services_agent.balance * Decimal(str(0.2 + 0.1 * flow_intensity))
+                        if flow_amount >= 50:
+                            tx_id = self.create_transaction(
+                                services_agent.agent_id,
+                                finance_agent.agent_id,
+                                flow_amount
+                            )
+                            created_transactions.append(tx_id)
+
+                        # FINANCE → SERVICES (loans/funding)
+                        flow_amount = finance_agent.balance * Decimal(str(0.25 + 0.05 * flow_intensity))
+                        if flow_amount >= 100:
+                            tx_id = self.create_transaction(
+                                finance_agent.agent_id,
+                                services_agent.agent_id,
+                                flow_amount
+                            )
+                            created_transactions.append(tx_id)
+
+            # 4. ENERGY → ALL (infrastructure flow)
+            if 'ENERGY' in agents_by_sector:
+                for energy_agent in agents_by_sector['ENERGY']:
+                    for sector, agents_list in agents_by_sector.items():
+                        if sector != 'ENERGY':  # Energy flows to all other sectors
+                            for target_agent in agents_list:
+                                flow_amount = energy_agent.balance * Decimal(str(0.05 + 0.05 * flow_intensity))
+                                if flow_amount >= 30:
+                                    tx_id = self.create_transaction(
+                                        energy_agent.agent_id,
+                                        target_agent.agent_id,
+                                        flow_amount
+                                    )
+                                    created_transactions.append(tx_id)
+
+            self.logger.info(f"Flux inter-sectoriels créés: {len(created_transactions)} transactions")
+            self.logger.info(f"Secteurs impliqués: {list(agents_by_sector.keys())}")
+
+        except Exception as e:
+            self.logger.error(f"Erreur création flux inter-sectoriels: {e}")
+            raise
+
+        return created_transactions
 
     def _configure_taxonomy_batch(self):
         """

@@ -338,6 +338,25 @@ DEFAULT_ECONOMIC_SECTORS = {
     'CARBON': ['Z']                           # 1 agent carbon (pénalités)
 }
 
+# Configuration étendue pour 40 agents économiques (Semaine 2)
+EXTENDED_SECTORS_40_AGENTS = {
+    'AGRICULTURE': ['A', 'B', 'C', 'D'] + [chr(i) for i in range(128, 154)],  # 30 chars = 10 agents
+    'INDUSTRY': ['I', 'J', 'K', 'L', 'M', 'N'] + [chr(i) for i in range(154, 172)],  # 24 chars = 8 agents
+    'SERVICES': ['S', 'T', 'U', 'V', 'W'] + [chr(i) for i in range(172, 185)],  # 18 chars = 6 agents
+    'FINANCE': ['F', 'G', 'H'] + [chr(i) for i in range(185, 198)],  # 16 chars = 5 agents
+    'ENERGY': ['E', 'Q', 'R', 'Y'] + [chr(i) for i in range(198, 210)],  # 16 chars = 5 agents
+    'CARBON': ['Z'] + [chr(i) for i in range(210, 213)]  # 4 chars = 1+ agent carbon
+}
+
+# Configuration massive pour 65 agents économiques (Semaine 3)
+MASSIVE_SECTORS_65_AGENTS = {
+    'AGRICULTURE': ['A', 'B', 'C', 'D'] + [chr(i) for i in range(256, 282)],  # 30 chars = 10 agents
+    'INDUSTRY': ['I', 'J', 'K', 'L', 'M', 'N'] + [chr(i) for i in range(282, 321)],  # 45 chars = 15 agents
+    'SERVICES': ['S', 'T', 'U', 'V', 'W'] + [chr(i) for i in range(321, 376)],  # 60 chars = 20 agents
+    'FINANCE': ['F', 'G', 'H'] + [chr(i) for i in range(376, 397)],  # 24 chars = 8 agents
+    'ENERGY': ['E', 'Q', 'R', 'Y'] + [chr(i) for i in range(397, 429)]  # 36 chars = 12 agents
+}
+
 
 def create_default_character_set_manager() -> NamedCharacterSetManager:
     """
@@ -349,6 +368,56 @@ def create_default_character_set_manager() -> NamedCharacterSetManager:
     manager = NamedCharacterSetManager()
 
     for sector_name, characters in DEFAULT_ECONOMIC_SECTORS.items():
+        manager.define_character_set(sector_name, characters)
+
+    return manager
+
+
+def create_40_agents_character_set_manager() -> NamedCharacterSetManager:
+    """
+    Factory function pour simulation 40 agents économiques (Semaine 2)
+
+    Configuration étendue:
+    - AGRICULTURE: 30 caractères = 10 agents max
+    - INDUSTRY: 18 caractères = 6 agents max
+    - SERVICES: 15 caractères = 5 agents max
+    - FINANCE: 15 caractères = 5 agents max
+    - ENERGY: 18 caractères = 6 agents max
+    - CARBON: 4 caractères = carbon management
+
+    Total: 100+ caractères pour 37+ agents avec marge sécurité
+
+    Returns:
+        NamedCharacterSetManager configuré pour 40 agents simulation
+    """
+    manager = NamedCharacterSetManager()
+
+    for sector_name, characters in EXTENDED_SECTORS_40_AGENTS.items():
+        manager.define_character_set(sector_name, characters)
+
+    return manager
+
+
+def create_massive_character_set_manager_65_agents() -> NamedCharacterSetManager:
+    """
+    Factory function pour simulation massive 65 agents économiques (Semaine 3)
+
+    Configuration finale massive:
+    - AGRICULTURE: 30 caractères = 10 agents max
+    - INDUSTRY: 45 caractères = 15 agents max
+    - SERVICES: 60 caractères = 20 agents max
+    - FINANCE: 24 caractères = 8 agents max
+    - ENERGY: 36 caractères = 12 agents max
+
+    Total: 195 caractères = 65 agents × 3 caractères each
+    Distribution économique réaliste selon ANALYSE_SIMULATION_ECONOMIQUE_MASSIVE.md
+
+    Returns:
+        NamedCharacterSetManager configuré pour 65 agents simulation massive
+    """
+    manager = NamedCharacterSetManager()
+
+    for sector_name, characters in MASSIVE_SECTORS_65_AGENTS.items():
         manager.define_character_set(sector_name, characters)
 
     return manager
