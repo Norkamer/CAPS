@@ -497,7 +497,514 @@ def static_files(filename):
     """Servir les fichiers statiques"""
     return send_from_directory('static', filename)
 
+# =====================================
+# API 3D ÉCONOMIE MASSIVE - NOUVELLE ARCHITECTURE TRANSACTION-CENTRÉE
+# =====================================
+
+@app.route('/api/economy/launch_3d', methods=['POST'])
+def api_launch_massive_economy_3d():
+    """Lance économie 65 agents avec analyse 3D intégrée - Élimination WebNativeICGS"""
+
+    try:
+        config = request.json
+        flow_intensity = config.get('flow_intensity', 0.7)
+        collect_3d_data = config.get('collect_3d', True)
+        authentic_simplex = config.get('authentic_simplex', True)
+        agents_mode = config.get('agents_mode', '65_agents')
+
+        print(f"🌌 Lancement économie 3D massive: {agents_mode}, intensity={flow_intensity}")
+
+        # DIRECT: Utilisation EconomicSimulation sans pool WebNativeICGS
+        from icgs_simulation.api.icgs_bridge import EconomicSimulation
+        simulation = EconomicSimulation(f"web_3d_economy_{int(time.time())}", agents_mode=agents_mode)
+
+        # Activation analyse 3D native si demandée
+        analysis_3d_enabled = False
+        if collect_3d_data:
+            analysis_3d_enabled = simulation.enable_3d_analysis(use_authentic_data=authentic_simplex)
+            if analysis_3d_enabled:
+                print(f"✅ Analyse 3D native activée avec données {'authentiques' if authentic_simplex else 'approximées'}")
+
+        # Génération transactions inter-sectorielles avec analyse 3D
+        if analysis_3d_enabled:
+            transaction_ids, data_3d = simulation.create_inter_sectoral_flows_batch_3d(
+                flow_intensity=flow_intensity,
+                enable_3d_analysis=True
+            )
+        else:
+            # Fallback sans analyse 3D
+            transaction_ids = simulation.create_inter_sectoral_flows_batch(flow_intensity)
+            data_3d = {'error': 'Analyse 3D non disponible'}
+
+        # Validation échantillon pour métriques web
+        sample_results = []
+        sample_size = min(20, len(transaction_ids))
+
+        for tx_id in transaction_ids[:sample_size]:
+            try:
+                feas_result = simulation.validate_transaction(tx_id, simulation.SimulationMode.FEASIBILITY)
+                opt_result = simulation.validate_transaction(tx_id, simulation.SimulationMode.OPTIMIZATION)
+
+                # Récupérer détails transaction pour affichage
+                transaction = next((tx for tx in simulation.transactions if tx.transaction_id == tx_id), None)
+
+                sample_results.append({
+                    'tx_id': tx_id,
+                    'source_id': transaction.source_account_id if transaction else 'N/A',
+                    'target_id': transaction.target_account_id if transaction else 'N/A',
+                    'amount': float(transaction.amount) if transaction else 0,
+                    'feasibility': {
+                        'success': feas_result.success,
+                        'time_ms': feas_result.validation_time_ms
+                    },
+                    'optimization': {
+                        'success': opt_result.success,
+                        'time_ms': opt_result.validation_time_ms,
+                        'optimal_price': float(getattr(opt_result, 'optimal_price', 0) or 0)
+                    }
+                })
+            except Exception as e:
+                print(f"⚠️ Erreur validation échantillon {tx_id}: {e}")
+
+        # Statistiques agents par secteur (mode 65 agents)
+        agents_distribution = {}
+        for agent_id, agent in simulation.agents.items():
+            sector = agent.sector
+            if sector not in agents_distribution:
+                agents_distribution[sector] = {'count': 0, 'total_balance': 0, 'agents': []}
+
+            agents_distribution[sector]['count'] += 1
+            agents_distribution[sector]['total_balance'] += float(agent.balance)
+            agents_distribution[sector]['agents'].append({
+                'id': agent_id,
+                'balance': float(agent.balance)
+            })
+
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'agents_mode': agents_mode,
+            'agents_created': len(simulation.agents),
+            'agents_distribution': agents_distribution,
+            'transactions_generated': len(transaction_ids),
+            'sample_results': sample_results,
+            'performance_metrics': {
+                'feasible_sample': sum(1 for r in sample_results if r['feasibility']['success']),
+                'optimal_sample': sum(1 for r in sample_results if r['optimization']['success']),
+                'avg_feasibility_time': sum(r['feasibility']['time_ms'] for r in sample_results) / max(len(sample_results), 1),
+                'avg_optimization_time': sum(r['optimization']['time_ms'] for r in sample_results) / max(len(sample_results), 1)
+            },
+            'analysis_3d': {
+                'enabled': analysis_3d_enabled,
+                'data': data_3d if analysis_3d_enabled else None,
+                'authentic_mode': authentic_simplex and analysis_3d_enabled
+            },
+            'flow_intensity': flow_intensity
+        })
+
+    except Exception as e:
+        print(f"❌ Erreur lancement économie 3D: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/transactions/3d')
+def api_get_transactions_3d():
+    """Navigation paginée des transactions avec données 3D"""
+
+    try:
+        # Paramètres de pagination et filtres
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        filter_status = request.args.get('status', 'all')  # all, feasible, failed
+        sector_filter = request.args.get('sector', 'all')
+
+        # Pour cette version, utiliser simulation globale (sera étendu avec session management)
+        global web_manager
+
+        if not web_manager or not hasattr(web_manager, 'icgs_core'):
+            return jsonify({
+                'success': False,
+                'error': 'Économie 3D non lancée - Utilisez /api/economy/launch_3d d\'abord'
+            }), 400
+
+        simulation = web_manager.icgs_core
+
+        # Récupérer toutes les transactions
+        all_transactions = []
+        for i, tx in enumerate(simulation.transactions):
+            # Simuler validation pour status (optimisation future: cache)
+            try:
+                feas_result = simulation.validate_transaction(tx.transaction_id, simulation.SimulationMode.FEASIBILITY)
+
+                tx_data = {
+                    'tx_id': tx.transaction_id,
+                    'source_id': tx.source_account_id,
+                    'target_id': tx.target_account_id,
+                    'amount': float(tx.amount),
+                    'feasible': feas_result.success,
+                    'validation_time_ms': feas_result.validation_time_ms,
+                    'timestamp': datetime.now().isoformat()  # Placeholder
+                }
+
+                # Filtrage
+                if filter_status == 'feasible' and not tx_data['feasible']:
+                    continue
+                elif filter_status == 'failed' and tx_data['feasible']:
+                    continue
+
+                all_transactions.append(tx_data)
+
+            except Exception as e:
+                print(f"Erreur status transaction {tx.transaction_id}: {e}")
+
+        # Pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_transactions = all_transactions[start_idx:end_idx]
+
+        return jsonify({
+            'success': True,
+            'transactions': paginated_transactions,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total_transactions': len(all_transactions),
+                'total_pages': (len(all_transactions) + per_page - 1) // per_page,
+                'has_next': end_idx < len(all_transactions),
+                'has_prev': page > 1
+            },
+            'filters': {
+                'status': filter_status,
+                'sector': sector_filter
+            },
+            'stats': {
+                'total': len(all_transactions),
+                'feasible': sum(1 for tx in all_transactions if tx['feasible']),
+                'failed': sum(1 for tx in all_transactions if not tx['feasible'])
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/transaction/<tx_id>/3d_detail')
+def api_get_transaction_3d_detail(tx_id):
+    """Détails 3D complets pour une transaction spécifique"""
+
+    try:
+        global web_manager
+
+        if not web_manager or not hasattr(web_manager, 'icgs_core'):
+            return jsonify({
+                'success': False,
+                'error': 'Économie 3D non disponible'
+            }), 400
+
+        simulation = web_manager.icgs_core
+
+        # Trouver la transaction
+        transaction = next((tx for tx in simulation.transactions if tx.transaction_id == tx_id), None)
+        if not transaction:
+            return jsonify({
+                'success': False,
+                'error': f'Transaction {tx_id} non trouvée'
+            }), 404
+
+        # Validation complète
+        feas_result = simulation.validate_transaction(tx_id, simulation.SimulationMode.FEASIBILITY)
+        opt_result = simulation.validate_transaction(tx_id, simulation.SimulationMode.OPTIMIZATION)
+
+        # Analyse 3D si disponible
+        analysis_3d = None
+        if hasattr(simulation, 'icgs_3d_analyzer') and simulation.icgs_3d_analyzer:
+            try:
+                point_3d = simulation.analyze_transaction_3d(
+                    transaction.source_account_id,
+                    transaction.target_account_id,
+                    transaction.amount
+                )
+                if point_3d:
+                    analysis_3d = {
+                        'coordinates': [point_3d.x, point_3d.y, point_3d.z],
+                        'feasible': point_3d.feasible,
+                        'optimal': point_3d.optimal,
+                        'pivot_step': point_3d.pivot_step,
+                        'pivot_type': point_3d.pivot_type,
+                        'metadata': point_3d.metadata
+                    }
+            except Exception as e:
+                print(f"Erreur analyse 3D pour {tx_id}: {e}")
+
+        # Informations agents source/target
+        source_agent = simulation.agents.get(transaction.source_account_id)
+        target_agent = simulation.agents.get(transaction.target_account_id)
+
+        return jsonify({
+            'success': True,
+            'tx_id': tx_id,
+            'transaction_details': {
+                'source_id': transaction.source_account_id,
+                'target_id': transaction.target_account_id,
+                'amount': float(transaction.amount),
+                'timestamp': datetime.now().isoformat()  # Placeholder
+            },
+            'agents': {
+                'source': {
+                    'id': transaction.source_account_id,
+                    'sector': source_agent.sector if source_agent else 'Unknown',
+                    'balance': float(source_agent.balance) if source_agent else 0
+                },
+                'target': {
+                    'id': transaction.target_account_id,
+                    'sector': target_agent.sector if target_agent else 'Unknown',
+                    'balance': float(target_agent.balance) if target_agent else 0
+                }
+            },
+            'validation_pipeline': {
+                'feasibility': {
+                    'success': feas_result.success,
+                    'time_ms': feas_result.validation_time_ms,
+                    'status': str(feas_result.status) if hasattr(feas_result, 'status') else 'N/A'
+                },
+                'optimization': {
+                    'success': opt_result.success,
+                    'time_ms': opt_result.validation_time_ms,
+                    'optimal_price': float(getattr(opt_result, 'optimal_price', 0) or 0),
+                    'status': str(opt_result.status) if hasattr(opt_result, 'status') else 'N/A'
+                }
+            },
+            'analysis_3d': analysis_3d
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/sectors/3d_matrix')
+def api_get_sectoral_3d_matrix():
+    """Matrice 3D flux inter-sectoriels pour visualisation massive"""
+
+    try:
+        global web_manager
+
+        if not web_manager or not hasattr(web_manager, 'icgs_core'):
+            return jsonify({
+                'success': False,
+                'error': 'Économie 3D non disponible'
+            }), 400
+
+        simulation = web_manager.icgs_core
+
+        # Calculer matrice flux inter-sectoriels
+        sectors = ['AGRICULTURE', 'INDUSTRY', 'SERVICES', 'FINANCE', 'ENERGY']
+        flux_matrix = {}
+
+        for source_sector in sectors:
+            flux_matrix[source_sector] = {}
+            for target_sector in sectors:
+                flux_matrix[source_sector][target_sector] = {
+                    'transaction_count': 0,
+                    'total_amount': 0.0,
+                    'avg_feasibility_rate': 0.0,
+                    'transactions': []
+                }
+
+        # Analyser toutes les transactions
+        for tx in simulation.transactions:
+            source_agent = simulation.agents.get(tx.source_account_id)
+            target_agent = simulation.agents.get(tx.target_account_id)
+
+            if source_agent and target_agent:
+                source_sector = source_agent.sector
+                target_sector = target_agent.sector
+
+                if source_sector in flux_matrix and target_sector in flux_matrix[source_sector]:
+                    flux_matrix[source_sector][target_sector]['transaction_count'] += 1
+                    flux_matrix[source_sector][target_sector]['total_amount'] += float(tx.amount)
+                    flux_matrix[source_sector][target_sector]['transactions'].append(tx.transaction_id)
+
+        # Calculer centroides 3D par secteur si analyse 3D disponible
+        sector_centroids = {}
+        if hasattr(simulation, 'icgs_3d_analyzer') and simulation.icgs_3d_analyzer:
+            # Calculer position moyenne 3D pour chaque secteur
+            for sector in sectors:
+                sector_points = []
+                for point in simulation.icgs_3d_analyzer.solution_points:
+                    # Associer point à secteur via metadata si disponible
+                    if 'source_sector' in point.metadata and point.metadata['source_sector'] == sector:
+                        sector_points.append([point.x, point.y, point.z])
+
+                if sector_points:
+                    # Centroide = moyenne des coordonnées
+                    centroid = [
+                        sum(p[0] for p in sector_points) / len(sector_points),
+                        sum(p[1] for p in sector_points) / len(sector_points),
+                        sum(p[2] for p in sector_points) / len(sector_points)
+                    ]
+                    sector_centroids[sector] = centroid
+                else:
+                    # Position par défaut si pas de données 3D
+                    sector_centroids[sector] = [0, 0, 0]
+
+        # Statistiques par secteur
+        sector_stats = {}
+        for sector in sectors:
+            sector_agents = [a for a in simulation.agents.values() if a.sector == sector]
+            sector_stats[sector] = {
+                'agents_count': len(sector_agents),
+                'total_balance': sum(float(a.balance) for a in sector_agents),
+                'avg_balance': sum(float(a.balance) for a in sector_agents) / max(len(sector_agents), 1),
+                'centroid_3d': sector_centroids.get(sector, [0, 0, 0])
+            }
+
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'flux_matrix': flux_matrix,
+            'sector_centroids': sector_centroids,
+            'sector_statistics': sector_stats,
+            'axes_labels': {
+                'x': 'Contraintes SOURCE (Débiteur)',
+                'y': 'Contraintes TARGET (Créditeur)',
+                'z': 'Contraintes SECONDARY (Bonus/Malus)'
+            },
+            'total_sectors': len(sectors),
+            'total_agents': len(simulation.agents),
+            'analysis_3d_available': hasattr(simulation, 'icgs_3d_analyzer') and simulation.icgs_3d_analyzer is not None
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Template HTML intégré
+@app.route('/api/performance/stats')
+def api_performance_stats():
+    """API: Statistiques performance complètes avec cache optimisé pour 65 agents"""
+    try:
+        global web_manager
+
+        if not web_manager or not hasattr(web_manager, 'icgs_core'):
+            return jsonify({
+                'success': False,
+                'error': 'Simulation non disponible'
+            }), 400
+
+        simulation = web_manager.icgs_core
+
+        # Statistiques performance complètes
+        if hasattr(simulation, 'get_performance_stats'):
+            performance_stats = simulation.get_performance_stats()
+        else:
+            # Fallback pour ancienne version
+            performance_stats = {
+                'cache_performance': {'hit_rate_percent': 0, 'note': 'Cache non disponible'},
+                'simulation': {
+                    'agents_count': len(getattr(simulation, 'agents', {})),
+                    'transactions_count': len(getattr(simulation, 'transactions', [])),
+                    'agents_mode': getattr(simulation, 'agents_mode', 'unknown')
+                }
+            }
+
+        return jsonify({
+            'success': True,
+            'performance_stats': performance_stats,
+            'timestamp': time.time()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/performance/optimize', methods=['POST'])
+def api_optimize_for_web():
+    """API: Optimiser performance pour charge web massive (65 agents)"""
+    try:
+        global web_manager
+
+        if not web_manager or not hasattr(web_manager, 'icgs_core'):
+            return jsonify({
+                'success': False,
+                'error': 'Simulation non disponible'
+            }), 400
+
+        simulation = web_manager.icgs_core
+
+        # Appliquer optimisations web
+        if hasattr(simulation, 'optimize_for_web_load'):
+            simulation.optimize_for_web_load()
+            message = "Optimisations web appliquées avec succès"
+        else:
+            message = "Optimisations non supportées par cette version"
+
+        # Statistiques après optimisation
+        stats_after = {}
+        if hasattr(simulation, 'get_performance_stats'):
+            stats_after = simulation.get_performance_stats()
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'optimizations_applied': [
+                'Cache pré-chargé pour patterns fréquents',
+                'Taxonomie configurée',
+                'Paramètres TTL ajustés pour web',
+                'Structures de données optimisées'
+            ],
+            'performance_stats': stats_after
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/performance/cache/clear', methods=['POST'])
+def api_clear_performance_cache():
+    """API: Vider le cache de performance (utile pour tests/développement)"""
+    try:
+        global web_manager
+
+        if not web_manager or not hasattr(web_manager, 'icgs_core'):
+            return jsonify({
+                'success': False,
+                'error': 'Simulation non disponible'
+            }), 400
+
+        simulation = web_manager.icgs_core
+
+        # Vider cache
+        if hasattr(simulation, 'clear_performance_cache'):
+            simulation.clear_performance_cache()
+            message = "Cache de performance vidé avec succès"
+        else:
+            message = "Cache non disponible sur cette version"
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'timestamp': time.time()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="fr">

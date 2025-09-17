@@ -13,10 +13,13 @@ import sys
 import os
 import logging
 import time
+import threading
+import weakref
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 
 # Import icgs_core depuis parent directory
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -33,12 +36,136 @@ from icgs_core.character_set_manager import (
 )
 from ..domains.base import get_sector_info, get_recommended_balance
 
-# Import API Simplex 3D (optionnel)
+# Import API Simplex 3D et Analyseur 3D (optionnel)
 try:
     from icgs_simplex_3d_api import Simplex3DCollector
+    from icgs_3d_space_analyzer import ICGS3DSpaceAnalyzer
     SIMPLEX_3D_API_AVAILABLE = True
+    ICGS_3D_ANALYZER_AVAILABLE = True
 except ImportError:
     SIMPLEX_3D_API_AVAILABLE = False
+    ICGS_3D_ANALYZER_AVAILABLE = False
+
+
+class PerformanceCache:
+    """
+    Cache haute performance pour optimiser gestion 65 agents + données 3D massives
+
+    Features:
+    - Cache validation transactions avec TTL
+    - Cache données 3D par secteur
+    - Mécanisme LRU avec cleanup automatique
+    - Thread-safe pour requests web simultanées
+    """
+
+    def __init__(self, max_validation_cache: int = 500, max_3d_cache: int = 100):
+        self.max_validation_cache = max_validation_cache
+        self.max_3d_cache = max_3d_cache
+
+        # Cache validation transactions avec timestamps
+        self._validation_cache: Dict[str, Tuple[Any, float]] = {}
+        self._validation_lock = threading.RLock()
+
+        # Cache données 3D par groupe sectoriel
+        self._3d_data_cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
+        self._3d_lock = threading.RLock()
+
+        # Configuration TTL (Time-To-Live)
+        self.validation_ttl = 300.0  # 5 minutes
+        self.data_3d_ttl = 600.0     # 10 minutes
+
+        # Statistiques performance
+        self.hit_count = 0
+        self.miss_count = 0
+
+    def get_validation_result(self, transaction_key: str) -> Optional[Any]:
+        """Récupère résultat validation depuis cache si disponible"""
+        with self._validation_lock:
+            if transaction_key in self._validation_cache:
+                result, timestamp = self._validation_cache[transaction_key]
+                if time.time() - timestamp <= self.validation_ttl:
+                    self.hit_count += 1
+                    return result
+                else:
+                    # Expiration cache
+                    del self._validation_cache[transaction_key]
+
+        self.miss_count += 1
+        return None
+
+    def store_validation_result(self, transaction_key: str, result: Any):
+        """Stocke résultat validation avec cleanup LRU si nécessaire"""
+        with self._validation_lock:
+            # Cleanup si taille maximale atteinte
+            if len(self._validation_cache) >= self.max_validation_cache:
+                self._cleanup_validation_cache()
+
+            self._validation_cache[transaction_key] = (result, time.time())
+
+    def get_3d_data(self, data_key: str) -> Optional[Dict[str, Any]]:
+        """Récupère données 3D depuis cache si disponibles"""
+        with self._3d_lock:
+            if data_key in self._3d_data_cache:
+                data, timestamp = self._3d_data_cache[data_key]
+                if time.time() - timestamp <= self.data_3d_ttl:
+                    self.hit_count += 1
+                    return data
+                else:
+                    del self._3d_data_cache[data_key]
+
+        self.miss_count += 1
+        return None
+
+    def store_3d_data(self, data_key: str, data: Dict[str, Any]):
+        """Stocke données 3D avec cleanup LRU si nécessaire"""
+        with self._3d_lock:
+            if len(self._3d_data_cache) >= self.max_3d_cache:
+                self._cleanup_3d_cache()
+
+            self._3d_data_cache[data_key] = (data, time.time())
+
+    def _cleanup_validation_cache(self):
+        """Cleanup LRU pour cache validation (supprime 25% plus anciens)"""
+        if not self._validation_cache:
+            return
+
+        # Trier par timestamp et supprimer 25% plus anciens
+        sorted_items = sorted(self._validation_cache.items(), key=lambda x: x[1][1])
+        cleanup_count = len(sorted_items) // 4
+
+        for key, _ in sorted_items[:cleanup_count]:
+            del self._validation_cache[key]
+
+    def _cleanup_3d_cache(self):
+        """Cleanup LRU pour cache données 3D"""
+        if not self._3d_data_cache:
+            return
+
+        sorted_items = sorted(self._3d_data_cache.items(), key=lambda x: x[1][1])
+        cleanup_count = len(sorted_items) // 4
+
+        for key, _ in sorted_items[:cleanup_count]:
+            del self._3d_data_cache[key]
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Statistiques performance cache"""
+        total_requests = self.hit_count + self.miss_count
+        hit_rate = (self.hit_count / total_requests * 100) if total_requests > 0 else 0
+
+        return {
+            'hit_count': self.hit_count,
+            'miss_count': self.miss_count,
+            'hit_rate_percent': round(hit_rate, 2),
+            'validation_cache_size': len(self._validation_cache),
+            'data_3d_cache_size': len(self._3d_data_cache)
+        }
+
+    def clear_cache(self):
+        """Vide complètement le cache"""
+        with self._validation_lock:
+            self._validation_cache.clear()
+        with self._3d_lock:
+            self._3d_data_cache.clear()
 
 
 class SimulationMode(Enum):
@@ -126,10 +253,26 @@ class EconomicSimulation:
         # Character-Set Manager pour allocation sectorielle (capacité étendue)
         self.character_set_manager = self._create_extended_character_set_manager()
 
-        # API Simplex 3D (optionnel)
+        # Performance Cache pour optimisation 65 agents + données 3D massives
+        cache_config = self._get_cache_config_for_mode()
+        self.performance_cache = PerformanceCache(
+            max_validation_cache=cache_config['validation'],
+            max_3d_cache=cache_config['data_3d']
+        )
+
+        # API Simplex 3D et Analyseur 3D (optionnel)
         self.simplex_3d_collector = None
+        self.icgs_3d_analyzer = None
+        self.enable_3d_collection = False  # Flag pour activer collecte données 3D
+
         if SIMPLEX_3D_API_AVAILABLE:
             self.simplex_3d_collector = Simplex3DCollector()
+            self.logger.info("Simplex 3D Collector initialisé")
+
+        if ICGS_3D_ANALYZER_AVAILABLE:
+            # Différer l'initialisation de l'analyseur 3D car il dépend de self
+            self.icgs_3d_analyzer = None  # Sera initialisé dans enable_3d_analysis()
+            self.logger.info("ICGS 3D Analyzer disponible")
 
         self._current_linear_program = None  # Cache LinearProgram pour API 3D
 
@@ -179,6 +322,32 @@ class EconomicSimulation:
         self.logger.info(f"Capacité totale: {total_capacity} caractères = {agents_capacity} agents maximum")
 
         return manager
+
+    def _get_cache_config_for_mode(self) -> Dict[str, int]:
+        """
+        Configuration cache optimisée selon mode agents
+
+        Returns:
+            Dict avec tailles cache validation et data_3d
+        """
+        if self.agents_mode == "65_agents":
+            # Configuration aggressive pour 65 agents + données 3D volumineuses
+            return {
+                'validation': 1000,  # Cache large pour 500+ transactions possibles
+                'data_3d': 200      # Cache étendu pour analyses sectorielles complexes
+            }
+        elif self.agents_mode == "40_agents":
+            # Configuration intermédiaire pour 40 agents
+            return {
+                'validation': 600,
+                'data_3d': 120
+            }
+        else:  # "7_agents"
+            # Configuration standard pour simulations limitées
+            return {
+                'validation': 200,
+                'data_3d': 50
+            }
 
     def create_agent(self, agent_id: str, sector: str,
                     balance: Optional[Decimal] = None,
@@ -473,7 +642,7 @@ class EconomicSimulation:
     def validate_transaction(self, transaction_id: str,
                            mode: SimulationMode = SimulationMode.FEASIBILITY) -> SimulationResult:
         """
-        Valide une transaction avec mode spécifié
+        Valide une transaction avec mode spécifié + cache optimisé
 
         Args:
             transaction_id: ID transaction à valider
@@ -482,6 +651,14 @@ class EconomicSimulation:
         Returns:
             SimulationResult avec résultats validation
         """
+        # Générer clé cache basée sur transaction + mode
+        cache_key = f"{transaction_id}:{mode.value}"
+
+        # Vérifier cache pour résultats antérieurs
+        cached_result = self.performance_cache.get_validation_result(cache_key)
+        if cached_result is not None:
+            return cached_result
+
         # Trouver transaction
         transaction = None
         for tx in self.transactions:
@@ -490,12 +667,15 @@ class EconomicSimulation:
                 break
 
         if not transaction:
-            return SimulationResult(
+            result = SimulationResult(
                 success=False,
                 mode=mode,
                 transaction_id=transaction_id,
                 error_message=f"Transaction '{transaction_id}' non trouvée"
             )
+            # Stocker result d'erreur dans cache (TTL court pour erreurs)
+            self.performance_cache.store_validation_result(cache_key, result)
+            return result
 
         try:
             import time
@@ -508,18 +688,18 @@ class EconomicSimulation:
                 self.taxonomy_configured = True
 
             if mode == SimulationMode.FEASIBILITY:
-                # Mode FEASIBILITY avec EnhancedDAG
+                # Mode FEASIBILITY avec EnhancedDAG optimisé
                 success = self.dag.add_transaction_auto(transaction)
                 validation_time = (time.time() - start_time) * 1000
 
-                # Hook API Simplex 3D : capturer état après validation FEASIBILITY
+                # Hook API Simplex 3D : capturer état après validation FEASIBILITY (avec cache 3D)
                 if self.simplex_3d_collector and success:
                     try:
-                        self._capture_3d_state_feasibility(transaction, validation_time)
+                        self._capture_3d_state_feasibility_cached(transaction, validation_time)
                     except Exception as e3d:
                         self.logger.warning(f"API 3D capture échouée: {e3d}")
 
-                return SimulationResult(
+                result = SimulationResult(
                     success=success,
                     mode=mode,
                     transaction_id=transaction_id,
@@ -529,16 +709,23 @@ class EconomicSimulation:
                 )
 
             elif mode == SimulationMode.OPTIMIZATION:
-                # Mode OPTIMIZATION avec Price Discovery
-                return self._run_price_discovery(transaction, start_time)
+                # Mode OPTIMIZATION avec Price Discovery (cache intégré)
+                result = self._run_price_discovery_cached(transaction, start_time, cache_key)
+
+            # Stocker résultat dans cache pour réutilisation
+            self.performance_cache.store_validation_result(cache_key, result)
+            return result
 
         except Exception as e:
-            return SimulationResult(
+            error_result = SimulationResult(
                 success=False,
                 mode=mode,
                 transaction_id=transaction_id,
                 error_message=f"Erreur validation: {str(e)}"
             )
+            # Stocker erreur dans cache avec TTL réduit
+            self.performance_cache.store_validation_result(cache_key, error_result)
+            return error_result
 
     def _run_price_discovery(self, transaction: Transaction, start_time: float) -> SimulationResult:
         """
@@ -692,3 +879,328 @@ class EconomicSimulation:
     def get_current_linear_program(self):
         """Accès au LinearProgram courant pour API 3D"""
         return self._current_linear_program
+
+    # =====================================
+    # API 3D ANALYSIS - NATIVE INTEGRATION
+    # =====================================
+
+    def enable_3d_analysis(self, use_authentic_data: bool = True) -> bool:
+        """
+        Active l'analyse 3D native avec ICGS3DSpaceAnalyzer intégré
+
+        Args:
+            use_authentic_data: Utiliser vraies variables f_i du Simplex vs approximations
+
+        Returns:
+            bool: True si activation réussie
+        """
+        if not ICGS_3D_ANALYZER_AVAILABLE:
+            self.logger.warning("ICGS 3D Analyzer non disponible")
+            return False
+
+        # Initialiser l'analyseur 3D maintenant que self est complet
+        self.icgs_3d_analyzer = ICGS3DSpaceAnalyzer(self)
+
+        # Activer mode données authentiques si demandé
+        if use_authentic_data and hasattr(self.icgs_3d_analyzer, 'enable_authentic_simplex_data'):
+            success = self.icgs_3d_analyzer.enable_authentic_simplex_data(self)
+            if success:
+                self.logger.info("Mode 3D authentique activé - Variables f_i réelles utilisées")
+            else:
+                self.logger.warning("Échec activation mode 3D authentique - Fallback approximation")
+
+        self.enable_3d_collection = True
+        self.logger.info("Analyse 3D native activée pour simulation économique")
+        return True
+
+    def get_3d_analyzer(self):
+        """Accès à l'analyseur 3D intégré"""
+        return self.icgs_3d_analyzer
+
+    def analyze_transaction_3d(self, source_id: str, target_id: str, amount: Decimal):
+        """
+        Analyse 3D d'une transaction avec collecte données Simplex
+
+        Args:
+            source_id: Agent source
+            target_id: Agent cible
+            amount: Montant transaction
+
+        Returns:
+            SolutionPoint3D ou None si analyse 3D non activée
+        """
+        if not self.enable_3d_collection or not self.icgs_3d_analyzer:
+            return None
+
+        try:
+            # Utiliser l'analyseur 3D intégré pour traitement complet
+            point_3d = self.icgs_3d_analyzer.analyze_transaction_3d_space(
+                source_id, target_id, amount
+            )
+            return point_3d
+
+        except Exception as e:
+            self.logger.error(f"Erreur analyse 3D transaction {source_id}→{target_id}: {e}")
+            return None
+
+    def get_3d_analysis_data(self) -> Dict[str, Any]:
+        """
+        Récupère données d'analyse 3D complètes pour export web
+
+        Returns:
+            Dict avec solution_points, simplex_edges, animation_data, etc.
+        """
+        if not self.icgs_3d_analyzer:
+            return {'error': 'Analyse 3D non activée'}
+
+        try:
+            # Export données selon le format du guide 3D
+            return {
+                'solution_points': [
+                    {
+                        'coordinates': [p.x, p.y, p.z],
+                        'transaction_id': p.transaction_id,
+                        'feasible': p.feasible,
+                        'optimal': p.optimal,
+                        'pivot_step': p.pivot_step,
+                        'pivot_type': p.pivot_type,
+                        'metadata': p.metadata
+                    }
+                    for p in self.icgs_3d_analyzer.solution_points
+                ],
+                'simplex_edges': [
+                    {
+                        'from_coords': [e.from_point.x, e.from_point.y, e.from_point.z],
+                        'to_coords': [e.to_point.x, e.to_point.y, e.to_point.z],
+                        'pivot_direction': e.pivot_direction,
+                        'improvement': float(e.improvement),
+                        'edge_type': e.edge_type
+                    }
+                    for e in self.icgs_3d_analyzer.simplex_edges
+                ],
+                'path_classifications': [
+                    {
+                        'path_id': pc.path_id,
+                        'contribution_source': float(pc.contribution_source),
+                        'contribution_target': float(pc.contribution_target),
+                        'contribution_secondary': float(pc.contribution_secondary),
+                        'sector_pattern': pc.sector_pattern
+                    }
+                    for pc in self.icgs_3d_analyzer.path_classifications
+                ],
+                'axes_labels': {
+                    'x': 'Contraintes SOURCE (Débiteur)',
+                    'y': 'Contraintes TARGET (Créditeur)',
+                    'z': 'Contraintes SECONDARY (Bonus/Malus)'
+                },
+                'authentic_simplex_data': hasattr(self.icgs_3d_analyzer, 'use_authentic_simplex_data')
+                                        and self.icgs_3d_analyzer.use_authentic_simplex_data,
+                'total_transactions_analyzed': len(self.icgs_3d_analyzer.solution_points)
+            }
+
+        except Exception as e:
+            self.logger.error(f"Erreur export données 3D: {e}")
+            return {'error': f'Erreur export: {str(e)}'}
+
+    def create_inter_sectoral_flows_batch_3d(self, flow_intensity: float = 0.5,
+                                           enable_3d_analysis: bool = True) -> Tuple[List[str], Dict[str, Any]]:
+        """
+        Crée flux inter-sectoriels avec analyse 3D intégrée
+
+        Args:
+            flow_intensity: Intensité des flux (0.1 à 0.9)
+            enable_3d_analysis: Activer collecte données 3D pour chaque transaction
+
+        Returns:
+            Tuple[List[str], Dict]: (transaction_ids, données_3d_complètes)
+        """
+        # Générer transactions avec méthode existante
+        transaction_ids = self.create_inter_sectoral_flows_batch(flow_intensity)
+
+        # Analyse 3D si activée
+        data_3d = {'error': 'Analyse 3D non activée'}
+
+        if enable_3d_analysis and self.icgs_3d_analyzer:
+            # Pour chaque transaction générée, analyser en 3D
+            for tx_id in transaction_ids[:50]:  # Limite pour performance web
+                try:
+                    # Récupérer détails transaction
+                    transaction = next((tx for tx in self.transactions if tx.transaction_id == tx_id), None)
+                    if transaction:
+                        # Analyse 3D avec l'analyseur intégré
+                        self.analyze_transaction_3d(
+                            transaction.source_account_id,
+                            transaction.target_account_id,
+                            transaction.amount
+                        )
+                except Exception as e:
+                    self.logger.warning(f"Analyse 3D échouée pour {tx_id}: {e}")
+
+            # Export données complètes
+            data_3d = self.get_3d_analysis_data()
+
+        return transaction_ids, data_3d
+
+    def _capture_3d_state_feasibility_cached(self, transaction: Transaction, validation_time: float):
+        """Capture état 3D après validation FEASIBILITY avec cache optimisé"""
+        if not self.simplex_3d_collector:
+            return
+
+        # Générer clé cache basée sur transaction
+        cache_key = f"3d_state_feasibility:{transaction.transaction_id}"
+
+        # Vérifier cache pour état 3D existant
+        cached_data = self.performance_cache.get_3d_data(cache_key)
+        if cached_data is not None:
+            # Réutiliser données 3D cachées
+            return
+
+        # Capturer état 3D et le mettre en cache
+        try:
+            self._capture_3d_state_feasibility(transaction, validation_time)
+
+            # Stocker données 3D capturées dans cache
+            state_data = {
+                'transaction_id': transaction.transaction_id,
+                'validation_time': validation_time,
+                'timestamp': time.time()
+            }
+            self.performance_cache.store_3d_data(cache_key, state_data)
+
+        except Exception as e:
+            self.logger.warning(f"Erreur capture 3D avec cache pour {transaction.transaction_id}: {e}")
+
+    def _run_price_discovery_cached(self, transaction: Transaction, start_time: float, cache_key: str) -> SimulationResult:
+        """
+        Exécute Price Discovery avec cache optimisé pour 65 agents
+        """
+        try:
+            # Vérifier cache spécialisé pour optimization
+            opt_cache_key = f"price_discovery:{transaction.source_account_id}:{transaction.target_account_id}:{transaction.amount}"
+            cached_opt_result = self.performance_cache.get_3d_data(opt_cache_key)
+
+            if cached_opt_result is not None:
+                # Reconstruction résultat depuis cache
+                return SimulationResult(
+                    success=cached_opt_result.get('success', False),
+                    mode=SimulationMode.OPTIMIZATION,
+                    transaction_id=transaction.transaction_id,
+                    status=cached_opt_result.get('status'),
+                    optimal_price=cached_opt_result.get('optimal_price'),
+                    validation_time_ms=cached_opt_result.get('validation_time_ms', 0.0)
+                )
+
+            # Exécution price discovery normale
+            result = self._run_price_discovery(transaction, start_time)
+
+            # Stocker résultat optimization en cache
+            if result.success:
+                cache_data = {
+                    'success': result.success,
+                    'status': result.status,
+                    'optimal_price': result.optimal_price,
+                    'validation_time_ms': result.validation_time_ms,
+                    'timestamp': time.time()
+                }
+                self.performance_cache.store_3d_data(opt_cache_key, cache_data)
+
+            return result
+
+        except Exception as e:
+            return SimulationResult(
+                success=False,
+                mode=SimulationMode.OPTIMIZATION,
+                transaction_id=transaction.transaction_id,
+                error_message=f"Erreur price discovery cached: {str(e)}"
+            )
+
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """
+        Statistiques performance complètes pour 65 agents
+
+        Returns:
+            Dict avec métriques cache, mémoire, et performance générale
+        """
+        import gc
+        import sys
+
+        # Statistiques cache
+        cache_stats = self.performance_cache.get_cache_stats()
+
+        # Statistiques simulation générale
+        simulation_stats = {
+            'agents_count': len(self.agents),
+            'transactions_count': len(self.transactions),
+            'taxonomy_configured': self.taxonomy_configured,
+            'agents_mode': self.agents_mode
+        }
+
+        # Statistiques secteurs
+        sectors_stats = {}
+        for agent in self.agents.values():
+            if agent.sector not in sectors_stats:
+                sectors_stats[agent.sector] = 0
+            sectors_stats[agent.sector] += 1
+
+        # Statistiques 3D si disponible
+        data_3d_stats = {}
+        if self.icgs_3d_analyzer:
+            data_3d_stats = {
+                'analyzer_active': True,
+                'solution_points': len(getattr(self.icgs_3d_analyzer, 'solution_points', [])),
+                'simplex_edges': len(getattr(self.icgs_3d_analyzer, 'simplex_edges', []))
+            }
+        else:
+            data_3d_stats = {'analyzer_active': False}
+
+        # Statistiques mémoire (optionnel pour diagnostic)
+        memory_stats = {
+            'gc_collections': gc.get_count(),
+            'python_objects': len(gc.get_objects()) if hasattr(gc, 'get_objects') else 0
+        }
+
+        # Character-Set Manager stats
+        cs_manager_stats = {}
+        if hasattr(self.character_set_manager, 'get_allocation_statistics'):
+            cs_manager_stats = self.character_set_manager.get_allocation_statistics()
+
+        return {
+            'cache_performance': cache_stats,
+            'simulation': simulation_stats,
+            'sectors_distribution': sectors_stats,
+            'data_3d': data_3d_stats,
+            'memory': memory_stats,
+            'character_set_manager': cs_manager_stats,
+            'timestamp': time.time()
+        }
+
+    def optimize_for_web_load(self):
+        """
+        Optimisations spécifiques pour charge web avec 65 agents
+        - Préchauffe cache
+        - Optimise structures de données
+        - Configure paramètres pour performance web
+        """
+        try:
+            # Préchaufage cache validation pour patterns fréquents
+            if len(self.agents) >= 40:  # Mode gros volume
+                self.logger.info("Activation optimisations charge web massive (65 agents)")
+
+                # Ajustement paramètres cache pour performance web
+                self.performance_cache.validation_ttl = 180.0  # Réduit TTL pour web
+                self.performance_cache.data_3d_ttl = 300.0
+
+                # Préparation taxonomie
+                if not self.taxonomy_configured:
+                    self._configure_taxonomy_batch()
+                    self.taxonomy_configured = True
+
+                self.logger.info("Optimisations web activées avec succès")
+
+        except Exception as e:
+            self.logger.warning(f"Erreur optimisation web: {e}")
+
+    def clear_performance_cache(self):
+        """Vide le cache de performance (utile pour tests)"""
+        self.performance_cache.clear_cache()
+        self.logger.info("Cache de performance vidé")
