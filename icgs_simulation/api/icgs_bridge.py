@@ -26,6 +26,7 @@ from icgs_core import (
     TripleValidationOrientedSimplex, ValidationMode, SolutionStatus
 )
 from icgs_core.enhanced_dag import EnhancedDAG
+from icgs_core.character_set_manager import create_default_character_set_manager
 from ..domains.base import get_sector_info, get_recommended_balance
 
 # Import API Simplex 3D (optionnel)
@@ -116,6 +117,9 @@ class EconomicSimulation:
         self.transactions: List[Transaction] = []
         self.taxonomy_configured = False  # Flag pour update batch unique
 
+        # Character-Set Manager pour allocation sectorielle (capacité étendue)
+        self.character_set_manager = self._create_extended_character_set_manager()
+
         # API Simplex 3D (optionnel)
         self.simplex_3d_collector = None
         if SIMPLEX_3D_API_AVAILABLE:
@@ -124,6 +128,31 @@ class EconomicSimulation:
         self._current_linear_program = None  # Cache LinearProgram pour API 3D
 
         self.logger.info(f"EconomicSimulation '{simulation_id}' initialisée")
+
+    def _create_extended_character_set_manager(self):
+        """
+        Créer Character-Set Manager avec capacités étendues pour 15+ agents
+
+        Capacités par secteur étendues pour simulation massive.
+        """
+        from icgs_core.character_set_manager import NamedCharacterSetManager
+
+        manager = NamedCharacterSetManager()
+
+        # Configuration pour 7 agents actuels (21 caractères total)
+        # Chaque agent nécessite 3 caractères (principal + source + sink)
+        extended_sectors = {
+            'AGRICULTURE': ['A', 'B', 'C'],                             # 1 agent × 3 = 3 chars
+            'INDUSTRY': ['I', 'J', 'K', 'L', 'M', 'N'],                 # 2 agents × 3 = 6 chars
+            'SERVICES': ['S', 'T', 'U', 'V', 'W', 'X'],                 # 2 agents × 3 = 6 chars
+            'FINANCE': ['F', 'G', 'H'],                                 # 1 agent × 3 = 3 chars
+            'ENERGY': ['E', 'Q', 'R'],                                  # 1 agent × 3 = 3 chars
+        }
+
+        for sector_name, characters in extended_sectors.items():
+            manager.define_character_set(sector_name, characters)
+
+        return manager
 
     def create_agent(self, agent_id: str, sector: str,
                     balance: Optional[Decimal] = None,
@@ -187,44 +216,37 @@ class EconomicSimulation:
 
     def _configure_taxonomy_batch(self):
         """
-        Configuration batch unique de la taxonomie avec tous les agents
+        Configuration batch unique de la taxonomie avec Character-Set Manager sectoriel
 
-        Utilise EnhancedDAG pour configuration automatique simplifiée.
+        Utilise Character-Set Manager pour allocation sectorielle intelligente + EnhancedDAG.
         """
         try:
-            # Générer mappings caractères basés sur secteurs économiques
+            # Allocation sectorielle intelligente via Character-Set Manager
             all_accounts = {}
-            sector_char_map = {
-                'AGRICULTURE': 'A',
-                'INDUSTRY': 'I',
-                'SERVICES': 'S',
-                'FINANCE': 'F',
-                'ENERGY': 'E'
-            }
-
-            # Générer caractères uniques pour chaque agent
-            char_counter = ord('A')  # Commencer par A, B, C...
 
             for agent_id, agent in self.agents.items():
-                # Compte principal: caractère unique séquentiel
-                all_accounts[agent_id] = chr(char_counter)
-                char_counter += 1
+                # Allocation 3 caractères uniques par agent dans son secteur
+                char1 = self.character_set_manager.allocate_character_for_sector(agent.sector)
+                char2 = self.character_set_manager.allocate_character_for_sector(agent.sector)
+                char3 = self.character_set_manager.allocate_character_for_sector(agent.sector)
 
-                # Source et sink: caractères séquentiels uniques
-                all_accounts[f"{agent_id}_source"] = chr(char_counter)
-                char_counter += 1
+                # Configuration standard DAG : compte principal + source + sink
+                all_accounts[agent_id] = char1
+                all_accounts[f"{agent_id}_source"] = char2
+                all_accounts[f"{agent_id}_sink"] = char3
 
-                all_accounts[f"{agent_id}_sink"] = chr(char_counter)
-                char_counter += 1
-
-            # Configuration simple avec EnhancedDAG
+            # Configuration avec EnhancedDAG (préservé)
             self.dag.configure_accounts_simple(all_accounts)
 
-            self.logger.info(f"Taxonomie configurée via EnhancedDAG pour {len(all_accounts)} comptes")
-            self.logger.debug(f"Mappings: {all_accounts}")
+            # Freeze Character-Set Manager après première configuration
+            self.character_set_manager.freeze()
+
+            self.logger.info(f"Taxonomie sectorielle configurée pour {len(all_accounts)} comptes")
+            self.logger.info(f"Secteurs allocation: {self.character_set_manager.get_allocation_statistics()}")
+            self.logger.debug(f"Mappings sectoriels: {all_accounts}")
         except Exception as e:
-            self.logger.error(f"Configuration batch taxonomie échouée: {e}")
-            raise RuntimeError(f"Impossible de configurer taxonomie: {e}")
+            self.logger.error(f"Configuration taxonomie sectorielle échouée: {e}")
+            raise RuntimeError(f"Impossible de configurer taxonomie sectorielle: {e}")
 
     def create_transaction(self, source_agent_id: str, target_agent_id: str,
                          amount: Decimal,
@@ -254,12 +276,15 @@ class EconomicSimulation:
         transaction_num = len(self.transactions) + 1  # Simple compteur séquentiel
         transaction_id = f"TX_{self.simulation_id}_{transaction_num:03d}"
 
-        # Créer mesures économiques selon secteurs
+        # Patterns sectoriels économiques utilisant Character-Set Manager
+        source_sector_pattern = self.character_set_manager.get_regex_pattern_for_sector(source_agent.sector)
+        target_sector_pattern = self.character_set_manager.get_regex_pattern_for_sector(target_agent.sector)
+
         source_measures = [
             TransactionMeasure(
                 measure_id=f"{transaction_id}_source",
                 account_id=source_agent_id,
-                primary_regex_pattern=source_agent.get_sector_info().pattern,
+                primary_regex_pattern=source_sector_pattern,  # Pattern sectoriel (ex: ".*[ABC].*")
                 primary_regex_weight=source_agent.get_sector_info().weight,
                 acceptable_value=amount,  # Montant transféré
                 required_value=Decimal('0')
@@ -270,7 +295,7 @@ class EconomicSimulation:
             TransactionMeasure(
                 measure_id=f"{transaction_id}_target",
                 account_id=target_agent_id,
-                primary_regex_pattern=target_agent.get_sector_info().pattern,
+                primary_regex_pattern=target_sector_pattern,  # Pattern sectoriel (ex: ".*[IJKL].*")
                 primary_regex_weight=target_agent.get_sector_info().weight,
                 acceptable_value=amount * 2,  # Capacité réception
                 required_value=amount  # Montant requis
