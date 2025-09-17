@@ -3128,8 +3128,993 @@ ICGS3DCore.prototype.prepareExportData = function() {
 };
 
 // ======================================
+// SIMPLEX ANIMATION CONTROLLER
+// ======================================
+
+class SimplexAnimationController {
+    constructor(icgs3dCore) {
+        this.icgs3dCore = icgs3dCore;
+        this.mode = 'single';  // 'single' ou 'simulation'
+        this.currentAnimation = null;
+        this.animationState = 'stopped';  // 'stopped', 'playing', 'paused'
+        this.currentStep = 0;
+        this.totalSteps = 0;
+        this.animationSpeed = 1.0;
+        this.currentTransactionData = null;
+        this.currentSimulationData = null;
+
+        // Cache pour les transactions
+        this.transactionsCache = new Map();
+        this.isLoading = false;
+
+        this.initializeEventListeners();
+        this.loadAvailableTransactions();
+    }
+
+    initializeEventListeners() {
+        console.log('🎯 Initialisation SimplexAnimationController event listeners');
+
+        // Mode tabs - Updated to match new HTML structure
+        document.getElementById('mode-single-transaction')?.addEventListener('click', () => {
+            this.switchMode('single');
+        });
+        document.getElementById('mode-simulation-complete')?.addEventListener('click', () => {
+            this.switchMode('simulation');
+        });
+
+        // Animation controls - Updated to match new HTML structure
+        document.getElementById('play-animation')?.addEventListener('click', () => {
+            if (this.mode === 'single') {
+                this.startTransactionAnimation();
+            } else {
+                this.startCompleteSimulation();
+            }
+        });
+
+        document.getElementById('pause-animation')?.addEventListener('click', () => {
+            this.pauseAnimation();
+        });
+
+        document.getElementById('reset-animation')?.addEventListener('click', () => {
+            this.resetAnimation();
+        });
+
+        // Speed control - Updated to match new HTML structure
+        document.getElementById('animation-speed')?.addEventListener('input', (e) => {
+            this.animationSpeed = parseFloat(e.target.value);
+            document.getElementById('speed-value').textContent = `${this.animationSpeed}x`;
+        });
+
+        // Transaction list delegation - Handle clicks on transaction items
+        document.getElementById('transaction-list')?.addEventListener('click', (e) => {
+            const transactionItem = e.target.closest('.transaction-item');
+            if (transactionItem) {
+                const transactionId = transactionItem.dataset.transactionId;
+                this.selectTransaction(transactionId);
+            }
+        });
+    }
+
+    switchMode(mode) {
+        console.log(`🔄 Basculement mode Simplex: ${mode}`);
+        this.mode = mode;
+
+        // Update tab states - Updated to match new HTML structure
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        if (mode === 'single') {
+            document.getElementById('mode-single-transaction')?.classList.add('active');
+        } else if (mode === 'simulation') {
+            document.getElementById('mode-simulation-complete')?.classList.add('active');
+        }
+
+        // Show/hide mode content - Updated to match new HTML structure
+        const transactionPanel = document.getElementById('transaction-selection-panel');
+        const simulationPanel = document.getElementById('simulation-control-panel');
+        const playButton = document.getElementById('play-animation');
+
+        if (mode === 'single') {
+            if (transactionPanel) transactionPanel.style.display = 'block';
+            if (simulationPanel) simulationPanel.style.display = 'none';
+            if (playButton) playButton.textContent = '▶ Lancer Animation Transaction';
+        } else {
+            if (transactionPanel) transactionPanel.style.display = 'none';
+            if (simulationPanel) simulationPanel.style.display = 'block';
+            if (playButton) playButton.textContent = '▶ Lancer Simulation Complète';
+        }
+
+        // Reset animation state
+        this.resetAnimation();
+
+        // Load mode-specific data
+        if (mode === 'simulation') {
+            this.loadSimulationInfo();
+        } else {
+            this.loadAvailableTransactions();
+        }
+    }
+
+    async loadAvailableTransactions() {
+        console.log('📋 Chargement transactions disponibles');
+        this.isLoading = true;
+
+        const transactionList = document.getElementById('transaction-list');
+        if (transactionList) {
+            transactionList.innerHTML = `
+                <div class="loading-transactions">
+                    <div class="spinner"></div>
+                    <p>Chargement transactions...</p>
+                </div>
+            `;
+        }
+
+        try {
+            const response = await fetch('/api/simplex_3d/transactions');
+            const data = await response.json();
+
+            if (data.success && transactionList) {
+                transactionList.innerHTML = '';
+
+                data.transactions.forEach(tx => {
+                    const transactionItem = document.createElement('div');
+                    transactionItem.className = 'transaction-item';
+                    transactionItem.dataset.transactionId = tx.id;
+
+                    transactionItem.innerHTML = `
+                        <div class="transaction-header">
+                            <strong>${tx.id}</strong>
+                            <span class="step-count">${tx.step_count} étapes</span>
+                        </div>
+                        <div class="transaction-details">
+                            <span class="transaction-flow">${tx.source} → ${tx.target}</span>
+                            <span class="transaction-amount">${tx.amount || 'N/A'}</span>
+                        </div>
+                        <div class="transaction-complexity complexity-${tx.complexity.toLowerCase()}">
+                            ${tx.complexity}
+                        </div>
+                    `;
+
+                    transactionList.appendChild(transactionItem);
+                });
+
+                console.log(`✅ ${data.transactions.length} transactions chargées`);
+            } else {
+                console.error('❌ Erreur chargement transactions:', data.error || 'Données invalides');
+                if (transactionList) {
+                    transactionList.innerHTML = `
+                        <div class="error-message">
+                            <p>❌ Erreur chargement transactions</p>
+                            <button onclick="window.icgs3dApp.simplexController.loadAvailableTransactions()">
+                                Réessayer
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Erreur réseau chargement transactions:', error);
+            if (transactionList) {
+                transactionList.innerHTML = `
+                    <div class="error-message">
+                        <p>❌ Erreur réseau</p>
+                        <button onclick="window.icgs3dApp.simplexController.loadAvailableTransactions()">
+                            Réessayer
+                        </button>
+                    </div>
+                `;
+            }
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async loadTransactionData(transactionId) {
+        console.log(`🔍 Chargement données transaction: ${transactionId}`);
+
+        // Vérifier cache
+        if (this.transactionsCache.has(transactionId)) {
+            this.displayTransactionInfo(this.transactionsCache.get(transactionId));
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/simplex_3d/transaction/${transactionId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                this.transactionsCache.set(transactionId, data);
+                this.currentTransactionData = data;
+                this.displayTransactionInfo(data);
+                console.log(`✅ Données transaction ${transactionId} chargées: ${data.step_count} étapes`);
+            } else {
+                console.error('❌ Erreur chargement données transaction:', data.error);
+            }
+        } catch (error) {
+            console.error('❌ Erreur réseau chargement données:', error);
+        }
+    }
+
+    displayTransactionInfo(data) {
+        console.log('📊 Affichage informations transaction');
+
+        // Update info values
+        document.getElementById('step-count').textContent = data.step_count;
+        document.getElementById('duration').textContent = `${data.estimated_duration_ms}ms`;
+        document.getElementById('complexity').textContent = data.complexity_level;
+        document.getElementById('source-account').textContent = data.transaction_info.source_account;
+        document.getElementById('target-account').textContent = data.transaction_info.target_account;
+        document.getElementById('amount').textContent = data.transaction_info.amount.toFixed(2);
+
+        // Show transaction info panel
+        document.getElementById('transaction-info').style.display = 'block';
+
+        // Enable animation button
+        const animateBtn = document.getElementById('animate-transaction-btn');
+        if (animateBtn) {
+            animateBtn.disabled = false;
+            animateBtn.textContent = `🎬 Animer Transaction (${data.step_count} étapes)`;
+        }
+    }
+
+    async loadSimulationInfo() {
+        console.log('🚀 Chargement informations simulation complète');
+
+        try {
+            const response = await fetch('/api/simplex_3d/simulation/status');
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('total-transactions').textContent = data.total_transactions;
+                document.getElementById('total-steps').textContent = '...';  // Sera calculé au lancement
+                document.getElementById('total-duration').textContent = '...';
+
+                // Enable start button
+                const startBtn = document.getElementById('start-simulation-btn');
+                if (startBtn) {
+                    startBtn.disabled = false;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Erreur chargement info simulation:', error);
+        }
+    }
+
+    async startTransactionAnimation() {
+        if (!this.currentTransactionData) {
+            console.warn('⚠️  Aucune transaction sélectionnée');
+            return;
+        }
+
+        console.log(`🎬 Début animation bi-phasée transaction: ${this.currentTransactionData.transaction_id}`);
+
+        // Calculate total steps including bi-phase overhead (resolution + transition + cascade)
+        const resolutionSteps = this.currentTransactionData.step_count;
+        const transitionSteps = 3; // Fixed transition steps
+        const cascadeSteps = 5;    // Fixed cascade steps
+        this.totalSteps = resolutionSteps + transitionSteps + cascadeSteps;
+
+        this.currentStep = 0;
+        this.animationState = 'playing';
+
+        // Update UI elements
+        const maxStepsEl = document.getElementById('max-steps');
+        if (maxStepsEl) maxStepsEl.textContent = this.totalSteps;
+
+        // Enable pause/reset buttons
+        const pauseButton = document.getElementById('pause-animation');
+        const resetButton = document.getElementById('reset-animation');
+        if (pauseButton) pauseButton.disabled = false;
+        if (resetButton) resetButton.disabled = false;
+
+        // Clear 3D scene
+        this.icgs3dCore.clearSimplexVisualization();
+
+        // Start bi-phase animation
+        await this.startBiPhaseAnimation();
+    }
+
+    async startCompleteSimulation() {
+        console.log('🚀 Démarrage simulation complète bi-phasée');
+
+        try {
+            // Load simulation data
+            this.currentSimulationData = await this.loadCompleteSimulationData();
+
+            if (!this.currentSimulationData || !this.currentSimulationData.success) {
+                console.error('❌ Erreur chargement données simulation');
+                return;
+            }
+
+            const data = this.currentSimulationData;
+
+            // Calculate total steps including bi-phase overhead for all transactions
+            const baseSteps = data.total_steps;
+            const transactionCount = data.total_transactions;
+            const transitionSteps = Math.max(0, transactionCount - 1) * 3; // 3 steps per transition
+            const finalCascadeSteps = 8; // Global cascade at end
+            this.totalSteps = baseSteps + transitionSteps + finalCascadeSteps;
+
+            // Update simulation control panel
+            const totalTransactionsEl = document.getElementById('total-transactions');
+            const totalStepsEl = document.getElementById('total-steps');
+            const estimatedDurationEl = document.getElementById('estimated-duration');
+
+            if (totalTransactionsEl) totalTransactionsEl.textContent = data.total_transactions;
+            if (totalStepsEl) totalStepsEl.textContent = this.totalSteps;
+            if (estimatedDurationEl) {
+                const enhancedDuration = (data.estimated_duration_ms * 1.5) / 1000; // Account for bi-phase overhead
+                estimatedDurationEl.textContent = `${enhancedDuration.toFixed(1)}s`;
+            }
+
+            // Update progress elements
+            const maxStepsEl = document.getElementById('max-steps');
+            if (maxStepsEl) maxStepsEl.textContent = this.totalSteps;
+
+            this.currentStep = 0;
+            this.animationState = 'playing';
+
+            // Enable pause/reset buttons
+            const pauseButton = document.getElementById('pause-animation');
+            const resetButton = document.getElementById('reset-animation');
+            if (pauseButton) pauseButton.disabled = false;
+            if (resetButton) resetButton.disabled = false;
+
+            // Clear 3D scene
+            this.icgs3dCore.clearSimplexVisualization();
+
+            // Start bi-phase simulation animation
+            await this.startBiPhaseAnimation();
+
+            console.log(`✅ Simulation bi-phasée lancée: ${data.total_transactions} transactions, ${this.totalSteps} étapes totales`);
+
+        } catch (error) {
+            console.error('❌ Erreur lancement simulation bi-phasée:', error);
+        }
+    }
+
+    animateTransactionSteps(transactionData) {
+        console.log(`🎨 Animation étapes transaction: ${transactionData.step_count} étapes`);
+
+        const steps = transactionData.simplex_steps;
+        let stepIndex = 0;
+
+        const animateStep = () => {
+            if (this.animationState === 'stopped' || stepIndex >= steps.length) {
+                return;
+            }
+
+            if (this.animationState === 'playing') {
+                const step = steps[stepIndex];
+                this.visualizeSimplexStep(step, stepIndex, steps.length);
+
+                // Update progress
+                this.currentStep = stepIndex + 1;
+                document.getElementById('current-animation-step').textContent = this.currentStep;
+
+                stepIndex++;
+            }
+
+            // Continue animation
+            setTimeout(animateStep, 1000 / this.animationSpeed);
+        };
+
+        animateStep();
+    }
+
+    animateCompleteSimulation(simulationData) {
+        console.log(`🎨 Animation simulation complète: ${simulationData.total_transactions} transactions`);
+
+        let transactionIndex = 0;
+        let globalStepIndex = 0;
+
+        const animateTransaction = () => {
+            if (this.animationState === 'stopped' || transactionIndex >= simulationData.transactions.length) {
+                return;
+            }
+
+            const transaction = simulationData.transactions[transactionIndex];
+            console.log(`🔄 Animation transaction ${transactionIndex + 1}/${simulationData.transactions.length}: ${transaction.transaction_id}`);
+
+            // Update progress
+            document.getElementById('current-tx').textContent = transactionIndex + 1;
+
+            // Animate transaction steps
+            const steps = transaction.simplex_steps;
+            let stepIndex = 0;
+
+            const animateTransactionStep = () => {
+                if (this.animationState === 'stopped') {
+                    return;
+                }
+
+                if (this.animationState === 'playing' && stepIndex < steps.length) {
+                    const step = steps[stepIndex];
+                    this.visualizeSimplexStep(step, stepIndex, steps.length);
+
+                    // Update global progress
+                    globalStepIndex++;
+                    this.currentStep = globalStepIndex;
+                    document.getElementById('current-step').textContent = globalStepIndex;
+                    document.getElementById('current-animation-step').textContent = globalStepIndex;
+
+                    // Update progress bar
+                    const progressPercent = (globalStepIndex / simulationData.total_steps) * 100;
+                    document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+
+                    stepIndex++;
+
+                    setTimeout(animateTransactionStep, 800 / this.animationSpeed);
+                } else {
+                    // Transaction terminée, passer à la suivante
+                    transactionIndex++;
+                    setTimeout(animateTransaction, 1000 / this.animationSpeed);
+                }
+            };
+
+            animateTransactionStep();
+        };
+
+        animateTransaction();
+    }
+
+    visualizeSimplexStep(step, stepIndex, totalSteps) {
+        console.log(`🎯 Visualisation étape Simplex ${stepIndex + 1}/${totalSteps}:`, step.coordinates);
+
+        // Create or update point in 3D space
+        const geometry = new THREE.SphereGeometry(0.1, 16, 16);
+        const material = new THREE.MeshBasicMaterial({
+            color: step.is_optimal ? 0x00ff00 : (step.is_feasible ? 0x0088ff : 0xff4444)
+        });
+
+        const point = new THREE.Mesh(geometry, material);
+        point.position.set(step.coordinates[0], step.coordinates[1], step.coordinates[2]);
+
+        // Add to scene
+        this.icgs3dCore.scene.add(point);
+
+        // Create path line to previous step if exists
+        if (stepIndex > 0) {
+            // Logic for connecting steps with lines would go here
+        }
+
+        // Show step info
+        this.icgs3dCore.showNotification(
+            `Étape ${stepIndex + 1}: ${step.is_optimal ? 'OPTIMAL' : (step.is_feasible ? 'FAISABLE' : 'NON FAISABLE')}`,
+            step.is_optimal ? 'success' : 'info'
+        );
+    }
+
+    togglePlayPause() {
+        if (this.animationState === 'playing') {
+            this.animationState = 'paused';
+            document.getElementById('play-pause-btn').textContent = '▶️';
+            console.log('⏸️ Animation en pause');
+        } else if (this.animationState === 'paused') {
+            this.animationState = 'playing';
+            document.getElementById('play-pause-btn').textContent = '⏸️';
+            console.log('▶️ Animation reprise');
+        }
+    }
+
+    stepBack() {
+        if (this.currentStep > 0) {
+            this.currentStep--;
+            document.getElementById('current-animation-step').textContent = this.currentStep;
+            console.log(`⏮️ Étape précédente: ${this.currentStep}`);
+        }
+    }
+
+    stepForward() {
+        if (this.currentStep < this.totalSteps) {
+            this.currentStep++;
+            document.getElementById('current-animation-step').textContent = this.currentStep;
+            console.log(`⏭️ Étape suivante: ${this.currentStep}`);
+        }
+    }
+
+    resetAnimation() {
+        this.animationState = 'stopped';
+        this.currentStep = 0;
+
+        // Update UI elements
+        const currentStepEl = document.getElementById('current-step');
+        const progressFill = document.getElementById('progress-fill');
+
+        if (currentStepEl) currentStepEl.textContent = '0';
+        if (progressFill) progressFill.style.width = '0%';
+
+        // Reset button states
+        const playButton = document.getElementById('play-animation');
+        if (playButton) playButton.disabled = this.mode === 'single' && !this.currentTransactionData;
+
+        // Clear 3D visualization
+        this.icgs3dCore.clearSimplexVisualization();
+
+        console.log('🔄 Animation reset');
+    }
+
+    async selectTransaction(transactionId) {
+        console.log(`🎯 Sélection transaction: ${transactionId}`);
+
+        // Update visual selection
+        document.querySelectorAll('.transaction-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+
+        const selectedItem = document.querySelector(`[data-transaction-id="${transactionId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+        }
+
+        // Load transaction data
+        await this.loadTransactionData(transactionId);
+
+        // Update transaction info panel
+        this.updateTransactionInfo(transactionId);
+
+        // Enable play button
+        const playButton = document.getElementById('play-animation');
+        if (playButton) {
+            playButton.disabled = false;
+        }
+    }
+
+    pauseAnimation() {
+        console.log('⏸ Pause animation');
+        this.animationState = 'paused';
+
+        // Update button states
+        const playButton = document.getElementById('play-animation');
+        const pauseButton = document.getElementById('pause-animation');
+
+        if (playButton) playButton.disabled = false;
+        if (pauseButton) pauseButton.disabled = true;
+
+        // Stop any running animation intervals
+        if (this.currentAnimation) {
+            clearInterval(this.currentAnimation);
+            this.currentAnimation = null;
+        }
+    }
+
+    updateTransactionInfo(transactionId) {
+        const infoPanel = document.getElementById('selected-transaction-info');
+        if (!infoPanel || !this.currentTransactionData) return;
+
+        const data = this.currentTransactionData;
+        infoPanel.innerHTML = `
+            <div class="selected-transaction-details">
+                <h5>Transaction: ${transactionId}</h5>
+                <div class="detail-row">
+                    <span class="label">Étapes Simplex:</span>
+                    <span class="value">${data.step_count}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Durée estimée:</span>
+                    <span class="value">${data.estimated_duration_ms}ms</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Complexité:</span>
+                    <span class="value complexity-${data.complexity.toLowerCase()}">${data.complexity}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Flux:</span>
+                    <span class="value">${data.source_account} → ${data.target_account}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Montant:</span>
+                    <span class="value">${data.amount || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Faisable:</span>
+                    <span class="value ${data.feasible ? 'feasible' : 'not-feasible'}">
+                        ${data.feasible ? '✅ Oui' : '❌ Non'}
+                    </span>
+                </div>
+            </div>
+        `;
+
+        // Update progress info
+        const maxStepsEl = document.getElementById('max-steps');
+        if (maxStepsEl) maxStepsEl.textContent = data.step_count;
+    }
+
+    // ======================================
+    // BI-PHASE ANIMATION IMPLEMENTATION
+    // ======================================
+
+    setAnimationPhase(phase) {
+        console.log(`🔄 Changement phase animation: ${phase}`);
+        this.currentPhase = phase;
+
+        // Update phase indicator
+        const phaseIndicator = document.getElementById('current-phase');
+        if (phaseIndicator) {
+            phaseIndicator.textContent = phase;
+        }
+
+        // Show/hide phase information panels
+        const phaseInfos = ['resolution-phase-info', 'transition-phase-info', 'cascade-phase-info'];
+        phaseInfos.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.style.display = 'none';
+            }
+        });
+
+        // Show current phase info
+        const currentPhaseInfo = document.getElementById(`${phase.toLowerCase()}-phase-info`);
+        if (currentPhaseInfo) {
+            currentPhaseInfo.style.display = 'block';
+        }
+
+        // Update 3D axis configuration based on phase
+        this.update3DAxisMapping(phase);
+    }
+
+    update3DAxisMapping(phase) {
+        console.log(`🎯 Mise à jour mapping axes 3D pour phase: ${phase}`);
+
+        // Store current axis configuration for 3D visualization
+        switch (phase) {
+            case 'Résolution':
+                this.current3DAxes = {
+                    x: 'flux_transaction',
+                    y: 'flux_compte_origine',
+                    z: 'flux_redistribue'
+                };
+                break;
+            case 'Transition':
+                this.current3DAxes = {
+                    x: 'impact_cascade',
+                    y: 'flux_comptes_cibles',
+                    z: 'amplitude_perturbation'
+                };
+                break;
+            case 'Cascade':
+                this.current3DAxes = {
+                    x: 'propagation_intersectorielle',
+                    y: 'magnitude_impact',
+                    z: 'stabilite_reseau'
+                };
+                break;
+        }
+
+        // Update 3D scene axis labels if needed
+        this.updateAxisLabels();
+    }
+
+    updateAxisLabels() {
+        // TODO: Implementation for updating 3D axis labels in Three.js scene
+        console.log('📊 Mise à jour labels axes 3D:', this.current3DAxes);
+    }
+
+    async startBiPhaseAnimation() {
+        console.log('🎬 Démarrage animation bi-phasée');
+        this.animationState = 'playing';
+
+        if (this.mode === 'single') {
+            await this.runSingleTransactionBiPhase();
+        } else {
+            await this.runCompleteSimulationBiPhase();
+        }
+    }
+
+    async runSingleTransactionBiPhase() {
+        console.log('🎯 Animation bi-phasée transaction unique');
+
+        if (!this.currentTransactionData) {
+            console.error('❌ Pas de données transaction pour animation');
+            return;
+        }
+
+        // Phase 1: Résolution Simplex
+        this.setAnimationPhase('Résolution');
+        await this.animateResolutionPhase(this.currentTransactionData);
+
+        // Phase 2: Transition (impact cascade)
+        if (this.animationState === 'playing') {
+            this.setAnimationPhase('Transition');
+            await this.animateTransitionPhase(this.currentTransactionData);
+        }
+
+        // Phase 3: Cascade globale
+        if (this.animationState === 'playing') {
+            this.setAnimationPhase('Cascade');
+            await this.animateCascadePhase(this.currentTransactionData);
+        }
+
+        console.log('✅ Animation bi-phasée transaction terminée');
+        this.animationState = 'stopped';
+    }
+
+    async runCompleteSimulationBiPhase() {
+        console.log('🎬 Animation bi-phasée simulation complète');
+
+        // Load complete simulation data
+        const simulationData = await this.loadCompleteSimulationData();
+        if (!simulationData || !simulationData.success) {
+            console.error('❌ Impossible de charger données simulation');
+            return;
+        }
+
+        let globalStepIndex = 0;
+        const totalSteps = simulationData.total_steps;
+
+        // Iterate through each transaction with bi-phase animation
+        for (let txIndex = 0; txIndex < simulationData.transactions.length && this.animationState === 'playing'; txIndex++) {
+            const transaction = simulationData.transactions[txIndex];
+
+            console.log(`🔄 Animation transaction ${txIndex + 1}/${simulationData.transactions.length}: ${transaction.transaction_id}`);
+
+            // Phase 1: Résolution pour cette transaction
+            this.setAnimationPhase('Résolution');
+            const resolutionSteps = await this.animateResolutionPhase(transaction, globalStepIndex, totalSteps);
+            globalStepIndex += resolutionSteps;
+
+            // Phase 2: Transition vers transaction suivante
+            if (txIndex < simulationData.transactions.length - 1 && this.animationState === 'playing') {
+                this.setAnimationPhase('Transition');
+                const transitionSteps = await this.animateTransitionToNext(transaction, simulationData.transactions[txIndex + 1]);
+                globalStepIndex += transitionSteps;
+            }
+
+            // Update global progress
+            this.updateGlobalProgress(globalStepIndex, totalSteps);
+        }
+
+        // Phase finale: Cascade globale
+        if (this.animationState === 'playing') {
+            this.setAnimationPhase('Cascade');
+            await this.animateFinalCascade(simulationData);
+        }
+
+        console.log('✅ Animation bi-phasée simulation complète terminée');
+        this.animationState = 'stopped';
+    }
+
+    async animateResolutionPhase(transactionData, globalStepIndex = 0, totalSteps = null) {
+        console.log(`🎯 Animation phase résolution pour ${transactionData.transaction_id || transactionData.id}`);
+
+        const steps = transactionData.simplex_steps || [];
+        let stepCount = 0;
+
+        for (let i = 0; i < steps.length && this.animationState === 'playing'; i++) {
+            const step = steps[i];
+
+            // Visualize current step with resolution axis mapping
+            this.visualizeResolutionStep(step, i, steps.length);
+
+            // Update progress
+            stepCount++;
+            this.currentStep = globalStepIndex + stepCount;
+            this.updateProgressDisplay(this.currentStep, totalSteps || steps.length);
+
+            // Wait according to animation speed
+            await this.waitForAnimationSpeed();
+        }
+
+        return stepCount;
+    }
+
+    async animateTransitionPhase(transactionData) {
+        console.log(`🔄 Animation phase transition pour ${transactionData.transaction_id || transactionData.id}`);
+
+        // Simulate transition steps (cascade effects)
+        const transitionSteps = 3; // Fixed number of transition visualization steps
+
+        for (let i = 0; i < transitionSteps && this.animationState === 'playing'; i++) {
+            // Visualize cascade effects with transition axis mapping
+            this.visualizeTransitionStep(transactionData, i, transitionSteps);
+
+            // Update progress
+            this.currentStep++;
+            this.updateProgressDisplay(this.currentStep, this.totalSteps);
+
+            await this.waitForAnimationSpeed(800); // Slower transition animation
+        }
+
+        return transitionSteps;
+    }
+
+    async animateCascadePhase(transactionData) {
+        console.log(`🌊 Animation phase cascade pour ${transactionData.transaction_id || transactionData.id}`);
+
+        // Simulate global cascade visualization
+        const cascadeSteps = 5; // Fixed number of cascade visualization steps
+
+        for (let i = 0; i < cascadeSteps && this.animationState === 'playing'; i++) {
+            // Visualize global economic impact with cascade axis mapping
+            this.visualizeCascadeStep(transactionData, i, cascadeSteps);
+
+            // Update progress
+            this.currentStep++;
+            this.updateProgressDisplay(this.currentStep, this.totalSteps);
+
+            await this.waitForAnimationSpeed(1000); // Slowest cascade animation
+        }
+
+        return cascadeSteps;
+    }
+
+    visualizeResolutionStep(step, stepIndex, totalSteps) {
+        console.log(`🎯 Visualisation étape résolution ${stepIndex + 1}/${totalSteps}:`, step.coordinates);
+
+        // Use resolution axis mapping (flux_transaction, flux_compte_origine, flux_redistribue)
+        const position = {
+            x: step.coordinates[0], // Flux dans transaction
+            y: step.coordinates[1], // Flux restant sur compte origine
+            z: step.coordinates[2]  // Flux redistribué
+        };
+
+        // Visualize in 3D scene with resolution colors (blue/green tones)
+        this.visualizeStepIn3D(position, stepIndex, 'resolution', 0x2196F3);
+    }
+
+    visualizeTransitionStep(transactionData, stepIndex, totalSteps) {
+        console.log(`🔄 Visualisation étape transition ${stepIndex + 1}/${totalSteps}`);
+
+        // Simulate transition coordinates based on cascade effects
+        const position = {
+            x: stepIndex * 0.5,     // Impact cascade sortante
+            y: stepIndex * 0.3,     // Flux redistribué vers comptes cibles
+            z: stepIndex * 0.2      // Amplitude perturbation économique
+        };
+
+        // Visualize with transition colors (orange tones)
+        this.visualizeStepIn3D(position, stepIndex, 'transition', 0xFF9800);
+    }
+
+    visualizeCascadeStep(transactionData, stepIndex, totalSteps) {
+        console.log(`🌊 Visualisation étape cascade ${stepIndex + 1}/${totalSteps}`);
+
+        // Simulate cascade coordinates for global impact
+        const position = {
+            x: Math.sin(stepIndex) * 2,  // Propagation inter-sectorielle
+            y: stepIndex * 0.4,          // Magnitude impact économique
+            z: 1 - stepIndex * 0.1       // Stabilité réseau post-transaction
+        };
+
+        // Visualize with cascade colors (red/purple tones)
+        this.visualizeStepIn3D(position, stepIndex, 'cascade', 0xF44336);
+    }
+
+    visualizeStepIn3D(position, stepIndex, phase, color) {
+        // Create or update 3D visualization in Three.js scene
+        // This integrates with the existing Three.js infrastructure
+
+        // Remove previous step visualization
+        this.icgs3dCore.clearSimplexVisualization();
+
+        // Create step visualization object
+        const geometry = new THREE.SphereGeometry(0.1, 16, 16);
+        const material = new THREE.MeshBasicMaterial({ color: color });
+        const stepSphere = new THREE.Mesh(geometry, material);
+
+        stepSphere.position.set(position.x, position.y, position.z);
+        stepSphere.userData = { type: 'simplex_step', phase: phase, step: stepIndex };
+
+        // Add to scene
+        ICGS3DApp.scene.add(stepSphere);
+
+        // Add trail effect for path visualization
+        this.addTrailEffect(position, phase, stepIndex);
+    }
+
+    addTrailEffect(position, phase, stepIndex) {
+        // Create trail line connecting previous positions
+        // TODO: Implement trail line geometry for path visualization
+        console.log(`✨ Effet trail phase ${phase} étape ${stepIndex}:`, position);
+    }
+
+    async waitForAnimationSpeed(baseDelay = 500) {
+        const delay = baseDelay / this.animationSpeed;
+        return new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    updateProgressDisplay(currentStep, totalSteps) {
+        const currentStepEl = document.getElementById('current-step');
+        const progressFill = document.getElementById('progress-fill');
+
+        if (currentStepEl) currentStepEl.textContent = currentStep;
+
+        if (progressFill && totalSteps) {
+            const progressPercent = (currentStep / totalSteps) * 100;
+            progressFill.style.width = `${progressPercent}%`;
+        }
+    }
+
+    updateGlobalProgress(currentStep, totalSteps) {
+        this.currentStep = currentStep;
+        this.updateProgressDisplay(currentStep, totalSteps);
+
+        console.log(`📊 Progression globale: ${currentStep}/${totalSteps} (${((currentStep/totalSteps)*100).toFixed(1)}%)`);
+    }
+
+    async loadCompleteSimulationData() {
+        console.log('📋 Chargement données simulation complète');
+
+        try {
+            const response = await fetch('/api/simplex_3d/simulation/run', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success) {
+                console.log(`✅ Données simulation chargées: ${data.total_transactions} transactions`);
+                return data;
+            } else {
+                console.error('❌ Erreur API simulation:', data.error);
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ Erreur réseau chargement simulation:', error);
+            return null;
+        }
+    }
+
+    async animateTransitionToNext(currentTransaction, nextTransaction) {
+        console.log(`🔄 Animation transition: ${currentTransaction.transaction_id} → ${nextTransaction.transaction_id}`);
+
+        // Simulate transition animation between transactions
+        const transitionSteps = 3;
+
+        for (let i = 0; i < transitionSteps && this.animationState === 'playing'; i++) {
+            // Create transition visualization
+            const position = {
+                x: i * 0.4,
+                y: Math.sin(i) * 0.3,
+                z: i * 0.2
+            };
+
+            this.visualizeStepIn3D(position, i, 'transition', 0xFF9800);
+
+            await this.waitForAnimationSpeed(600);
+        }
+
+        return transitionSteps;
+    }
+
+    async animateFinalCascade(simulationData) {
+        console.log('🌊 Animation cascade finale globale');
+
+        // Simulate final global cascade
+        const cascadeSteps = 8;
+
+        for (let i = 0; i < cascadeSteps && this.animationState === 'playing'; i++) {
+            const position = {
+                x: Math.cos(i * 0.5) * 2,
+                y: Math.sin(i * 0.5) * 2,
+                z: i * 0.3
+            };
+
+            this.visualizeStepIn3D(position, i, 'cascade', 0xF44336);
+
+            await this.waitForAnimationSpeed(1200);
+        }
+
+        return cascadeSteps;
+    }
+}
+
+// Extension ICGS3DCore pour Simplex
+ICGS3DCore.prototype.clearSimplexVisualization = function() {
+    console.log('🧹 Nettoyage visualisation Simplex');
+
+    // Remove Simplex-specific objects from scene
+    const objectsToRemove = [];
+    this.scene.traverse((child) => {
+        if (child.userData && child.userData.type === 'simplex_step') {
+            objectsToRemove.push(child);
+        }
+    });
+
+    objectsToRemove.forEach(obj => this.scene.remove(obj));
+};
+
+// ======================================
 // INITIALISATION APPLICATION
 // ======================================
 document.addEventListener('DOMContentLoaded', () => {
     window.icgs3dApp = new ICGS3DCore();
+
+    // Initialize Simplex Animation Controller
+    window.icgs3dApp.simplexController = new SimplexAnimationController(window.icgs3dApp);
 });
