@@ -139,8 +139,10 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 
 ## 📚 Documentation
 
+- **[docs/economic_coherence_analysis.md](./docs/economic_coherence_analysis.md)** : Analyse cohérence économique complète
+- **[docs/economic_simulation_guide.md](./docs/economic_simulation_guide.md)** : Guide utilisateur simulation massive
+- **[docs/character_set_manager_api.md](./docs/character_set_manager_api.md)** : API Character-Set Manager
 - **[PLAN_SEMAINES_2_3_EXTENSION_MASSIVE.md](./PLAN_SEMAINES_2_3_EXTENSION_MASSIVE.md)** : Roadmap 40→65 agents
-- **[COMPLETE_ACADEMIC_VALIDATION_REPORT.md](./COMPLETE_ACADEMIC_VALIDATION_REPORT.md)** : Validation 95.2% tests
 - **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** : Guide migration DAG → EnhancedDAG
 - **[tools/migration/](./tools/migration/)** : Outils automatisés migration
 
@@ -164,3 +166,35 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 **CAPS** transforme la simulation économique de concept technique → plateforme gaming/academic/business révolutionnaire.
 
 Architecture validée, performance industrielle confirmée, applications déployables. 🚀
+
+---
+
+## 📊 Cohérence Économique
+
+### ✅ Foundation Économique Validée
+
+**Structure Sectorielle Réaliste**:
+- **SERVICES** (31%) - Secteur dominant économies développées
+- **INDUSTRY** (23%) - Transformation/manufacturing approprié
+- **ENERGY** (18%) - Infrastructure critique bien représentée
+- **AGRICULTURE** (15%) - Base alimentaire proportionnée
+- **FINANCE** (12%) - Facilitation financière réaliste
+
+**Validation Mathématique**:
+- ✅ Conservation des flux (théorèmes prouvés)
+- ✅ Cohérence FEASIBILITY ⊆ OPTIMIZATION (100%)
+- ✅ Flux inter-sectoriels cohérents (supply chain)
+
+### 🔮 Évolutions Futures Planifiées
+
+**Phase 1** (Semaine 4+): Calibrage réaliste
+- Matrices Input-Output basées données OECD/INSEE
+- Contraintes capacité production sectorielles
+- Validation équilibre offre/demande global
+
+**Phase 2** (Future): Dynamiques temporelles
+- Cycles économiques et saisonnalité
+- Délais production→livraison réalistes
+- Chocs exogènes (crises, innovations)
+
+**Documentation**: [Analyse Cohérence Complète](./docs/economic_coherence_analysis.md)

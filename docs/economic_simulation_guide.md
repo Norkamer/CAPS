@@ -755,4 +755,100 @@ Avec ce guide, vous maîtrisez la simulation économique massive CAPS :
 
 **CAPS** transforme la simulation économique de concept technique → plateforme world-class opérationnelle ! 🚀
 
-*Guide Utilisateur Simulation Économique Massive v1.1.0*
+---
+
+## 📊 Cohérence Économique et Validation
+
+### Foundation Économique Validée
+
+CAPS présente une **architecture économique cohérente** validée par analyse approfondie:
+
+#### ✅ Structure Sectorielle Réaliste
+```python
+# Distribution d'agents selon importance économique
+DISTRIBUTION_AGENTS = {
+    'SERVICES': 20,    # 31% - Secteur dominant économies développées
+    'INDUSTRY': 15,    # 23% - Transformation/manufacturing
+    'ENERGY': 12,      # 18% - Infrastructure critique
+    'AGRICULTURE': 10, # 15% - Base alimentaire
+    'FINANCE': 8       # 12% - Facilitation financière
+}
+
+# Pondérations sectorielles cohérentes
+SECTOR_WEIGHTS = {
+    'AGRICULTURE': 1.5,  # Priorité sécurité alimentaire
+    'ENERGY': 1.3,       # Infrastructure critique
+    'INDUSTRY': 1.2,     # Transformation essentielle
+    'SERVICES': 1.0,     # Référence (secteur principal)
+    'FINANCE': 0.8       # Facilitateur vs producteur
+}
+```
+
+#### ✅ Flux Inter-Sectoriels Cohérents
+```python
+# Patterns supply chain validés
+FLUX_PATTERNS = {
+    'AGRICULTURE → INDUSTRY': 'Matières premières vers transformation',
+    'INDUSTRY → SERVICES': 'Produits finis vers distribution',
+    'SERVICES ↔ FINANCE': 'Facilitation financière bidirectionnelle',
+    'ENERGY → ALL': 'Infrastructure transversale tous secteurs'
+}
+
+# Validation mathématique
+✅ Conservation des flux (aucune création/destruction artificielle)
+✅ Cohérence FEASIBILITY ⊆ OPTIMIZATION (100% validation)
+✅ Monotonie chaînes de valeur (viabilité A→B→C)
+```
+
+### Limitations Connues (Évolutions Futures)
+
+#### Simplifications v1.0 (Acceptables)
+- **Flux Instantanés**: Pas de délais production→livraison (simplifie validation concepts)
+- **Pas de Stocks**: Transactions directes sans inventaires intermédiaires
+- **Capacités Illimitées**: Focus validation patterns vs contraintes production
+
+#### Évolutions Planifiées
+```python
+# Phase 1: Calibrage Réaliste (Semaine 4+)
+ROADMAP_REALISM = {
+    'matrices_input_output': 'Calibrage coefficients OECD/INSEE',
+    'contraintes_capacite': 'Limites production sectorielles',
+    'validation_equilibre': 'Tests offre/demande global'
+}
+
+# Phase 2: Dynamiques Temporelles
+ROADMAP_ADVANCED = {
+    'cycles_economiques': 'Saisonnalité et conjoncture',
+    'delais_realistes': 'Temps production→livraison',
+    'chocs_exogenes': 'Crises et innovations'
+}
+```
+
+### Validation Cohérence Pratique
+
+```python
+def validate_economic_coherence(simulation):
+    """Validation cohérence économique simulation"""
+
+    # 1. Vérifier distribution sectorielle
+    distribution = get_sectoral_distribution(simulation)
+    assert distribution['SERVICES'] > distribution['FINANCE']  # Secteur dominant
+
+    # 2. Vérifier flux inter-sectoriels
+    flows = simulation.create_inter_sectoral_flows_batch(0.5)
+    feasibility_rate = validate_flows_feasibility(flows)
+    assert feasibility_rate > 0.95  # >95% cohérence attendue
+
+    return True  # Cohérence validée ✅
+```
+
+### Documentation Complémentaire
+
+- **[Analyse Cohérence Complète](./economic_coherence_analysis.md)**: Évaluation détaillée foundation économique
+- **[Évolutions Futures](./economic_coherence_analysis.md#évolutions-futures-planifiées)**: Roadmap réalisme économique
+- **[Métriques Validation](./economic_coherence_analysis.md#métriques-de-validation)**: Critères cohérence économique
+
+---
+
+*Guide Utilisateur Simulation Économique Massive v1.2.0*
+*Foundation Économique Validée + Évolutions Futures Planifiées*
