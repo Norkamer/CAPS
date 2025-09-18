@@ -209,6 +209,253 @@
             100% { opacity: 1; }
         }
 
+        /* Nouveaux styles pour l'animation améliorée */
+        .transaction-current-display {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #4ecdc4;
+            transition: all 0.3s ease;
+        }
+
+        .transaction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .transaction-progress-percent {
+            background: rgba(78, 205, 196, 0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        .transaction-flow {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+
+        .source-agent, .target-agent {
+            background: rgba(78, 205, 196, 0.1);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .arrow {
+            color: #4ecdc4;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .transaction-details {
+            display: flex;
+            gap: 15px;
+            margin: 8px 0;
+            font-size: 0.9em;
+        }
+
+        .amount {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .flow-type {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .transaction-timing {
+            color: #6c757d;
+            font-size: 0.8em;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+
+        .initialization-display {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(78, 205, 196, 0.3);
+            border-top: 2px solid #4ecdc4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Amélioration des indicateurs de statut */
+        .status-value {
+            transition: all 0.3s ease;
+        }
+
+        #animation-progress-text {
+            background: transparent;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background 0.5s ease;
+        }
+
+        /* Effet glow pour la barre de progression */
+        .transaction-progress {
+            box-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
+            transition: all 0.8s ease-in-out;
+        }
+
+        /* Affichage de completion */
+        .completion-display {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            background: rgba(40, 167, 69, 0.1);
+            border-radius: 10px;
+            border: 2px solid rgba(40, 167, 69, 0.3);
+        }
+
+        .completion-icon {
+            font-size: 2em;
+            margin-right: 15px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        /* Affichage de récupération d'erreur */
+        .error-recovery-display {
+            padding: 20px;
+            text-align: center;
+            background: rgba(220, 53, 69, 0.1);
+            border-radius: 10px;
+            border: 2px solid rgba(220, 53, 69, 0.3);
+        }
+
+        .error-recovery-display button {
+            margin-top: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        /* Enhanced Animation Controls */
+        .enhanced-controls {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .manual-step-controls, .speed-controls, .jump-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .control-label {
+            font-size: 0.9em;
+            color: #4ecdc4;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .step-btn, .speed-btn, .jump-btn {
+            padding: 8px 12px;
+            font-size: 0.9em;
+            min-width: 40px;
+        }
+
+        .step-btn {
+            background: linear-gradient(45deg, #6f42c1, #8e44ad);
+            color: white;
+        }
+
+        .speed-btn {
+            background: linear-gradient(45deg, #17a2b8, #20c997);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .speed-btn.active {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+            transform: scale(1.05);
+        }
+
+        .jump-btn {
+            background: linear-gradient(45deg, #fd7e14, #ffc107);
+            color: white;
+        }
+
+        .step-input {
+            width: 60px;
+            padding: 6px 8px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .step-input:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            box-shadow: 0 0 5px rgba(78, 205, 196, 0.5);
+        }
+
+        .step-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Progress bar interactive */
+        .progress-container {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-bar:hover {
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.6);
+        }
+
+        /* Responsive design for enhanced controls */
+        @media (max-width: 768px) {
+            .enhanced-controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .manual-step-controls, .speed-controls, .jump-controls {
+                justify-content: center;
+                width: 100%;
+            }
+        }
+
         .nav-back {
             position: fixed;
             top: 20px;
@@ -469,6 +716,29 @@
                     <button id="pause-simulation-btn" class="control-btn pause-btn" disabled>⏸️ Pause</button>
                     <button id="stop-simulation-btn" class="control-btn stop-btn" disabled>⏹️ Arrêter</button>
                     <button id="reset-simulation-btn" class="control-btn reset-btn">🔄 Reset</button>
+                </div>
+
+                <div class="enhanced-controls">
+                    <div class="manual-step-controls">
+                        <span class="control-label">📺 Contrôle Manuel:</span>
+                        <button id="step-backward-btn" class="control-btn step-btn" disabled title="Étape précédente">⏮️</button>
+                        <button id="step-forward-btn" class="control-btn step-btn" disabled title="Étape suivante">⏭️</button>
+                        <button id="single-step-btn" class="control-btn step-btn" disabled title="Une seule étape">⏯️</button>
+                    </div>
+
+                    <div class="speed-controls">
+                        <span class="control-label">⚡ Vitesse:</span>
+                        <button id="speed-slow-btn" class="control-btn speed-btn" title="Lent (4s)">🐌</button>
+                        <button id="speed-normal-btn" class="control-btn speed-btn active" title="Normal (2s)">🚶</button>
+                        <button id="speed-fast-btn" class="control-btn speed-btn" title="Rapide (1s)">🏃</button>
+                        <button id="speed-ultra-btn" class="control-btn speed-btn" title="Ultra (0.5s)">⚡</button>
+                    </div>
+
+                    <div class="jump-controls">
+                        <span class="control-label">🎯 Aller à:</span>
+                        <input type="number" id="jump-step-input" class="step-input" min="1" max="33" placeholder="N°" title="Numéro d'étape">
+                        <button id="jump-step-btn" class="control-btn jump-btn" disabled title="Aller à l'étape">🎯</button>
+                    </div>
                 </div>
 
                 <div class="simulation-status">
@@ -883,8 +1153,9 @@
             await loadSimulationInfo();
         }
 
-        // Configuration des contrôles de simulation
+        // Configuration des contrôles de simulation - ENHANCED
         function setupSimulationControls() {
+            // Contrôles de base
             const startBtn = document.getElementById('start-simulation-btn');
             const pauseBtn = document.getElementById('pause-simulation-btn');
             const stopBtn = document.getElementById('stop-simulation-btn');
@@ -894,81 +1165,537 @@
             pauseBtn.addEventListener('click', pauseInteractiveSimulation);
             stopBtn.addEventListener('click', stopInteractiveSimulation);
             resetBtn.addEventListener('click', resetInteractiveSimulation);
+
+            // Contrôles manuels avancés
+            setupEnhancedControls();
         }
 
-        // Variables d'animation globales
+        // Nouveau: Configuration des contrôles avancés
+        function setupEnhancedControls() {
+            // Contrôles manuels
+            const stepBackBtn = document.getElementById('step-backward-btn');
+            const stepForwardBtn = document.getElementById('step-forward-btn');
+            const singleStepBtn = document.getElementById('single-step-btn');
+
+            stepBackBtn.addEventListener('click', stepBackward);
+            stepForwardBtn.addEventListener('click', stepForward);
+            singleStepBtn.addEventListener('click', executeSingleStep);
+
+            // Contrôles de vitesse
+            const speedSlowBtn = document.getElementById('speed-slow-btn');
+            const speedNormalBtn = document.getElementById('speed-normal-btn');
+            const speedFastBtn = document.getElementById('speed-fast-btn');
+            const speedUltraBtn = document.getElementById('speed-ultra-btn');
+
+            speedSlowBtn.addEventListener('click', () => setAnimationSpeed(4000));
+            speedNormalBtn.addEventListener('click', () => setAnimationSpeed(2000));
+            speedFastBtn.addEventListener('click', () => setAnimationSpeed(1000));
+            speedUltraBtn.addEventListener('click', () => setAnimationSpeed(500));
+
+            // Contrôle de saut
+            const jumpStepBtn = document.getElementById('jump-step-btn');
+            const jumpStepInput = document.getElementById('jump-step-input');
+
+            jumpStepBtn.addEventListener('click', jumpToStep);
+            jumpStepInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    jumpToStep();
+                }
+            });
+
+            // Barre de progression interactive
+            const progressContainer = document.querySelector('.progress-container');
+            if (progressContainer) {
+                progressContainer.addEventListener('click', jumpToProgressPosition);
+            }
+        }
+
+        // Variables d'animation globales - ENHANCED
         let animationState = {
             active: false,
             currentStep: 0,
             totalSteps: 0,
-            interval: null
+            interval: null,
+            startTime: null,
+            errorCount: 0,
+            networkErrorCount: 0,
+            lastSuccessfulStep: 0,
+            isRecovering: false,
+            healthCheckInterval: null,
+            animationSpeed: 2000, // intervalle en millisecondes
+            isPaused: false,
+            manualMode: false
         };
 
-        // Démarrer la simulation interactive
+        // ===== NOUVELLES FONCTIONS DE CONTRÔLE AVANCÉ =====
+
+        // Contrôle de vitesse d'animation
+        function setAnimationSpeed(speedMs) {
+            console.log(`⚙️ Changement vitesse animation: ${speedMs}ms`);
+
+            animationState.animationSpeed = speedMs;
+
+            // Mettre à jour les boutons visuellement
+            document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
+
+            if (speedMs === 4000) document.getElementById('speed-slow-btn').classList.add('active');
+            else if (speedMs === 2000) document.getElementById('speed-normal-btn').classList.add('active');
+            else if (speedMs === 1000) document.getElementById('speed-fast-btn').classList.add('active');
+            else if (speedMs === 500) document.getElementById('speed-ultra-btn').classList.add('active');
+
+            // Redémarrer l'animation avec la nouvelle vitesse si active
+            if (animationState.active && animationState.interval) {
+                clearInterval(animationState.interval);
+                startStepByStepAnimation();
+            }
+
+            updateAnimationStatus(`Vitesse mise à jour: ${speedMs === 4000 ? 'Lente' : speedMs === 2000 ? 'Normale' : speedMs === 1000 ? 'Rapide' : 'Ultra'}`);
+        }
+
+        // Étape manuelle vers l'arrière
+        async function stepBackward() {
+            if (animationState.currentStep <= 1) {
+                console.warn('⚠️ Impossible de reculer: déjà à la première étape');
+                updateAnimationStatus('⚠️ Déjà à la première étape');
+                return;
+            }
+
+            console.log(`⏪ Étape manuelle vers l'arrière: ${animationState.currentStep} → ${animationState.currentStep - 1}`);
+
+            // Simuler le retour (pour l'instant, juste mettre à jour l'affichage)
+            animationState.currentStep--;
+            updateProgressDisplay();
+            updateAnimationStatus(`⏪ Retour à l'étape ${animationState.currentStep}`);
+        }
+
+        // Étape manuelle vers l'avant
+        async function stepForward() {
+            if (animationState.currentStep >= animationState.totalSteps) {
+                console.warn('⚠️ Impossible d\'avancer: dernière étape atteinte');
+                updateAnimationStatus('⚠️ Dernière étape atteinte');
+                return;
+            }
+
+            console.log(`⏩ Étape manuelle vers l'avant: ${animationState.currentStep} → ${animationState.currentStep + 1}`);
+
+            // Exécuter la prochaine étape
+            await executeNextAnimationStep();
+        }
+
+        // Exécution d'une seule étape
+        async function executeSingleStep() {
+            console.log('⏯️ Exécution d\'une seule étape');
+
+            if (animationState.active) {
+                // Mettre en pause temporairement
+                const wasActive = animationState.active;
+                animationState.active = false;
+                clearInterval(animationState.interval);
+                animationState.interval = null;
+
+                // Exécuter une étape
+                await executeNextAnimationStep();
+
+                updateAnimationStatus('⏯️ Étape unique exécutée');
+            } else {
+                // Animation arrêtée, exécuter juste une étape
+                await executeNextAnimationStep();
+            }
+        }
+
+        // Saut vers une étape spécifique
+        async function jumpToStep() {
+            const jumpInput = document.getElementById('jump-step-input');
+            const targetStep = parseInt(jumpInput.value);
+
+            if (isNaN(targetStep) || targetStep < 1 || targetStep > animationState.totalSteps) {
+                alert(`Veuillez entrer un numéro d'étape valide (1-${animationState.totalSteps})`);
+                return;
+            }
+
+            console.log(`🎯 Saut vers l'étape ${targetStep}`);
+
+            // Pour l'instant, simuler le saut en mettant à jour l'affichage
+            // Dans une implémentation complète, il faudrait appeler l'API pour synchroniser
+            animationState.currentStep = targetStep;
+            updateProgressDisplay();
+            updateAnimationStatus(`🎯 Saut vers l'étape ${targetStep}`);
+
+            jumpInput.value = '';
+        }
+
+        // Saut vers position dans la barre de progression
+        function jumpToProgressPosition(event) {
+            if (animationState.totalSteps === 0) return;
+
+            const progressBar = event.currentTarget.querySelector('.progress-bar');
+            const rect = progressBar.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const progressPercent = (clickX / rect.width) * 100;
+            const targetStep = Math.ceil((progressPercent / 100) * animationState.totalSteps);
+
+            if (targetStep >= 1 && targetStep <= animationState.totalSteps) {
+                console.log(`🎯 Clic barre progression: ${progressPercent.toFixed(1)}% → étape ${targetStep}`);
+
+                animationState.currentStep = targetStep;
+                updateProgressDisplay();
+                updateAnimationStatus(`🎯 Navigation vers étape ${targetStep}`);
+            }
+        }
+
+        // Mise à jour de l'affichage de progression
+        function updateProgressDisplay() {
+            const progressPercent = animationState.totalSteps > 0 ?
+                (animationState.currentStep / animationState.totalSteps) * 100 : 0;
+
+            const progressElement = document.querySelector('.transaction-progress');
+            if (progressElement) {
+                progressElement.style.width = progressPercent + '%';
+            }
+
+            // Mettre à jour le compteur de transactions
+            const transactionCounter = document.getElementById('total-transactions-count');
+            if (transactionCounter) {
+                transactionCounter.textContent = `${animationState.currentStep}/${animationState.totalSteps}`;
+            }
+        }
+
+        // Mise à jour de l'état des boutons selon le contexte
+        function updateControlButtonsState() {
+            const isActive = animationState.active;
+            const hasSteps = animationState.totalSteps > 0;
+            const canGoBack = animationState.currentStep > 1;
+            const canGoForward = animationState.currentStep < animationState.totalSteps;
+
+            // Boutons manuels
+            document.getElementById('step-backward-btn').disabled = !hasSteps || !canGoBack;
+            document.getElementById('step-forward-btn').disabled = !hasSteps || !canGoForward;
+            document.getElementById('single-step-btn').disabled = !hasSteps || !canGoForward;
+
+            // Contrôle de saut
+            document.getElementById('jump-step-btn').disabled = !hasSteps;
+            document.getElementById('jump-step-input').disabled = !hasSteps;
+
+            // Mettre à jour le placeholder de l'input
+            const jumpInput = document.getElementById('jump-step-input');
+            if (jumpInput && hasSteps) {
+                jumpInput.setAttribute('max', animationState.totalSteps);
+                jumpInput.placeholder = `1-${animationState.totalSteps}`;
+            }
+        }
+
+        // Nouveau: Validation de l'état d'animation
+        function validateAnimationState() {
+            const issues = [];
+
+            // Vérifications de cohérence
+            if (animationState.currentStep > animationState.totalSteps) {
+                issues.push('currentStep > totalSteps');
+            }
+
+            if (animationState.active && !animationState.interval) {
+                issues.push('Animation active mais pas de timer');
+            }
+
+            if (!animationState.active && animationState.interval) {
+                issues.push('Timer actif mais animation inactive');
+            }
+
+            if (animationState.errorCount > 10) {
+                issues.push('Trop d\'erreurs accumulées');
+            }
+
+            if (issues.length > 0) {
+                console.warn('⚠️ INCOHÉRENCES D\'ANIMATION DÉTECTÉES:', issues);
+                return false;
+            }
+
+            return true;
+        }
+
+        // Nouveau: Récupération d'état d'animation
+        async function recoverAnimationState() {
+            if (animationState.isRecovering) {
+                console.log('🔄 Récupération déjà en cours...');
+                return;
+            }
+
+            animationState.isRecovering = true;
+            console.log('🚑 DÉBUT RÉCUPÉRATION D\'ANIMATION');
+
+            try {
+                // Nettoyer l'état actuel
+                if (animationState.interval) {
+                    clearInterval(animationState.interval);
+                    animationState.interval = null;
+                }
+
+                // Vérifier l'état du serveur
+                const statusResponse = await fetch('/api/simulations/animate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'status' })
+                });
+
+                if (statusResponse.ok) {
+                    const statusData = await statusResponse.json();
+
+                    // Synchroniser avec l'état du serveur
+                    animationState.currentStep = statusData.current_step || 0;
+                    animationState.totalSteps = statusData.total_transactions || 33;
+
+                    console.log(`🔄 État synchronisé: ${animationState.currentStep}/${animationState.totalSteps}`);
+
+                    // Reprendre l'animation si elle était active
+                    if (statusData.active && animationState.currentStep < animationState.totalSteps) {
+                        console.log('🚀 Reprise automatique de l\'animation');
+                        animationState.active = true;
+                        await startStepByStepAnimation();
+                    }
+                } else {
+                    console.error('❌ Impossible de récupérer l\'status du serveur');
+                }
+            } catch (error) {
+                console.error('❌ Erreur lors de la récupération:', error);
+            } finally {
+                animationState.isRecovering = false;
+            }
+        }
+
+        // Nouveau: Health check périodique
+        function startAnimationHealthCheck() {
+            if (animationState.healthCheckInterval) {
+                clearInterval(animationState.healthCheckInterval);
+            }
+
+            animationState.healthCheckInterval = setInterval(() => {
+                if (animationState.active) {
+                    const isValid = validateAnimationState();
+                    if (!isValid) {
+                        console.warn('🚑 Incohérence détectée, tentative de récupération...');
+                        recoverAnimationState();
+                    }
+                }
+            }, 10000); // Vérification toutes les 10 secondes
+        }
+
+        // Nouveau: Arrêter health check
+        function stopAnimationHealthCheck() {
+            if (animationState.healthCheckInterval) {
+                clearInterval(animationState.healthCheckInterval);
+                animationState.healthCheckInterval = null;
+            }
+        }
+
+        // Démarrer la simulation interactive - ENHANCED ROBUSTNESS
         async function startInteractiveSimulation() {
             try {
+                console.log('🚀 DÉMARRAGE SIMULATION INTERACTIVE');
                 updateSimulationState('running');
 
-                // Créer la simulation 65 agents si nécessaire
+                // Démarrer le health check
+                startAnimationHealthCheck();
+
+                // Étape 1: Créer la simulation 65 agents si nécessaire
                 if (!simulation65AgentsData) {
+                    console.log('🔍 Création simulation 65 agents...');
                     await create65AgentsSimulation();
                 }
 
-                // Initialiser l'animation step-by-step
+                // Étape 2: Initialiser l'animation step-by-step
+                console.log('⚙️ Initialisation animation...');
                 await initializeStepAnimation();
 
-                // Démarrer les animations SVG temps réel
+                // Étape 3: Démarrer les animations SVG temps réel
+                console.log('🎨 Démarrage animations SVG...');
                 startSVGAnimations();
 
-                // Démarrer les métriques temps réel
+                // Étape 4: Démarrer les métriques temps réel
+                console.log('📈 Démarrage métriques...');
                 startRealTimeMetrics();
 
-                // Démarrer animation continue
-                startStepByStepAnimation();
+                // Étape 5: Démarrer animation continue
+                console.log('🎬 Démarrage animation continue...');
+                await startStepByStepAnimation();
+
+                console.log('✅ SIMULATION DÉMARRÉE AVEC SUCCÈS');
 
             } catch (error) {
-                console.error('Erreur démarrage simulation:', error);
-                updateSimulationState('stopped');
-                alert('Erreur lors du démarrage de la simulation: ' + error.message);
+                console.error('❌ ERREUR DÉMARRAGE SIMULATION:', error);
+                updateSimulationState('error');
+
+                // Nettoyage en cas d'erreur
+                stopAnimationHealthCheck();
+                if (animationState.interval) {
+                    clearInterval(animationState.interval);
+                    animationState.interval = null;
+                }
+
+                // Affichage d'erreur détaillé
+                const errorMessage = error.message || 'Erreur inconnue';
+                updateAnimationStatus(`❌ Erreur: ${errorMessage}`);
+
+                // Proposition de récupération
+                if (confirm(`Erreur lors du démarrage: ${errorMessage}\n\nVoulez-vous essayer de récupérer automatiquement?`)) {
+                    setTimeout(() => {
+                        recoverAnimationState();
+                    }, 2000);
+                }
             }
         }
 
-        // Initialiser l'animation step-by-step
-        async function initializeStepAnimation() {
-            const response = await fetch('/api/simulations/animate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ action: 'reset' })
-            });
+        // Initialiser l'animation step-by-step - ENHANCED ROBUSTNESS
+        async function initializeStepAnimation(retryCount = 0) {
+            const maxRetries = 3;
+            const timeoutMs = 8000;
 
-            const data = await response.json();
-            if (data.success) {
-                animationState.totalSteps = data.total_transactions;
-                animationState.currentStep = 0;
-                console.log(`✅ Animation initialisée: ${data.total_transactions} transactions prêtes`);
-            } else {
-                throw new Error(data.error || 'Échec initialisation animation');
+            try {
+                console.log(`🔄 Initialisation animation (tentative ${retryCount + 1}/${maxRetries + 1})`);
+
+                // Controller pour timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+                const response = await fetch('/api/simulations/animate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'reset' }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    animationState.totalSteps = data.total_transactions;
+                    animationState.currentStep = 0;
+                    animationState.lastSuccessfulStep = 0;
+
+                    console.log(`✅ Animation initialisée: ${data.total_transactions} transactions prêtes`);
+                    return data;
+                } else {
+                    throw new Error(data.error || 'Échec initialisation animation');
+                }
+            } catch (error) {
+                console.warn(`⚠️ Erreur initialisation (tentative ${retryCount + 1}):`, error.message);
+
+                if (retryCount < maxRetries) {
+                    const delayMs = Math.pow(2, retryCount) * 1000;
+                    console.log(`🔄 Retry dans ${delayMs}ms...`);
+
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    return initializeStepAnimation(retryCount + 1);
+                } else {
+                    console.error('🚫 Échec définitif initialisation animation');
+                    throw new Error(`Échec après ${maxRetries + 1} tentatives: ${error.message}`);
+                }
             }
         }
 
-        // Démarrer animation step-by-step automatique
+        // Démarrer animation step-by-step automatique - ENHANCED
         async function startStepByStepAnimation() {
+            console.log('🚀 DÉBUT startStepByStepAnimation()');
+
+            // Nettoyer tout interval existant
             if (animationState.interval) {
+                console.log('🧹 Nettoyage interval existant');
                 clearInterval(animationState.interval);
+                animationState.interval = null;
             }
 
+            // Réinitialiser compteurs d'erreurs et horodatage
+            animationState.errorCount = 0;
+            animationState.networkErrorCount = 0;
             animationState.active = true;
+            animationState.startTime = Date.now(); // Pour calculs de performance
+
+            console.log(`🎬 Démarrage animation avec ${animationState.totalSteps} transactions à traiter`);
+            updateAnimationStatus(`Démarrage animation - ${animationState.totalSteps} transactions`);
+
+            // Affichage métrique initiale
+            console.log('📈 MÉTRIQUES ANIMATION DÉMARRÉE:');
+            console.log(`   └─ Transactions totales: ${animationState.totalSteps}`);
+            console.log(`   └─ Intervalle: 2000ms par transaction`);
+            console.log(`   └─ Durée estimée: ${(animationState.totalSteps * 2)} secondes`);
+            console.log(`   └─ Horodatage début: ${new Date().toISOString()}`);
+
+            // Initialiser interface de suivi
+            initializeProgressTracking();
+
+            // Lancer le timer d'animation
             animationState.interval = setInterval(async () => {
                 if (animationState.active) {
                     await executeNextAnimationStep();
+                } else {
+                    console.log('⏹️ Animation marquée inactive, arrêt du timer');
+                    clearInterval(animationState.interval);
+                    animationState.interval = null;
                 }
-            }, 2000); // Une transaction toutes les 2 secondes
+            }, animationState.animationSpeed); // Vitesse configurable
+
+            console.log(`✅ Timer animation démarré - interval ID: ${animationState.interval}`);
+
+            // Démarrer le monitoring de santé si pas déjà actif
+            if (!animationState.healthCheckInterval) {
+                startAnimationHealthCheck();
+            }
+
+            // Mettre à jour l'état des boutons de contrôle
+            updateControlButtonsState();
+        }
+
+        // Nouveau: Initialiser le suivi de progression
+        function initializeProgressTracking() {
+            // Réinitialiser la barre de progression
+            const progressElement = document.querySelector('.transaction-progress');
+            if (progressElement) {
+                progressElement.style.width = '0%';
+                progressElement.style.transition = 'width 0.8s ease-in-out';
+            }
+
+            // Afficher message d'initialisation
+            const transactionDisplay = document.querySelector('#current-transaction-display');
+            if (transactionDisplay) {
+                transactionDisplay.innerHTML = `
+                    <div class="initialization-display">
+                        <div class="loading-spinner"></div>
+                        <div style="margin-left: 10px;">
+                            <strong>🚀 Initialisation de l'animation...</strong><br>
+                            <span style="color: #666; font-size: 0.9em;">
+                                Préparation de ${animationState.totalSteps} transactions
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Commencer le clignotement du statut
+            startStatusBlink();
+        }
+
+        // Nouveau: Animation de clignotement pour indiquer l'activité
+        function startStatusBlink() {
+            const stateElement = document.getElementById('simulation-state');
+            if (stateElement) {
+                stateElement.style.animation = 'pulse 2s infinite';
+            }
         }
 
         // Exécuter la prochaine étape d'animation
         async function executeNextAnimationStep() {
+            console.log(`🔄 DEBUT étape animation - État actuel: active=${animationState.active}, step=${animationState.currentStep}/${animationState.totalSteps}`);
+
+            if (!animationState.active) {
+                console.log('⏸️ Animation inactive, skipping step');
+                return;
+            }
+
             try {
                 const response = await fetch('/api/simulations/animate', {
                     method: 'POST',
@@ -978,72 +1705,350 @@
                     body: JSON.stringify({ action: 'step' })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
+                console.log('📡 API Response:', data);
+
                 if (data.success) {
                     if (data.completed) {
                         // Animation terminée
+                        console.log('🎬 ANIMATION TERMINÉE: toutes les transactions exécutées');
                         animationState.active = false;
                         clearInterval(animationState.interval);
-                        updateSimulationState('paused');
-                        console.log('🎬 Animation terminée: toutes les transactions exécutées');
+                        animationState.interval = null;
+                        updateSimulationState('completed');
+                        showAnimationComplete();
                     } else {
                         // Mise à jour interface avec la nouvelle transaction
                         animationState.currentStep = data.step;
                         updateTransactionProgress(data);
 
                         // Mettre à jour le statut des transactions
-                        const currentStatus = await getCurrentSimulationInfo();
-                        updateSimulationStatus(currentStatus);
+                        try {
+                            const currentStatus = await getCurrentSimulationInfo();
+                            updateSimulationStatus(currentStatus);
+                        } catch (statusError) {
+                            console.warn('⚠️ Erreur mise à jour status (non-critique):', statusError);
+                        }
 
-                        console.log(`🔄 Transaction ${data.step}/${data.total_steps}: ${data.transaction.source} → ${data.transaction.target} (${data.transaction.amount})`);
+                        console.log(`✅ Transaction ${data.step}/${data.total_steps} RÉUSSIE: ${data.transaction.source} → ${data.transaction.target} (${data.transaction.amount})`);
+                        console.log(`📊 Progression: ${data.progress_percent.toFixed(1)}%`);
+
+                        // Feedback visuel renforcé
+                        updateAnimationStatus(`Transaction ${data.step}/${data.total_steps} en cours...`);
                     }
                 } else {
-                    console.error('Erreur étape animation:', data.error);
-                    animationState.active = false;
-                    clearInterval(animationState.interval);
+                    console.error('❌ Erreur API étape animation:', data.error);
+
+                    // NE PAS arrêter l'animation pour une erreur ponctuelle
+                    // Incrémenter un compteur d'erreurs et continuer
+                    animationState.errorCount = (animationState.errorCount || 0) + 1;
+
+                    if (animationState.errorCount >= 3) {
+                        console.error('🛑 Trop d\'erreurs consécutives, arrêt animation');
+                        stopAnimationWithError('Trop d\'erreurs consécutives');
+                    } else {
+                        console.warn(`⚠️ Erreur ${animationState.errorCount}/3, continuer animation...`);
+                        updateAnimationStatus(`Erreur transaction ${animationState.currentStep}, retry...`);
+                    }
                 }
             } catch (error) {
-                console.error('Erreur exécution étape:', error);
-                animationState.active = false;
-                clearInterval(animationState.interval);
+                console.error('🚨 EXCEPTION exécution étape:', error);
+
+                // Gestion d'erreur robuste - ne pas arrêter immédiatement
+                animationState.networkErrorCount = (animationState.networkErrorCount || 0) + 1;
+
+                if (animationState.networkErrorCount >= 5) {
+                    console.error('🛑 Trop d\'erreurs réseau, arrêt animation');
+                    stopAnimationWithError('Erreurs réseau répétées');
+                } else {
+                    console.warn(`⚠️ Erreur réseau ${animationState.networkErrorCount}/5, retry dans 3 secondes...`);
+                    updateAnimationStatus(`Erreur réseau, retry ${animationState.networkErrorCount}/5...`);
+                }
             }
         }
 
-        // Mettre à jour la progression des transactions dans l'interface
-        function updateTransactionProgress(data) {
-            // Mettre à jour la barre de progression (si elle existe)
-            const progressElement = document.querySelector('.transaction-progress');
-            if (progressElement) {
-                progressElement.style.width = data.progress_percent + '%';
+        // Arrêter animation avec message d'erreur - ENHANCED
+        function stopAnimationWithError(message) {
+            console.error('🛑 ARRÊT D\'ANIMATION AVEC ERREUR:', message);
+
+            animationState.active = false;
+            if (animationState.interval) {
+                clearInterval(animationState.interval);
+                animationState.interval = null;
             }
 
-            // Afficher la transaction courante
+            // Arrêter le health check
+            stopAnimationHealthCheck();
+
+            updateSimulationState('error');
+            updateAnimationStatus(`❌ Animation arrêtée: ${message}`);
+
+            // Proposition de récupération automatique
+            const errorContainer = document.querySelector('#current-transaction-display');
+            if (errorContainer) {
+                errorContainer.innerHTML = `
+                    <div class="error-recovery-display">
+                        <div style="color: #dc3545; font-size: 1.2em; margin-bottom: 10px;">
+                            ❌ Animation Arrêtée
+                        </div>
+                        <div style="color: #6c757d; margin-bottom: 15px;">
+                            ${message}
+                        </div>
+                        <button onclick="recoverAnimationState()" class="control-btn start-btn" style="font-size: 0.9em;">
+                            🚑 Tentative de Récupération
+                        </button>
+                    </div>
+                `;
+            }
+
+            // Log détaillé pour debugging
+            console.error('📈 ÉTAT AU MOMENT DE L\'ERREUR:', {
+                currentStep: animationState.currentStep,
+                totalSteps: animationState.totalSteps,
+                errorCount: animationState.errorCount,
+                networkErrorCount: animationState.networkErrorCount,
+                lastSuccessfulStep: animationState.lastSuccessfulStep
+            });
+        }
+
+        // Affichage fin animation - ENHANCED
+        function showAnimationComplete() {
+            updateAnimationStatus('🎉 Animation terminée avec succès!');
+            console.log('🎉 ANIMATION COMPLÈTE - Toutes les transactions exécutées');
+
+            // Calcul du temps total écoulé
+            const totalTime = (Date.now() - animationState.startTime) / 1000;
+            console.log(`📈 STATISTIQUES FINALES:`);
+            console.log(`   └─ Durée totale: ${totalTime.toFixed(1)}s`);
+            console.log(`   └─ Transactions traitées: ${animationState.totalSteps}`);
+            console.log(`   └─ Vitesse moyenne: ${(animationState.totalSteps / totalTime * 60).toFixed(1)} tx/min`);
+
+            // Affichage de completion dans l'interface
             const transactionDisplay = document.querySelector('#current-transaction-display');
             if (transactionDisplay) {
                 transactionDisplay.innerHTML = `
-                    <strong>Transaction ${data.step}/${data.total_steps}</strong><br>
-                    ${data.transaction.source} → ${data.transaction.target}<br>
-                    Montant: ${data.transaction.amount} (${data.transaction.flow})
+                    <div class="completion-display">
+                        <div class="completion-icon">🎉</div>
+                        <div class="completion-text">
+                            <strong style="color: #28a745;">Animation Terminée avec Succès!</strong><br>
+                            <span style="color: #6c757d; font-size: 0.9em;">
+                                ${animationState.totalSteps} transactions traitées en ${totalTime.toFixed(1)}s
+                            </span><br>
+                            <span style="color: #4ecdc4; font-size: 0.8em;">
+                                Vitesse: ${(animationState.totalSteps / totalTime * 60).toFixed(1)} transactions/minute
+                            </span>
+                        </div>
+                    </div>
                 `;
+            }
+
+            // Animation de celebration pour la barre de progression
+            const progressElement = document.querySelector('.transaction-progress');
+            if (progressElement) {
+                progressElement.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
+                progressElement.style.boxShadow = '0 0 25px rgba(40, 167, 69, 0.8)';
+            }
+
+            // Arrêter le clignotement du statut
+            stopStatusBlink();
+
+            // Mettre à jour l'état des boutons
+            updateControlButtonsState();
+        }
+
+        // Nouveau: Arrêter l'animation de clignotement
+        function stopStatusBlink() {
+            const stateElement = document.getElementById('simulation-state');
+            if (stateElement) {
+                stateElement.style.animation = 'none';
             }
         }
 
-        // Créer la simulation 65 agents
-        async function create65AgentsSimulation() {
-            const response = await fetch('/api/simulations/create-65-agents', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+        // Mise à jour status animation en temps réel - ENHANCED
+        function updateAnimationStatus(message) {
+            const progressText = document.getElementById('animation-progress-text');
+            if (progressText) {
+                progressText.textContent = message;
 
-            const data = await response.json();
-            if (data.success) {
-                simulation65AgentsData = data;
-                updateSimulationStatus(data);
-                console.log('✅ Simulation 65 agents créée avec succès');
-            } else {
-                throw new Error(data.error || 'Échec création simulation 65 agents');
+                // Animation flash pour indiquer mise à jour
+                progressText.style.background = 'rgba(78, 205, 196, 0.3)';
+                setTimeout(() => {
+                    progressText.style.background = 'transparent';
+                }, 500);
+            }
+
+            // Mise à jour du badge d'état dans la barre de titre
+            updateSimulationStateBadge(message);
+
+            // Affichage console temps réel pour debugging
+            console.log('📊 STATUS UPDATE:', message);
+        }
+
+        // Nouveau: Badge d'état en temps réel
+        function updateSimulationStateBadge(message) {
+            const stateElement = document.getElementById('simulation-state');
+            if (stateElement) {
+                if (message.includes('Transaction')) {
+                    stateElement.textContent = '🔄 En cours';
+                    stateElement.style.color = '#4ecdc4';
+                } else if (message.includes('terminée') || message.includes('succès')) {
+                    stateElement.textContent = '✅ Terminée';
+                    stateElement.style.color = '#28a745';
+                } else if (message.includes('Erreur') || message.includes('❌')) {
+                    stateElement.textContent = '❌ Erreur';
+                    stateElement.style.color = '#dc3545';
+                } else if (message.includes('Démarrage')) {
+                    stateElement.textContent = '🚀 Démarrage';
+                    stateElement.style.color = '#ffc107';
+                }
+            }
+        }
+
+        // Mettre à jour la progression des transactions - ENHANCED
+        function updateTransactionProgress(data) {
+            // Animation progressive de la barre de progression
+            const progressElement = document.querySelector('.transaction-progress');
+            if (progressElement) {
+                // Animation fluide de la progression
+                progressElement.style.transition = 'width 0.8s ease-in-out';
+                progressElement.style.width = data.progress_percent + '%';
+
+                // Effet pulse lors de la mise à jour
+                progressElement.style.boxShadow = '0 0 20px rgba(78, 205, 196, 0.8)';
+                setTimeout(() => {
+                    progressElement.style.boxShadow = 'none';
+                }, 800);
+            }
+
+            // Affichage enrichi de la transaction courante
+            const transactionDisplay = document.querySelector('#current-transaction-display');
+            if (transactionDisplay) {
+                transactionDisplay.innerHTML = `
+                    <div class="transaction-current-display">
+                        <div class="transaction-header">
+                            <span class="live-indicator"></span>
+                            <strong style="color: #4ecdc4;">Transaction ${data.step}/${data.total_steps}</strong>
+                            <span class="transaction-progress-percent">${data.progress_percent.toFixed(1)}%</span>
+                        </div>
+                        <div class="transaction-flow">
+                            <span class="source-agent">${data.transaction.source}</span>
+                            <span class="arrow">→</span>
+                            <span class="target-agent">${data.transaction.target}</span>
+                        </div>
+                        <div class="transaction-details">
+                            <span class="amount">💰 ${data.transaction.amount}</span>
+                            <span class="flow-type">(${data.transaction.flow})</span>
+                        </div>
+                        <div class="transaction-timing">
+                            ⏱️ Étape ${data.step} • Restant: ${data.total_steps - data.step}
+                        </div>
+                    </div>
+                `;
+
+                // Animation d'entrée pour la nouvelle transaction
+                transactionDisplay.style.transform = 'scale(0.95)';
+                transactionDisplay.style.opacity = '0.7';
+                setTimeout(() => {
+                    transactionDisplay.style.transform = 'scale(1)';
+                    transactionDisplay.style.opacity = '1';
+                }, 200);
+            }
+
+            // Mise à jour des compteurs en temps réel
+            updateRealTimeCounters(data);
+        }
+
+        // Nouveau: Mise à jour des compteurs temps réel
+        function updateRealTimeCounters(data) {
+            // Mise à jour du compteur de transactions
+            const transactionCounter = document.getElementById('total-transactions-count');
+            if (transactionCounter) {
+                transactionCounter.textContent = `${data.step}/${data.total_steps}`;
+
+                // Animation du compteur
+                transactionCounter.style.transform = 'scale(1.1)';
+                transactionCounter.style.color = '#4ecdc4';
+                setTimeout(() => {
+                    transactionCounter.style.transform = 'scale(1)';
+                    transactionCounter.style.color = 'inherit';
+                }, 300);
+            }
+
+            // Mise à jour de métriques additionnelles
+            updateTransactionMetrics(data);
+        }
+
+        // Nouveau: Métriques détaillées de transaction
+        function updateTransactionMetrics(data) {
+            // Calculer vitesse de traitement
+            const processingSpeed = (data.step / (Date.now() - animationState.startTime || 1)) * 1000 * 60; // transactions par minute
+
+            // Temps estimé restant
+            const remainingTransactions = data.total_steps - data.step;
+            const estimatedTimeRemaining = remainingTransactions * 2; // 2 secondes par transaction
+
+            // Afficher dans la console pour monitoring
+            console.log(`📈 MÉTRIQUES TEMPS RÉEL:`);
+            console.log(`   └─ Progression: ${data.progress_percent.toFixed(1)}%`);
+            console.log(`   └─ Transaction: ${data.step}/${data.total_steps}`);
+            console.log(`   └─ Restant: ${remainingTransactions} transactions`);
+            console.log(`   └─ Temps estimé: ${estimatedTimeRemaining}s`);
+            console.log(`   └─ Flux: ${data.transaction.flow}`);
+            console.log(`   └─ Montant: ${data.transaction.amount}`);
+        }
+
+        // Créer la simulation 65 agents - ENHANCED ROBUSTNESS
+        async function create65AgentsSimulation(retryCount = 0) {
+            const maxRetries = 3;
+            const timeoutMs = 10000; // 10 secondes timeout
+
+            try {
+                console.log(`📡 Tentative ${retryCount + 1}/${maxRetries + 1} - Création simulation 65 agents`);
+
+                // Controller pour timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+                const response = await fetch('/api/simulations/create-65-agents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    simulation65AgentsData = data;
+                    updateSimulationStatus(data);
+                    console.log('✅ Simulation 65 agents créée avec succès');
+                    return data;
+                } else {
+                    throw new Error(data.error || 'Échec création simulation 65 agents');
+                }
+            } catch (error) {
+                console.warn(`⚠️ Erreur tentative ${retryCount + 1}:`, error.message);
+
+                if (retryCount < maxRetries) {
+                    const delayMs = Math.pow(2, retryCount) * 1000; // Backoff exponentiel
+                    console.log(`🔄 Retry dans ${delayMs}ms...`);
+
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    return create65AgentsSimulation(retryCount + 1);
+                } else {
+                    console.error('🚫 Échec définitif création simulation 65 agents');
+                    throw new Error(`Échec après ${maxRetries + 1} tentatives: ${error.message}`);
+                }
             }
         }
 
@@ -1066,22 +2071,78 @@
             }, 3000);
         }
 
-        // Charger une animation SVG depuis l'API
-        async function loadSVGAnimation(containerId, endpoint) {
+        // Charger une animation SVG depuis l'API - ENHANCED ROBUSTNESS
+        async function loadSVGAnimation(containerId, endpoint, retryCount = 0) {
+            const maxRetries = 2;
+            const timeoutMs = 5000; // 5 secondes timeout pour SVG
+
             try {
-                const response = await fetch(endpoint);
+                // Validation des paramètres
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    console.error(`❌ Container SVG introuvable: ${containerId}`);
+                    return;
+                }
+
+                // Controller pour timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+                const response = await fetch(endpoint, {
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'image/svg+xml, text/plain'
+                    }
+                });
+
+                clearTimeout(timeoutId);
+
                 if (response.ok) {
                     const svgContent = await response.text();
-                    document.getElementById(containerId).innerHTML = svgContent;
+
+                    // Validation du contenu SVG
+                    if (svgContent.trim().length === 0) {
+                        throw new Error('Contenu SVG vide');
+                    }
+
+                    container.innerHTML = svgContent;
+                    console.log(`✅ SVG chargé: ${endpoint}`);
+                } else if (response.status === 404) {
+                    // API pas encore implémentée - pas une erreur critique
+                    container.innerHTML = `
+                        <div style="color: #666; text-align: center; padding: 30px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                            <div style="font-size: 2em; margin-bottom: 10px;">🛠️</div>
+                            <div>API SVG en développement</div>
+                            <div style="font-size: 0.8em; margin-top: 5px; color: #999;">${endpoint}</div>
+                        </div>
+                    `;
                 } else {
-                    console.warn(`API SVG non disponible: ${endpoint}`);
-                    document.getElementById(containerId).innerHTML =
-                        '<div style="color: #666; text-align: center; padding: 50px;">API SVG en développement</div>';
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
             } catch (error) {
-                console.error(`Erreur chargement SVG ${endpoint}:`, error);
-                document.getElementById(containerId).innerHTML =
-                    '<div style="color: #666; text-align: center; padding: 50px;">Animation non disponible</div>';
+                console.warn(`⚠️ Erreur SVG ${endpoint} (tentative ${retryCount + 1}):`, error.message);
+
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                if (retryCount < maxRetries && !error.name === 'AbortError') {
+                    // Retry pour erreurs non-timeout
+                    const delayMs = (retryCount + 1) * 1000;
+                    console.log(`🔄 Retry SVG dans ${delayMs}ms...`);
+
+                    setTimeout(() => {
+                        loadSVGAnimation(containerId, endpoint, retryCount + 1);
+                    }, delayMs);
+                } else {
+                    // Affichage d'erreur final
+                    container.innerHTML = `
+                        <div style="color: #dc3545; text-align: center; padding: 30px; background: rgba(220,53,69,0.1); border-radius: 8px; border: 1px solid rgba(220,53,69,0.3);">
+                            <div style="font-size: 2em; margin-bottom: 10px;">⚠️</div>
+                            <div>Animation non disponible</div>
+                            <div style="font-size: 0.8em; margin-top: 5px; color: #999;">Erreur: ${error.message}</div>
+                        </div>
+                    `;
+                }
             }
         }
 
