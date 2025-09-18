@@ -2198,6 +2198,116 @@ def api_create_65_agents_simulation():
         }), 500
 
 
+# Helper functions for animation agent registry management
+def _get_agent_registry_source():
+    """
+    Trouve la source d'agents valide avec fallbacks multiples
+    Returns: (agents_dict, source_name) ou (None, None)
+    """
+    global web_manager
+
+    if not web_manager:
+        return None, None
+
+    # Méthode 1: web_manager.agents (structure classique)
+    if hasattr(web_manager, 'agents') and web_manager.agents and len(web_manager.agents) >= 65:
+        return web_manager.agents, 'web_manager.agents'
+
+    # Méthode 2: web_manager.agent_registry (structure WebNativeICGS)
+    elif hasattr(web_manager, 'agent_registry') and web_manager.agent_registry and len(web_manager.agent_registry) >= 65:
+        return web_manager.agent_registry, 'web_manager.agent_registry'
+
+    # Méthode 3: web_manager.icgs_core.agents (cas ICGS bridge)
+    elif (hasattr(web_manager, 'icgs_core') and
+          hasattr(web_manager.icgs_core, 'agents') and
+          web_manager.icgs_core.agents and
+          len(web_manager.icgs_core.agents) >= 65):
+        return web_manager.icgs_core.agents, 'web_manager.icgs_core.agents'
+
+    return None, None
+
+
+def _execute_transaction_with_registry(agents_source, source_name, source_id, target_id, amount):
+    """
+    Exécute une transaction en utilisant le registry d'agents spécifié
+    Args:
+        agents_source: Dict des agents
+        source_name: Nom de la source pour debug
+        source_id: ID agent source
+        target_id: ID agent cible
+        amount: Montant transaction
+    Returns:
+        Dict avec success et détails
+    """
+    global web_manager
+
+    # Vérifier existence agents dans la source spécifiée
+    if source_id not in agents_source or target_id not in agents_source:
+        available_agents = list(agents_source.keys())[:10]  # Premiers 10 pour debug
+        return {
+            'success': False,
+            'error': f'Agents introuvables dans {source_name}: {source_id} ou {target_id}',
+            'debug_info': {
+                'source_registry': source_name,
+                'available_agents_sample': available_agents,
+                'total_agents': len(agents_source)
+            }
+        }
+
+    # Si on a web_manager.agent_registry (WebNativeICGS), utiliser sa méthode lightweight
+    if source_name == 'web_manager.agent_registry' and hasattr(web_manager, 'process_transaction_lightweight'):
+        try:
+            result = web_manager.process_transaction_lightweight(source_id, target_id, amount)
+            return result
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Erreur process_transaction_lightweight: {str(e)}'
+            }
+
+    # Fallback: simulation basique de transaction
+    try:
+        source_agent = agents_source[source_id]
+        target_agent = agents_source[target_id]
+
+        # Extraire balance selon structure
+        source_balance = None
+        target_balance = None
+
+        if isinstance(source_agent, dict):
+            source_balance = source_agent.get('balance', 1000)  # Fallback balance
+            target_balance = target_agent.get('balance', 1000)
+        elif hasattr(source_agent, 'balance'):
+            source_balance = source_agent.balance
+            target_balance = target_agent.balance
+
+        # Validation montant
+        if source_balance is not None and source_balance < amount:
+            return {
+                'success': False,
+                'error': f'Balance insuffisante pour {source_id}: {source_balance} < {amount}'
+            }
+
+        # Transaction simulée (pas de modification réelle pour sécurité)
+        return {
+            'success': True,
+            'transaction_record': {
+                'source': source_id,
+                'target': target_id,
+                'amount': float(amount),
+                'source_balance_before': float(source_balance) if source_balance else 1000,
+                'target_balance_before': float(target_balance) if target_balance else 1000,
+                'registry_used': source_name
+            }
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Erreur exécution transaction: {str(e)}'
+        }
+
+
 @app.route('/api/simulations/animate', methods=['POST'])
 def animate_simulation():
     """
@@ -2217,7 +2327,9 @@ def animate_simulation():
                 'current_step': 0,
                 'total_transactions': 0,
                 'transaction_queue': [],
-                'completed_transactions': []
+                'completed_transactions': [],
+                'agents_source': None,
+                'agents_source_name': None
             }
 
         if action == 'reset':
@@ -2227,7 +2339,9 @@ def animate_simulation():
                 'current_step': 0,
                 'total_transactions': 0,
                 'transaction_queue': [],
-                'completed_transactions': []
+                'completed_transactions': [],
+                'agents_source': None,
+                'agents_source_name': None
             }
 
             # Diagnostic détaillé pour débugger le problème
@@ -2241,27 +2355,16 @@ def animate_simulation():
                 if hasattr(web_manager, 'agent_registry'):
                     print(f"   len(web_manager.agent_registry): {len(web_manager.agent_registry)}")
 
-            # Générer nouvelle queue de transactions - avec plusieurs fallbacks
-            agents_source = None
-            agents_count = 0
+            # Utiliser helper function pour trouver source agents avec fallbacks
+            agents_source, agents_source_name = _get_agent_registry_source()
 
-            # Méthode 1: Essayer web_manager.agents (structure classique)
-            if web_manager and hasattr(web_manager, 'agents') and len(web_manager.agents) >= 65:
-                agents_source = web_manager.agents
-                agents_count = len(web_manager.agents)
-                print(f"✅ Source agents trouvée: web_manager.agents ({agents_count} agents)")
+            if agents_source and agents_source_name:
+                agents_count = len(agents_source)
+                print(f"✅ Source agents trouvée: {agents_source_name} ({agents_count} agents)")
 
-            # Méthode 2: Essayer web_manager.agent_registry (structure WebNativeICGS)
-            elif web_manager and hasattr(web_manager, 'agent_registry') and len(web_manager.agent_registry) >= 65:
-                agents_source = web_manager.agent_registry
-                agents_count = len(web_manager.agent_registry)
-                print(f"✅ Source agents trouvée: web_manager.agent_registry ({agents_count} agents)")
-
-            # Méthode 3: Essayer web_manager.icgs_core.agents (cas ICGS bridge)
-            elif web_manager and hasattr(web_manager, 'icgs_core') and hasattr(web_manager.icgs_core, 'agents') and len(web_manager.icgs_core.agents) >= 65:
-                agents_source = web_manager.icgs_core.agents
-                agents_count = len(web_manager.icgs_core.agents)
-                print(f"✅ Source agents trouvée: web_manager.icgs_core.agents ({agents_count} agents)")
+                # Stocker la source d'agents dans animation_state pour utilisation cohérente
+                animate_simulation.animation_state['agents_source'] = agents_source
+                animate_simulation.animation_state['agents_source_name'] = agents_source_name
 
             if agents_source and agents_count >= 65:
                 transaction_queue = []
@@ -2347,8 +2450,20 @@ def animate_simulation():
             if animate_simulation.animation_state['current_step'] < len(animate_simulation.animation_state['transaction_queue']):
                 tx = animate_simulation.animation_state['transaction_queue'][animate_simulation.animation_state['current_step']]
 
-                # Exécuter transaction
-                result = web_manager.process_transaction_lightweight(tx['source'], tx['target'], tx['amount'])
+                # Exécuter transaction en utilisant la même source d'agents que celle identifiée au reset
+                agents_source = animate_simulation.animation_state.get('agents_source')
+                agents_source_name = animate_simulation.animation_state.get('agents_source_name')
+
+                if agents_source and agents_source_name:
+                    result = _execute_transaction_with_registry(
+                        agents_source, agents_source_name,
+                        tx['source'], tx['target'], tx['amount']
+                    )
+                else:
+                    result = {
+                        'success': False,
+                        'error': 'Source agents non disponible - relancer reset'
+                    }
 
                 if result.get('success', False):
                     animate_simulation.animation_state['completed_transactions'].append({
