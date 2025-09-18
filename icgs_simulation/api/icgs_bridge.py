@@ -1204,3 +1204,311 @@ class EconomicSimulation:
         """Vide le cache de performance (utile pour tests)"""
         self.performance_cache.clear_cache()
         self.logger.info("Cache de performance vidé")
+
+    # ========================================
+    # PERSISTENCE API - SAVE/LOAD SIMULATIONS
+    # ========================================
+
+    def save_simulation(self, name: str = None, description: str = None,
+                       compress: bool = True, tags: List[str] = None) -> str:
+        """
+        Sauvegarde complète de la simulation
+
+        Args:
+            name: Nom descriptif de la simulation
+            description: Description de la simulation
+            compress: Compresser les données (recommandé)
+            tags: Tags pour organiser la simulation
+
+        Returns:
+            str: ID de la simulation sauvegardée
+        """
+        try:
+            from ..persistence import SimulationSerializer, SimulationStorage, SimulationMetadata
+
+            # Créer métadonnées
+            metadata = SimulationMetadata()
+            metadata.name = name or f"{self.simulation_id}_save"
+            metadata.description = description or f"Simulation économique {self.agents_mode}"
+            metadata.agents_mode = self.agents_mode
+            metadata.tags = tags or []
+            metadata.category = "user_simulation"
+
+            # Sérialiser simulation
+            serializer = SimulationSerializer()
+            state = serializer.serialize(self, metadata)
+
+            # Sauvegarder
+            storage = SimulationStorage()
+            simulation_id = storage.save_simulation(state, compress=compress)
+
+            self.logger.info(f"Simulation sauvegardée: {simulation_id}")
+            return simulation_id
+
+        except Exception as e:
+            self.logger.error(f"Erreur sauvegarde simulation: {e}")
+            raise RuntimeError(f"Échec sauvegarde: {str(e)}")
+
+    @classmethod
+    def load_simulation(cls, simulation_id: str) -> 'EconomicSimulation':
+        """
+        Charge une simulation sauvegardée
+
+        Args:
+            simulation_id: ID de la simulation à charger
+
+        Returns:
+            EconomicSimulation: Instance restaurée
+        """
+        try:
+            from ..persistence import SimulationSerializer, SimulationStorage
+
+            # Charger état
+            storage = SimulationStorage()
+            state = storage.load_simulation(simulation_id)
+
+            # Désérialiser
+            serializer = SimulationSerializer()
+            simulation = serializer.deserialize(state)
+
+            simulation.logger.info(f"Simulation chargée: {simulation_id}")
+            return simulation
+
+        except Exception as e:
+            logging.error(f"Erreur chargement simulation {simulation_id}: {e}")
+            raise RuntimeError(f"Échec chargement: {str(e)}")
+
+    @staticmethod
+    def list_simulations(filter_category: str = None) -> List['SimulationMetadata']:
+        """
+        Liste toutes les simulations disponibles
+
+        Args:
+            filter_category: Filtrer par catégorie (optionnel)
+
+        Returns:
+            List[SimulationMetadata]: Liste des simulations sauvegardées
+        """
+        try:
+            from ..persistence import SimulationStorage
+            storage = SimulationStorage()
+            return storage.list_simulations(filter_category)
+        except Exception as e:
+            logging.error(f"Erreur listing simulations: {e}")
+            return []
+
+    def get_simulation_metadata(self) -> 'SimulationMetadata':
+        """
+        Génère les métadonnées actuelles de la simulation
+
+        Returns:
+            SimulationMetadata: Métadonnées à jour
+        """
+        try:
+            from ..persistence import SimulationMetadata
+            metadata = SimulationMetadata()
+            metadata.update_from_simulation(self)
+            return metadata
+        except Exception as e:
+            self.logger.error(f"Erreur génération métadonnées: {e}")
+            raise
+
+    def validate_simulation_integrity(self) -> Dict[str, bool]:
+        """
+        Valide l'intégrité de la simulation courante
+
+        Returns:
+            Dict avec résultats de validation
+        """
+        validation_results = {
+            'agents_valid': True,
+            'transactions_valid': True,
+            'taxonomy_configured': self.taxonomy_configured,
+            'dag_consistent': True,
+            'character_set_frozen': False
+        }
+
+        try:
+            # Validation agents
+            for agent_id, agent in self.agents.items():
+                if not hasattr(agent, 'account') or not hasattr(agent, 'sector'):
+                    validation_results['agents_valid'] = False
+                    break
+
+            # Validation transactions
+            for transaction in self.transactions:
+                if (transaction.source_account_id not in self.agents or
+                    transaction.target_account_id not in self.agents):
+                    validation_results['transactions_valid'] = False
+                    break
+
+            # Validation DAG
+            if hasattr(self.dag, 'accounts') and len(self.dag.accounts) != len(self.agents):
+                validation_results['dag_consistent'] = False
+
+            # Validation Character Set Manager
+            if hasattr(self.character_set_manager, 'is_frozen'):
+                validation_results['character_set_frozen'] = self.character_set_manager.is_frozen
+
+        except Exception as e:
+            self.logger.error(f"Erreur validation intégrité: {e}")
+            validation_results['validation_error'] = str(e)
+
+        # Score global
+        validation_results['overall_valid'] = all(
+            value for key, value in validation_results.items()
+            if key not in ['character_set_frozen', 'validation_error']
+        )
+
+        return validation_results
+
+    def clone_simulation(self, new_simulation_id: str = None) -> 'EconomicSimulation':
+        """
+        Clone la simulation courante
+
+        Args:
+            new_simulation_id: ID pour la nouvelle simulation (optionnel)
+
+        Returns:
+            EconomicSimulation: Nouvelle instance clonée
+        """
+        try:
+            from ..persistence import SimulationSerializer
+
+            # Générer ID si non fourni
+            if new_simulation_id is None:
+                import uuid
+                new_simulation_id = f"{self.simulation_id}_clone_{str(uuid.uuid4())[:8]}"
+
+            # Sérialiser et désérialiser pour clonage propre
+            serializer = SimulationSerializer()
+            state = serializer.serialize(self)
+
+            # Modifier métadonnées pour le clone
+            state.metadata.id = str(uuid.uuid4())
+            state.metadata.name = f"{state.metadata.name}_clone"
+
+            # Désérialiser vers nouvelle instance
+            cloned_simulation = serializer.deserialize(state)
+            cloned_simulation.simulation_id = new_simulation_id
+
+            self.logger.info(f"Simulation clonée: {new_simulation_id}")
+            return cloned_simulation
+
+        except Exception as e:
+            self.logger.error(f"Erreur clonage simulation: {e}")
+            raise RuntimeError(f"Échec clonage: {str(e)}")
+
+    def export_simulation_data(self, export_format: str = "json") -> str:
+        """
+        Exporte les données de simulation dans un format spécifique
+
+        Args:
+            export_format: Format d'export ("json", "csv", "yaml")
+
+        Returns:
+            str: Chemin du fichier exporté
+        """
+        try:
+            from ..persistence import SimulationStorage, SimulationSerializer
+
+            # Sérialiser simulation
+            serializer = SimulationSerializer()
+            state = serializer.serialize(self)
+
+            # Sauvegarder temporairement
+            storage = SimulationStorage()
+            temp_id = f"export_{self.simulation_id}_{int(time.time())}"
+
+            # Utiliser fonction d'export du storage
+            state.metadata.id = temp_id
+            storage.save_simulation(state, compress=False)
+
+            # Exporter dans le format demandé
+            export_path = storage.export_simulation(temp_id, export_format)
+
+            # Nettoyer fichiers temporaires
+            storage.delete_simulation(temp_id)
+
+            self.logger.info(f"Simulation exportée: {export_path}")
+            return export_path
+
+        except Exception as e:
+            self.logger.error(f"Erreur export simulation: {e}")
+            raise RuntimeError(f"Échec export: {str(e)}")
+
+    def get_simulation_metrics(self) -> Dict[str, Any]:
+        """
+        Métriques détaillées de la simulation pour métadonnées
+
+        Returns:
+            Dict avec métriques complètes
+        """
+        try:
+            # Métriques de base
+            metrics = {
+                'agents_count': len(self.agents),
+                'transactions_count': len(self.transactions),
+                'agents_mode': self.agents_mode,
+                'simulation_id': self.simulation_id
+            }
+
+            # Métriques sectorielles
+            sectors_metrics = {}
+            for agent in self.agents.values():
+                sector = agent.sector
+                if sector not in sectors_metrics:
+                    sectors_metrics[sector] = {
+                        'agents_count': 0,
+                        'total_balance': Decimal('0'),
+                        'average_balance': Decimal('0')
+                    }
+                sectors_metrics[sector]['agents_count'] += 1
+                sectors_metrics[sector]['total_balance'] += agent.balance
+
+            # Calculer moyennes
+            for sector, data in sectors_metrics.items():
+                if data['agents_count'] > 0:
+                    data['average_balance'] = data['total_balance'] / data['agents_count']
+                # Convertir Decimal en string pour JSON
+                data['total_balance'] = str(data['total_balance'])
+                data['average_balance'] = str(data['average_balance'])
+
+            metrics['sectors'] = sectors_metrics
+
+            # Métriques transactions
+            if self.transactions:
+                total_volume = sum(tx.amount for tx in self.transactions)
+                avg_transaction = total_volume / len(self.transactions)
+                metrics['transaction_volume'] = str(total_volume)
+                metrics['average_transaction'] = str(avg_transaction)
+
+            # Métriques performance
+            if hasattr(self, 'performance_cache'):
+                cache_stats = self.performance_cache.get_cache_stats()
+                metrics['cache_performance'] = cache_stats
+
+            # Métriques Character Set Manager
+            if hasattr(self.character_set_manager, 'get_allocation_statistics'):
+                cs_stats = self.character_set_manager.get_allocation_statistics()
+                metrics['character_set'] = cs_stats
+
+            # Métriques 3D si disponible
+            if self.icgs_3d_analyzer:
+                metrics['3d_analysis'] = {
+                    'analyzer_active': True,
+                    'solution_points': len(getattr(self.icgs_3d_analyzer, 'solution_points', [])),
+                    'simplex_edges': len(getattr(self.icgs_3d_analyzer, 'simplex_edges', []))
+                }
+
+            metrics['timestamp'] = time.time()
+            return metrics
+
+        except Exception as e:
+            self.logger.error(f"Erreur génération métriques: {e}")
+            return {
+                'error': str(e),
+                'agents_count': len(self.agents),
+                'transactions_count': len(self.transactions),
+                'timestamp': time.time()
+            }
