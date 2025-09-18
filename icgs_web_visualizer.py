@@ -59,6 +59,16 @@ except ImportError:
     TRANSACTION_SIMPLEX_AVAILABLE = False
     print("⚠️  Transaction Simplex Analyzer not available")
 
+# Import SVG Animation API
+try:
+    from icgs_svg_api import register_svg_api_routes, ICGSSVGAPIServer
+    from icgs_svg_animator import ICGSSVGAnimator
+    from svg_templates import SVGConfig
+    SVG_API_AVAILABLE = True
+except ImportError:
+    SVG_API_AVAILABLE = False
+    print("⚠️  SVG Animation API not available")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'icgs_demo_2024'
 
@@ -66,6 +76,7 @@ app.config['SECRET_KEY'] = 'icgs_demo_2024'
 web_manager = None
 global_3d_analyzer = None  # PHASE 2A: Analyseur 3D global
 global_transaction_simplex_analyzer = None  # PHASE 2B: Analyseur Simplex Transaction
+global_svg_api_server = None  # API SVG Animation Server
 simulation_history = []
 performance_metrics = {
     'total_transactions': 0,
@@ -78,7 +89,7 @@ performance_metrics = {
 
 def init_web_manager():
     """Initialize global Web-Native ICGS Manager with pre-configured pool"""
-    global web_manager, global_3d_analyzer, global_transaction_simplex_analyzer
+    global web_manager, global_3d_analyzer, global_transaction_simplex_analyzer, global_svg_api_server
     if web_manager is None:
         # Créer Web-Native ICGS Manager avec pool pré-configuré
         web_manager = WebNativeICGS()
@@ -110,6 +121,24 @@ def init_web_manager():
         else:
             print("⚠️  Transaction Simplex Analyzer non disponible")
             global_transaction_simplex_analyzer = None
+
+        # PHASE 2C: Initialiser API SVG Animation
+        if SVG_API_AVAILABLE:
+            try:
+                global_svg_api_server = register_svg_api_routes(app, web_manager)
+                print("🎨 SVG Animation API initialisée avec WebNativeICGS")
+                print("   Endpoints disponibles:")
+                print("   - /api/svg/economy_animation")
+                print("   - /api/svg/transaction/<tx_id>")
+                print("   - /api/svg/simplex_steps")
+                print("   - /api/svg/performance_dashboard")
+                print("   - /api/svg/preview")
+            except Exception as e:
+                print(f"❌ Erreur initialisation SVG API: {e}")
+                global_svg_api_server = None
+        else:
+            print("⚠️  SVG Animation API non disponible")
+            global_svg_api_server = None
 
     return web_manager
 
@@ -451,6 +480,285 @@ def api_run_demo():
             'error': str(e)
         }), 400
 
+@app.route('/api/simulation/launch_advanced', methods=['POST'])
+def api_launch_advanced_simulation():
+    """API: Lancer simulation avancée avec sélection mode d'agents et scénario économique"""
+    try:
+        config = request.json or {}
+        agents_mode = config.get('agents_mode', '15_agents')
+        scenario_type = config.get('scenario', 'simple')
+        flow_intensity = config.get('flow_intensity', 0.7)
+        analysis_3d = config.get('analysis_3d', True)
+
+        print(f"🚀 Lancement simulation avancée: mode={agents_mode}, scénario={scenario_type}")
+
+        # CORRECTION: Utiliser EconomicSimulation avec le bon mode d'agents
+        # au lieu du WebNativeICGS qui ne supporte pas les modes
+        from icgs_simulation.api.icgs_bridge import EconomicSimulation
+
+        # Mapper les modes de l'interface vers les modes supportés par le bridge
+        bridge_mode = agents_mode
+        if agents_mode == '15_agents':
+            bridge_mode = '40_agents'  # Mode 40_agents a assez de capacité pour 15 agents
+        elif agents_mode == 'demo':
+            bridge_mode = '7_agents'   # Mode par défaut pour démo
+
+        simulation = EconomicSimulation(f"advanced_{agents_mode}", agents_mode=bridge_mode)
+        print(f"📊 EconomicSimulation créée avec mode: {bridge_mode}")
+
+        # Conserver aussi le manager web pour compatibilité
+        manager = init_web_manager()
+
+        # Réinitialiser les métriques
+        global simulation_history, performance_metrics
+        simulation_history = []
+        performance_metrics = {
+            'total_transactions': 0,
+            'successful_feasibility': 0,
+            'successful_optimization': 0,
+            'avg_validation_time_ms': 0.0,
+            'agents_count': 0,
+            'sectors_used': set()
+        }
+
+        # Configuration des agents selon le mode sélectionné
+        agents_config = {}
+
+        if agents_mode == 'demo':
+            agents_config = {
+                'AGRICULTURE': [('ALICE_FARM', Decimal('1500'))],
+                'INDUSTRY': [('BOB_INDUSTRY', Decimal('800'))],
+                'SERVICES': [('CAROL_SERVICES', Decimal('600'))]
+            }
+        elif agents_mode == '15_agents':
+            agents_config = {
+                'AGRICULTURE': [('FARM_A1', Decimal('1200')), ('FARM_A2', Decimal('1300')), ('FARM_A3', Decimal('1100'))],
+                'INDUSTRY': [('IND_I1', Decimal('900')), ('IND_I2', Decimal('850')), ('IND_I3', Decimal('950')), ('IND_I4', Decimal('800'))],
+                'SERVICES': [('SERV_S1', Decimal('600')), ('SERV_S2', Decimal('650')), ('SERV_S3', Decimal('700'))],
+                'FINANCE': [('FIN_F1', Decimal('2000')), ('FIN_F2', Decimal('1800'))],
+                'ENERGY': [('ENG_E1', Decimal('1500')), ('ENG_E2', Decimal('1400')), ('ENG_E3', Decimal('1600'))]
+            }
+        elif agents_mode == '40_agents':
+            agents_config = {
+                'AGRICULTURE': [('AGR_{:02d}'.format(i), Decimal(str(1200 + i * 50))) for i in range(1, 9)],
+                'INDUSTRY': [('IND_{:02d}'.format(i), Decimal(str(900 + i * 40))) for i in range(1, 11)],
+                'SERVICES': [('SRV_{:02d}'.format(i), Decimal(str(600 + i * 30))) for i in range(1, 13)],
+                'FINANCE': [('FIN_{:02d}'.format(i), Decimal(str(2000 + i * 100))) for i in range(1, 5)],
+                'ENERGY': [('ENG_{:02d}'.format(i), Decimal(str(1500 + i * 80))) for i in range(1, 6)]
+            }
+        elif agents_mode == '65_agents':
+            agents_config = {
+                'AGRICULTURE': [('FARM_{:02d}'.format(i), Decimal(str(1250 + i * 50))) for i in range(1, 11)],
+                'INDUSTRY': [('MFG_{:02d}'.format(i), Decimal(str(900 + i * 60))) for i in range(1, 16)],
+                'SERVICES': [('RTL_{:02d}'.format(i), Decimal(str(600 + i * 40))) for i in range(1, 21)],
+                'FINANCE': [('BANK_{:02d}'.format(i), Decimal(str(5000 + i * 200))) for i in range(1, 9)],
+                'ENERGY': [('PWR_{:02d}'.format(i), Decimal(str(2500 + i * 100))) for i in range(1, 13)]
+            }
+
+        # Appliquer modifications selon le scénario économique
+        if scenario_type == 'oil_shock':
+            # Réduction -40% secteur ENERGY
+            for sector, agents in agents_config.items():
+                if sector == 'ENERGY':
+                    agents_config[sector] = [(agent_id, balance * Decimal('0.6')) for agent_id, balance in agents]
+                elif sector == 'INDUSTRY':
+                    # Impact -25% sur INDUSTRY
+                    agents_config[sector] = [(agent_id, balance * Decimal('0.75')) for agent_id, balance in agents]
+                elif sector == 'SERVICES':
+                    # Impact -15% sur SERVICES
+                    agents_config[sector] = [(agent_id, balance * Decimal('0.85')) for agent_id, balance in agents]
+                elif sector == 'FINANCE':
+                    # Intervention +20% liquidités
+                    agents_config[sector] = [(agent_id, balance * Decimal('1.20')) for agent_id, balance in agents]
+            flow_intensity *= 0.6  # Réduction flux
+
+        elif scenario_type == 'tech_innovation':
+            # Boost +50% secteur INDUSTRY
+            for sector, agents in agents_config.items():
+                if sector == 'INDUSTRY':
+                    agents_config[sector] = [(agent_id, balance * Decimal('1.50')) for agent_id, balance in agents]
+                elif sector == 'SERVICES':
+                    # Expansion +30% SERVICES
+                    agents_config[sector] = [(agent_id, balance * Decimal('1.30')) for agent_id, balance in agents]
+                elif sector == 'ENERGY':
+                    # Demande accrue +25%
+                    agents_config[sector] = [(agent_id, balance * Decimal('1.25')) for agent_id, balance in agents]
+            flow_intensity *= 1.3  # Augmentation flux
+
+        # Créer tous les agents
+        created_agents = []
+        agents_count = 0
+
+        for sector, agents_list in agents_config.items():
+            for agent_id, balance in agents_list:
+                try:
+                    if agent_id in manager.real_to_virtual:
+                        # Agent existe déjà
+                        agent_info = manager.agent_registry[agent_id]
+                        created_agents.append({
+                            'agent_id': agent_id,
+                            'virtual_slot': agent_info.virtual_slot,
+                            'sector': agent_info.sector,
+                            'balance': float(balance),
+                            'status': 'exists'
+                        })
+                    else:
+                        # Créer nouvel agent via EconomicSimulation
+                        simulation_agent = simulation.create_agent(agent_id, sector, balance)
+                        agents_count += 1
+                        created_agents.append({
+                            'agent_id': agent_id,
+                            'virtual_slot': agent_id,  # Pour compatibilité
+                            'sector': sector,
+                            'balance': float(balance),
+                            'status': 'created'
+                        })
+
+                        # Aussi l'ajouter au manager web pour compatibilité interface
+                        try:
+                            manager.add_agent(agent_id, sector, balance)
+                        except Exception as web_error:
+                            print(f"⚠️ Erreur ajout web manager (non critique): {web_error}")
+                    performance_metrics['sectors_used'].add(sector)
+                except Exception as e:
+                    print(f"⚠️ Erreur création agent {agent_id}: {e}")
+
+        performance_metrics['agents_count'] = agents_count
+
+        # Générer flux inter-sectoriels selon l'intensité
+        if len(created_agents) >= 3:
+            try:
+                # Utiliser l'EconomicSimulation pour tous les modes
+                print(f"🔄 Génération flux inter-sectoriels (intensité: {flow_intensity})")
+
+                # Import nécessaire pour modes de simulation
+                from icgs_simulation.api.icgs_bridge import SimulationMode
+
+                # Générer transactions inter-sectorielles
+                if hasattr(simulation, 'create_inter_sectoral_flows_batch'):
+                    transaction_ids = simulation.create_inter_sectoral_flows_batch(flow_intensity)
+                    print(f"✅ {len(transaction_ids)} transactions générées")
+                else:
+                    # Fallback : création manuelle de quelques transactions
+                    transaction_ids = []
+                    agent_list = list(simulation.agents.keys())
+                    for i in range(min(8, len(agent_list)-1)):
+                        try:
+                            source = agent_list[i]
+                            target = agent_list[i+1]
+                            amount = Decimal('100') * flow_intensity
+                            tx_id = simulation.create_transaction(source, target, amount)
+                            transaction_ids.append(tx_id)
+                        except Exception as tx_error:
+                            print(f"⚠️ Erreur transaction {i}: {tx_error}")
+
+                # Validation échantillon
+                sample_size = min(15, len(transaction_ids))
+                for tx_id in transaction_ids[:sample_size]:
+                    try:
+                        feas_result = simulation.validate_transaction(tx_id, SimulationMode.FEASIBILITY)
+                        opt_result = simulation.validate_transaction(tx_id, SimulationMode.OPTIMIZATION)
+
+                        performance_metrics['total_transactions'] += 1
+                        if feas_result.success:
+                            performance_metrics['successful_feasibility'] += 1
+                            if opt_result.success:
+                                performance_metrics['successful_optimization'] += 1
+
+                    except Exception as e:
+                        print(f"⚠️ Erreur validation {tx_id}: {e}")
+                else:
+                    # Créer transactions manuelles pour autres modes
+                    sample_transactions = []
+                    agents_by_sector = {}
+                    for agent in created_agents:
+                        sector = agent['sector']
+                        if sector not in agents_by_sector:
+                            agents_by_sector[sector] = []
+                        agents_by_sector[sector].append(agent['agent_id'])
+
+                    # Générer flux inter-sectoriels
+                    sectors = list(agents_by_sector.keys())
+                    for i, source_sector in enumerate(sectors):
+                        for target_sector in sectors[i+1:]:
+                            if agents_by_sector[source_sector] and agents_by_sector[target_sector]:
+                                source_agent = agents_by_sector[source_sector][0]
+                                target_agent = agents_by_sector[target_sector][0]
+                                amount = Decimal(str(100 + len(sample_transactions) * 20)) * Decimal(str(flow_intensity))
+                                sample_transactions.append((source_agent, target_agent, amount))
+
+                    # Traiter transactions
+                    for source, target, amount in sample_transactions[:int(10 * flow_intensity)]:
+                        try:
+                            result = manager.process_transaction(source, target, amount)
+                            if result['success']:
+                                tx_record = result['transaction_record']
+                                performance_metrics['total_transactions'] += 1
+                                if tx_record['feasibility']['success']:
+                                    performance_metrics['successful_feasibility'] += 1
+                                if tx_record['optimization']['success']:
+                                    performance_metrics['successful_optimization'] += 1
+                                simulation_history.append(tx_record)
+                        except Exception as e:
+                            print(f"⚠️ Erreur transaction {source}→{target}: {e}")
+
+            except Exception as e:
+                print(f"⚠️ Erreur génération flux: {e}")
+
+        # Statistiques par secteur
+        agents_distribution = {}
+        for agent in created_agents:
+            sector = agent['sector']
+            if sector not in agents_distribution:
+                agents_distribution[sector] = {'count': 0, 'total_balance': 0, 'agents': []}
+
+            agents_distribution[sector]['count'] += 1
+            agents_distribution[sector]['total_balance'] += agent['balance']
+            agents_distribution[sector]['agents'].append({
+                'id': agent['agent_id'],
+                'balance': agent['balance']
+            })
+
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'simulation_config': {
+                'agents_mode': agents_mode,
+                'scenario_type': scenario_type,
+                'flow_intensity': flow_intensity,
+                'analysis_3d_enabled': analysis_3d
+            },
+            'agents_created': len(created_agents),
+            'agents_distribution': agents_distribution,
+            'transactions_generated': performance_metrics['total_transactions'],
+            'performance_metrics': {
+                'feasible_transactions': performance_metrics['successful_feasibility'],
+                'optimal_transactions': performance_metrics['successful_optimization'],
+                'sectors_involved': len(performance_metrics['sectors_used']),
+                'feasibility_rate': (performance_metrics['successful_feasibility'] / max(performance_metrics['total_transactions'], 1)) * 100
+            },
+            'scenario_effects': {
+                'oil_shock': {
+                    'energy_impact': '-40%',
+                    'industry_impact': '-25%',
+                    'services_impact': '-15%',
+                    'finance_boost': '+20%'
+                } if scenario_type == 'oil_shock' else None,
+                'tech_innovation': {
+                    'industry_boost': '+50%',
+                    'services_expansion': '+30%',
+                    'energy_demand': '+25%'
+                } if scenario_type == 'tech_innovation' else None
+            }
+        })
+
+    except Exception as e:
+        print(f"❌ Erreur simulation avancée: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/analyze_3d')
 def api_analyze_3d():
     """API: Analyser l'espace 3D des solutions Simplex"""
@@ -558,7 +866,7 @@ def api_launch_massive_economy_3d():
                 'success': False,
                 'error': 'Instance ICGS non initialisée. Créer des agents d\'abord.'
             }), 400
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         # Activation analyse 3D native si demandée
         analysis_3d_enabled = False
@@ -671,7 +979,7 @@ def api_get_transactions_3d():
                 'error': 'Économie 3D non lancée - Utilisez /api/economy/launch_3d d\'abord'
             }), 400
 
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         # Récupérer toutes les transactions
         all_transactions = []
@@ -747,7 +1055,7 @@ def api_get_transaction_3d_detail(tx_id):
                 'error': 'Économie 3D non disponible'
             }), 400
 
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         # Trouver la transaction
         transaction = next((tx for tx in simulation.transactions if tx.transaction_id == tx_id), None)
@@ -842,7 +1150,7 @@ def api_get_sectoral_3d_matrix():
                 'error': 'Économie 3D non disponible'
             }), 400
 
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         # Calculer matrice flux inter-sectoriels
         sectors = ['AGRICULTURE', 'INDUSTRY', 'SERVICES', 'FINANCE', 'ENERGY']
@@ -941,7 +1249,7 @@ def api_performance_stats():
                 'error': 'Simulation non disponible'
             }), 400
 
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         # Statistiques performance complètes
         if hasattr(simulation, 'get_performance_stats'):
@@ -981,7 +1289,7 @@ def api_optimize_for_web():
                 'error': 'Simulation non disponible'
             }), 400
 
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         # Appliquer optimisations web
         if hasattr(simulation, 'optimize_for_web_load'):
@@ -1025,7 +1333,7 @@ def api_clear_performance_cache():
                 'error': 'Simulation non disponible'
             }), 400
 
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         # Vider cache
         if hasattr(simulation, 'clear_performance_cache'):
@@ -1071,7 +1379,7 @@ def api_list_simplex_transactions():
             }), 400
 
         # Obtenir toutes transactions via analyseur
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
         transactions_list = []
 
         # Extraire transactions depuis DAG enhanced
@@ -1221,7 +1529,7 @@ def api_get_simulation_status():
 
         # Pour l'instant, retourner status basique
         # Peut être étendu pour tracking progression temps réel
-        simulation = manager.icgs_core
+        simulation = web_manager.icgs_core
 
         status_info = {
             'success': True,
@@ -1291,6 +1599,10 @@ HTML_TEMPLATE = """
                     <span class="nav-icon">📁</span>
                     Data Export
                 </button>
+                <button class="nav-button" data-page="svg">
+                    <span class="nav-icon">🎨</span>
+                    SVG Animation
+                </button>
             </nav>
         </div>
 
@@ -1323,6 +1635,549 @@ HTML_TEMPLATE = """
                         </p>
                     </div>
                 </div>
+
+                <!-- SVG Animation Page -->
+                <div id="svg-page" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2 class="page-title">SVG Animation</h2>
+                        <p class="page-subtitle">Animations SVG basées sur les données ICGS</p>
+                    </div>
+
+                    <div class="svg-content">
+                        <!-- Configuration Panel -->
+                        <div class="svg-config-panel">
+                            <h3>Configuration Animation</h3>
+
+                            <div class="config-section">
+                                <h4>Type d'Animation</h4>
+                                <select id="animationType">
+                                    <option value="economy">Économie Générale</option>
+                                    <option value="transaction">Transaction Spécifique</option>
+                                    <option value="simplex">Visualisation Simplex</option>
+                                    <option value="dashboard">Dashboard Complet</option>
+                                </select>
+                            </div>
+
+                            <div class="config-section">
+                                <h4>Dimensions</h4>
+                                <div class="config-row">
+                                    <label>Largeur: <input type="number" id="svgWidth" value="800" min="400" max="1600"></label>
+                                    <label>Hauteur: <input type="number" id="svgHeight" value="600" min="300" max="1200"></label>
+                                </div>
+                            </div>
+
+                            <div class="config-section">
+                                <h4>Animation</h4>
+                                <div class="config-row">
+                                    <label>Durée (s): <input type="number" id="animationDuration" value="2.0" min="0.5" max="10" step="0.1"></label>
+                                    <label>Délai (s): <input type="number" id="animationDelay" value="0.1" min="0" max="2" step="0.1"></label>
+                                </div>
+                                <div class="config-row">
+                                    <label>Transition:
+                                        <select id="transitionType">
+                                            <option value="ease-in-out">Ease In-Out</option>
+                                            <option value="linear">Linéaire</option>
+                                            <option value="ease-in">Ease In</option>
+                                            <option value="ease-out">Ease Out</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="config-section" id="transactionSection" style="display: none;">
+                                <h4>Transaction Spécifique</h4>
+                                <input type="text" id="transactionId" placeholder="ID de transaction (ex: TX_001)">
+                            </div>
+
+                            <div class="config-actions">
+                                <button id="generateSvg" class="btn btn-primary">🎨 Générer SVG</button>
+                                <button id="downloadSvg" class="btn btn-secondary" disabled>💾 Télécharger</button>
+                                <button id="refreshData" class="btn btn-secondary">🔄 Actualiser Données</button>
+                            </div>
+                        </div>
+
+                        <!-- Preview Panel -->
+                        <div class="svg-preview-panel">
+                            <h3>Prévisualisation</h3>
+                            <div id="svgPreview" class="svg-preview-container">
+                                <div class="placeholder">
+                                    <p>🎨 Sélectionnez un type d'animation et cliquez sur "Générer SVG" pour voir la prévisualisation</p>
+                                </div>
+                            </div>
+
+                            <div class="preview-info">
+                                <div id="svgStats" class="stats-container">
+                                    <div class="stat-item">
+                                        <span class="stat-label">Taille:</span>
+                                        <span id="svgSize">-</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Éléments:</span>
+                                        <span id="svgElements">-</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Animation:</span>
+                                        <span id="svgAnimated">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Status -->
+                    <div class="data-status-section">
+                        <h3>État des Données ICGS</h3>
+                        <div id="dataStatus" class="data-status">
+                            <div class="loading">Chargement du statut...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transactions Page -->
+                <div id="transactions-page" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2 class="page-title">Transaction Navigator</h2>
+                        <p class="page-subtitle">Navigation dans les transactions ICGS</p>
+                    </div>
+                    <div class="placeholder">
+                        <p>🔄 Page Transaction Navigator en développement</p>
+                    </div>
+                </div>
+
+                <!-- Sectors Page -->
+                <div id="sectors-page" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2 class="page-title">Sector Analysis</h2>
+                        <p class="page-subtitle">Analyse des secteurs économiques</p>
+                    </div>
+                    <div class="placeholder">
+                        <p>🏭 Page Sector Analysis en développement</p>
+                    </div>
+                </div>
+
+                <!-- Simplex Page -->
+                <div id="simplex-page" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2 class="page-title">Simplex Viewer</h2>
+                        <p class="page-subtitle">Visualisation des calculs Simplex</p>
+                    </div>
+                    <div class="placeholder">
+                        <p>📈 Page Simplex Viewer en développement</p>
+                    </div>
+                </div>
+
+                <!-- Export Page -->
+                <div id="export-page" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2 class="page-title">Data Export</h2>
+                        <p class="page-subtitle">Export des données ICGS</p>
+                    </div>
+                    <div class="placeholder">
+                        <p>📁 Page Data Export en développement</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional CSS for SVG Animation -->
+    <style>
+        .page-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .page-header {
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .page-title {
+            color: #2d3748;
+            font-size: 1.8em;
+            margin-bottom: 5px;
+        }
+
+        .page-subtitle {
+            color: #718096;
+            font-size: 1em;
+        }
+
+        .svg-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .svg-config-panel, .svg-preview-panel {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .svg-config-panel h3, .svg-preview-panel h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .config-section {
+            margin-bottom: 20px;
+        }
+
+        .config-section h4 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .config-row label {
+            flex: 1;
+            font-size: 0.9em;
+            color: #4a5568;
+        }
+
+        .config-row input, .config-row select, .config-section input, .config-section select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3182ce;
+        }
+
+        .btn-secondary {
+            background: #a0aec0;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #718096;
+        }
+
+        .btn:disabled {
+            background: #e2e8f0;
+            color: #a0aec0;
+            cursor: not-allowed;
+        }
+
+        .svg-preview-container {
+            min-height: 400px;
+            border: 2px dashed #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            background: white;
+            overflow: auto;
+            margin-bottom: 15px;
+        }
+
+        .placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+        }
+
+        .preview-info {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .stats-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8em;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+
+        .data-status-section {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .data-status-section h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .data-status {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Navigation styles */
+        .nav-button.active {
+            background: #4299e1;
+            color: white;
+        }
+
+        .nav-button:hover {
+            background: #e2e8f0;
+        }
+
+        .nav-button.active:hover {
+            background: #3182ce;
+        }
+    </style>
+
+    <script>
+        // Navigation Management
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize navigation
+            initializeNavigation();
+
+            // Initialize SVG animation functionality
+            initializeSvgAnimation();
+
+            // Load initial data
+            updateDataStatus();
+        });
+
+        function initializeNavigation() {
+            const navButtons = document.querySelectorAll('.nav-button');
+            const pages = document.querySelectorAll('.page-content');
+
+            navButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetPage = this.getAttribute('data-page');
+
+                    // Update active nav button
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // Show target page, hide others
+                    pages.forEach(page => {
+                        if (page.id === targetPage + '-page') {
+                            page.style.display = 'block';
+                        } else {
+                            page.style.display = 'none';
+                        }
+                    });
+
+                    // Special handling for SVG page
+                    if (targetPage === 'svg') {
+                        updateDataStatus();
+                    }
+                });
+            });
+        }
+
+        function initializeSvgAnimation() {
+            const animationType = document.getElementById('animationType');
+            const transactionSection = document.getElementById('transactionSection');
+            const generateBtn = document.getElementById('generateSvg');
+            const downloadBtn = document.getElementById('downloadSvg');
+            const refreshBtn = document.getElementById('refreshData');
+
+            // Show/hide transaction section based on type
+            animationType.addEventListener('change', function() {
+                if (this.value === 'transaction') {
+                    transactionSection.style.display = 'block';
+                } else {
+                    transactionSection.style.display = 'none';
+                }
+            });
+
+            // Generate SVG
+            generateBtn.addEventListener('click', function() {
+                generateSvgAnimation();
+            });
+
+            // Download SVG
+            downloadBtn.addEventListener('click', function() {
+                downloadGeneratedSvg();
+            });
+
+            // Refresh data
+            refreshBtn.addEventListener('click', function() {
+                updateDataStatus();
+            });
+        }
+
+        async function generateSvgAnimation() {
+            const generateBtn = document.getElementById('generateSvg');
+            const preview = document.getElementById('svgPreview');
+
+            generateBtn.disabled = true;
+            generateBtn.textContent = '🔄 Génération...';
+
+            try {
+                const config = {
+                    type: document.getElementById('animationType').value,
+                    width: parseInt(document.getElementById('svgWidth').value),
+                    height: parseInt(document.getElementById('svgHeight').value),
+                    duration: parseFloat(document.getElementById('animationDuration').value),
+                    delay: parseFloat(document.getElementById('animationDelay').value),
+                    transition: document.getElementById('transitionType').value
+                };
+
+                let endpoint = '/api/svg/economy_animation';
+
+                // Build query parameters
+                const params = new URLSearchParams({
+                    width: config.width,
+                    height: config.height,
+                    duration: config.duration,
+                    delay: config.delay,
+                    transition: config.transition
+                });
+
+                // Determine endpoint based on type
+                switch (config.type) {
+                    case 'transaction':
+                        const txId = document.getElementById('transactionId').value;
+                        if (!txId) {
+                            alert('Veuillez saisir un ID de transaction');
+                            return;
+                        }
+                        endpoint = `/api/svg/transaction/${txId}`;
+                        break;
+                    case 'simplex':
+                        endpoint = '/api/svg/simplex_steps';
+                        break;
+                    case 'dashboard':
+                        endpoint = '/api/svg/performance_dashboard';
+                        break;
+                }
+
+                // Add parameters to endpoint
+                const finalEndpoint = `${endpoint}?${params.toString()}`;
+
+                const response = await fetch(finalEndpoint, {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+
+                const result = await response.text();
+
+                // Display SVG
+                preview.innerHTML = result;
+
+                // Update stats
+                updateSvgStats(result);
+
+                // Enable download
+                document.getElementById('downloadSvg').disabled = false;
+                window.currentSvg = result;
+
+            } catch (error) {
+                console.error('Erreur génération SVG:', error);
+                preview.innerHTML = `<div class="placeholder"><p>❌ Erreur: ${error.message}</p></div>`;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '🎨 Générer SVG';
+            }
+        }
+
+        function updateSvgStats(svgContent) {
+            const sizeKb = (new Blob([svgContent]).size / 1024).toFixed(1);
+            const elementCount = (svgContent.match(/<[^\/][^>]*>/g) || []).length;
+            const hasAnimation = svgContent.includes('animate') || svgContent.includes('animateTransform');
+
+            document.getElementById('svgSize').textContent = `${sizeKb} KB`;
+            document.getElementById('svgElements').textContent = elementCount;
+            document.getElementById('svgAnimated').textContent = hasAnimation ? 'Oui' : 'Non';
+        }
+
+        function downloadGeneratedSvg() {
+            if (!window.currentSvg) return;
+
+            const blob = new Blob([window.currentSvg], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+
+            const type = document.getElementById('animationType').value;
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+
+            a.href = url;
+            a.download = `icgs_${type}_animation_${timestamp}.svg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function updateDataStatus() {
+            const statusDiv = document.getElementById('dataStatus');
+
+            try {
+                const response = await fetch('/api/metrics');
+                const data = await response.json();
+
+                const perf = data.performance;
+
+                statusDiv.innerHTML = `
+                    <div class="data-status-grid">
+                        <div class="status-item">
+                            <strong>Agents:</strong> ${perf.agents_count}
+                        </div>
+                        <div class="status-item">
+                            <strong>Transactions:</strong> ${perf.total_transactions}
+                        </div>
+                        <div class="status-item">
+                            <strong>Secteurs:</strong> ${perf.sectors_used.length}
+                        </div>
+                        <div class="status-item">
+                            <strong>Performance:</strong> ${perf.avg_validation_time_ms.toFixed(1)}ms
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ Erreur chargement données: ${error.message}</div>`;
+            }
+        }
+    </script>
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -1418,12 +2273,57 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
+            <!-- Sélecteur de Simulation -->
+            <div class="card full-width">
+                <h3>🎯 Lancement de Simulation</h3>
+
+                <div class="simulation-selector" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="config-section" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Mode d'Agents :</label>
+                        <select id="agentsMode" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="demo">🔹 Démo (5 agents de test)</option>
+                            <option value="15_agents">🔸 Petite échelle (15 agents)</option>
+                            <option value="40_agents">🔶 Moyenne échelle (40 agents)</option>
+                            <option value="65_agents">🔺 Massive (65 agents)</option>
+                        </select>
+                    </div>
+
+                    <div class="config-section" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Scénario Économique :</label>
+                        <select id="scenarioType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="simple">🔷 Simple (création + flux basiques)</option>
+                            <option value="stable_economy">🏦 Économie Stable (équilibre 7 jours)</option>
+                            <option value="oil_shock">⚡ Choc Pétrolier (-40% ENERGY)</option>
+                            <option value="tech_innovation">🚀 Innovation Tech (+50% INDUSTRY)</option>
+                        </select>
+                    </div>
+
+                    <div class="config-section" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Intensité des Flux :</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="flowIntensity" min="0.1" max="1.0" step="0.1" value="0.7"
+                                   style="flex: 1;" oninput="document.getElementById('flowValue').textContent = this.value">
+                            <span id="flowValue" style="min-width: 30px; font-weight: 600; color: #007bff;">0.7</span>
+                        </div>
+                        <div style="font-size: 0.8em; color: #6c757d; margin-top: 2px;">
+                            0.1 = Flux légers | 0.7 = Équilibré | 1.0 = Flux intenses
+                        </div>
+                    </div>
+
+                    <div class="config-description" id="simulationDescription"
+                         style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px; font-size: 0.9em; color: #0066cc;">
+                        🔹 Mode Démo : Simulation rapide avec 3 agents de test pour découvrir le système.
+                    </div>
+
+                    <button id="launchSimulation" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1.1em; font-weight: 600;">
+                        🚀 Lancer Simulation
+                    </button>
+                </div>
+            </div>
+
             <!-- Historique -->
             <div class="card full-width">
                 <h3>📋 Historique des Transactions</h3>
-                <button id="runDemo" class="btn btn-success" style="margin-bottom: 15px;">
-                    🎯 Lancer Simulation Démo
-                </button>
                 <div id="historyContainer" class="history">
                     <div class="loading">Aucune transaction encore...</div>
                 </div>
@@ -1611,24 +2511,135 @@ HTML_TEMPLATE = """
             }
         });
 
-        document.getElementById('runDemo').addEventListener('click', async function() {
+        // Gestion des descriptions dynamiques pour les simulations
+        function updateSimulationDescription() {
+            const agentsMode = document.getElementById('agentsMode').value;
+            const scenarioType = document.getElementById('scenarioType').value;
+            const descriptionEl = document.getElementById('simulationDescription');
+
+            let description = '';
+            let bgColor = '#e7f3ff';
+            let textColor = '#0066cc';
+
+            // Description selon le mode d'agents
+            const agentsDescriptions = {
+                'demo': '🔹 Mode Démo : Simulation rapide avec 3 agents de test pour découvrir le système.',
+                '15_agents': '🔸 Petite échelle : 15 agents répartis sur 5 secteurs économiques. Idéal pour les tests.',
+                '40_agents': '🔶 Moyenne échelle : 40 agents pour une simulation économique réaliste avec flux inter-sectoriels.',
+                '65_agents': '🔺 Massive : 65 agents avec analyse 3D complète. Simulation industrielle complète.'
+            };
+
+            // Description selon le scénario
+            const scenarioDescriptions = {
+                'simple': 'Création d\'agents et génération de flux économiques basiques.',
+                'stable_economy': '📊 Simulation 7 jours d\'équilibre économique avec flux constants entre secteurs.',
+                'oil_shock': '⚡ Test de résilience : Choc énergétique avec réduction -40% du secteur ENERGY.',
+                'tech_innovation': '🚀 Révolution technologique : Croissance +50% du secteur INDUSTRY.'
+            };
+
+            // Couleurs selon le scénario
+            const scenarioColors = {
+                'simple': { bg: '#e7f3ff', text: '#0066cc' },
+                'stable_economy': { bg: '#e8f5e8', text: '#0f5132' },
+                'oil_shock': { bg: '#fff3cd', text: '#856404' },
+                'tech_innovation': { bg: '#f0e6ff', text: '#6f42c1' }
+            };
+
+            description = agentsDescriptions[agentsMode] + ' ' + scenarioDescriptions[scenarioType];
+            const colors = scenarioColors[scenarioType];
+            bgColor = colors.bg;
+            textColor = colors.text;
+
+            descriptionEl.innerHTML = description;
+            descriptionEl.style.backgroundColor = bgColor;
+            descriptionEl.style.color = textColor;
+        }
+
+        // Écouteurs pour les changements de sélection
+        document.getElementById('agentsMode').addEventListener('change', updateSimulationDescription);
+        document.getElementById('scenarioType').addEventListener('change', updateSimulationDescription);
+
+        // Gestion du lancement de simulation avancée
+        document.getElementById('launchSimulation').addEventListener('click', async function() {
             this.disabled = true;
-            this.textContent = '⏳ Lancement démo...';
+            this.textContent = '⏳ Lancement en cours...';
 
             try {
-                const response = await fetch('/api/simulation/run_demo');
+                const agentsMode = document.getElementById('agentsMode').value;
+                const scenarioType = document.getElementById('scenarioType').value;
+                const flowIntensity = parseFloat(document.getElementById('flowIntensity').value);
+
+                let endpoint;
+                let config = {
+                    flow_intensity: flowIntensity
+                };
+
+                // Choisir l'API selon la configuration
+                if (agentsMode === 'demo' && scenarioType === 'simple') {
+                    // Utiliser l'ancienne API pour le mode démo simple
+                    endpoint = '/api/simulation/run_demo';
+                } else {
+                    // Utiliser la nouvelle API avancée
+                    endpoint = '/api/simulation/launch_advanced';
+                    config = {
+                        agents_mode: agentsMode,
+                        scenario: scenarioType,
+                        flow_intensity: flowIntensity,
+                        analysis_3d: agentsMode === '65_agents'
+                    };
+                }
+
+                console.log(`🚀 Lancement simulation: ${endpoint}`, config);
+
+                const response = await fetch(endpoint, {
+                    method: endpoint.includes('run_demo') ? 'GET' : 'POST',
+                    headers: endpoint.includes('run_demo') ? {} : {'Content-Type': 'application/json'},
+                    body: endpoint.includes('run_demo') ? undefined : JSON.stringify(config)
+                });
+
                 const result = await response.json();
 
                 if (result.success) {
-                    alert(`✅ ${result.message}\n${result.agents_created} agents créés\n${result.transactions_processed} transactions traitées`);
+                    // Message de succès détaillé
+                    let successMessage = `✅ Simulation ${agentsMode} terminée!\n`;
+                    successMessage += `📊 ${result.agents_created} agents créés\n`;
+
+                    if (result.transactions_generated) {
+                        successMessage += `🔄 ${result.transactions_generated} transactions générées\n`;
+                    } else if (result.transactions_processed) {
+                        successMessage += `🔄 ${result.transactions_processed} transactions traitées\n`;
+                    }
+
+                    if (result.performance_metrics) {
+                        const perf = result.performance_metrics;
+                        successMessage += `📈 Taux de faisabilité: ${perf.feasibility_rate?.toFixed(1) || 0}%\n`;
+                        successMessage += `🏭 Secteurs impliqués: ${perf.sectors_involved || 0}`;
+                    }
+
+                    // Ajouter effets de scénario s'il y en a
+                    if (result.scenario_effects) {
+                        if (result.scenario_effects.oil_shock) {
+                            successMessage += `\n⚡ Effets Choc Pétrolier appliqués`;
+                        }
+                        if (result.scenario_effects.tech_innovation) {
+                            successMessage += `\n🚀 Effets Innovation Tech appliqués`;
+                        }
+                    }
+
+                    alert(successMessage);
+
+                    // Rafraîchir automatiquement l'historique et métriques
+                    if (typeof refreshHistory === 'function') refreshHistory();
+                    if (typeof refreshMetrics === 'function') refreshMetrics();
                 } else {
-                    alert(`❌ Erreur: ${result.error}`);
+                    alert(`❌ Erreur simulation: ${result.error}`);
                 }
             } catch (error) {
+                console.error('Erreur lancement simulation:', error);
                 alert(`❌ Erreur: ${error.message}`);
             } finally {
                 this.disabled = false;
-                this.textContent = '🎯 Lancer Simulation Démo';
+                this.textContent = '🚀 Lancer Simulation';
             }
         });
     </script>
@@ -1646,6 +2657,10 @@ with open(os.path.join(template_dir, 'index.html'), 'w', encoding='utf-8') as f:
 
 if __name__ == '__main__':
     print("🚀 Démarrage ICGS Web Visualizer...")
+
+    # Initialiser WebNative ICGS Manager et APIs
+    init_web_manager()
+
     # Enregistrer extensions avancées
     if EXTENSIONS_AVAILABLE:
         register_all_extensions(app)

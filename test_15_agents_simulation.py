@@ -14,36 +14,15 @@ sys.path.insert(0, '/home/norkamer/ClaudeCode/CAPS')
 from icgs_simulation.api.icgs_bridge import EconomicSimulation, SimulationMode
 from decimal import Decimal
 
-def create_extended_character_set_manager():
-    """Character-Set Manager pour 15+ agents (45+ caractères)"""
-    from icgs_core.character_set_manager import NamedCharacterSetManager
-
-    manager = NamedCharacterSetManager()
-
-    # Configuration pour 15+ agents (chaque agent = 3 caractères)
-    extended_sectors = {
-        'AGRICULTURE': ['A', 'B', 'C', 'D', 'P', 'Q', 'X', 'Y', 'Z'],  # 3 agents × 3 = 9 chars
-        'INDUSTRY': ['I', 'J', 'K', 'L', 'M', 'N', 'O', 'R', 'U', 'V', 'W'],  # 3-4 agents × 3 = 11 chars
-        'SERVICES': ['S', 'T', '1', '2', '3', '4', '5', '6', '7'],     # 3 agents × 3 = 9 chars
-        'FINANCE': ['F', 'G', 'H', '8', '9'],                         # 1-2 agents × 3 = 5 chars
-        'ENERGY': ['E', '0']                                          # 1 agent × 2 = 2 chars (minimum)
-    }
-
-    for sector_name, characters in extended_sectors.items():
-        manager.define_character_set(sector_name, characters)
-
-    return manager
 
 def main():
     print("🎯 SIMULATION 15+ AGENTS ÉCONOMIQUES")
     print("Validation scalabilité Character-Set Manager + EnhancedDAG")
     print("=" * 60)
 
-    # Simulation avec Character-Set Manager étendu
-    simulation = EconomicSimulation("scalability_test_15_agents")
-
-    # Remplacer le Character-Set Manager par version étendue
-    simulation.character_set_manager = create_extended_character_set_manager()
+    # Simulation avec Character-Set Manager étendu (utilisation API bridge)
+    # Utilise mode "40_agents" qui a suffisamment de capacité pour 15 agents
+    simulation = EconomicSimulation("scalability_test_15_agents", agents_mode="40_agents")
 
     # Création 15 agents répartis sur 5 secteurs
     agents_15 = [
