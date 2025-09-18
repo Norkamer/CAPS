@@ -1,0 +1,143 @@
+{
+  "id": "6d0bcacf-2b84-45f6-ad0c-f9b38177507f",
+  "name": "Test Simulation",
+  "description": "Test sauvegarde via API",
+  "created_date": "2025-09-18T12:28:58.878833",
+  "modified_date": "2025-09-18T12:28:58.879017",
+  "agents_mode": "7_agents",
+  "scenario_type": "simple",
+  "flow_intensity": 0.7,
+  "agents_count": 15,
+  "transactions_count": 0,
+  "total_balance": "15000",
+  "sectors_distribution": {
+    "AGRICULTURE": 3,
+    "INDUSTRY": 4,
+    "SERVICES": 4,
+    "FINANCE": 2,
+    "ENERGY": 2
+  },
+  "performance_metrics": {
+    "agents_count": 15,
+    "transactions_count": 0,
+    "agents_mode": "7_agents",
+    "simulation_id": "web_native_pool",
+    "sectors": {
+      "AGRICULTURE": {
+        "agents_count": 3,
+        "total_balance": "3000",
+        "average_balance": "1000"
+      },
+      "INDUSTRY": {
+        "agents_count": 4,
+        "total_balance": "4000",
+        "average_balance": "1000"
+      },
+      "SERVICES": {
+        "agents_count": 4,
+        "total_balance": "4000",
+        "average_balance": "1000"
+      },
+      "FINANCE": {
+        "agents_count": 2,
+        "total_balance": "2000",
+        "average_balance": "1000"
+      },
+      "ENERGY": {
+        "agents_count": 2,
+        "total_balance": "2000",
+        "average_balance": "1000"
+      }
+    },
+    "cache_performance": {
+      "hit_count": 0,
+      "miss_count": 0,
+      "hit_rate_percent": 0,
+      "validation_cache_size": 0,
+      "data_3d_cache_size": 0
+    },
+    "character_set": {
+      "total_sectors": 5,
+      "total_allocations": 0,
+      "is_frozen": false,
+      "sectors": {
+        "AGRICULTURE": {
+          "max_capacity": 3,
+          "allocated_count": 0,
+          "utilization_rate": 0.0,
+          "available_characters": [
+            "B",
+            "C",
+            "A"
+          ],
+          "allocated_characters": [],
+          "is_full": false,
+          "regex_pattern": ".*[ABC].*"
+        },
+        "INDUSTRY": {
+          "max_capacity": 6,
+          "allocated_count": 0,
+          "utilization_rate": 0.0,
+          "available_characters": [
+            "I",
+            "L",
+            "N",
+            "J",
+            "K",
+            "M"
+          ],
+          "allocated_characters": [],
+          "is_full": false,
+          "regex_pattern": ".*[IJKLMN].*"
+        },
+        "SERVICES": {
+          "max_capacity": 6,
+          "allocated_count": 0,
+          "utilization_rate": 0.0,
+          "available_characters": [
+            "S",
+            "U",
+            "V",
+            "W",
+            "X",
+            "T"
+          ],
+          "allocated_characters": [],
+          "is_full": false,
+          "regex_pattern": ".*[STUVWX].*"
+        },
+        "FINANCE": {
+          "max_capacity": 3,
+          "allocated_count": 0,
+          "utilization_rate": 0.0,
+          "available_characters": [
+            "G",
+            "H",
+            "F"
+          ],
+          "allocated_characters": [],
+          "is_full": false,
+          "regex_pattern": ".*[FGH].*"
+        },
+        "ENERGY": {
+          "max_capacity": 3,
+          "allocated_count": 0,
+          "utilization_rate": 0.0,
+          "available_characters": [
+            "Q",
+            "E",
+            "R"
+          ],
+          "allocated_characters": [],
+          "is_full": false,
+          "regex_pattern": ".*[EQR].*"
+        }
+      }
+    },
+    "timestamp": 1758191338.8788908
+  },
+  "tags": "test,api",
+  "category": "user_simulation",
+  "format_version": "1.0",
+  "icgs_version": "1.0"
+}

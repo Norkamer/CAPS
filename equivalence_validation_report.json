@@ -1,0 +1,49 @@
+{
+  "total_tests": 4,
+  "passed_tests": 4,
+  "failed_tests": 0,
+  "average_performance_ratio": 0.7663466311721764,
+  "detailed_results": [
+    {
+      "test_name": "basic_account_configuration",
+      "original_result": "{'test_account_1': 'T', 'test_account_2': 'U'}",
+      "migrated_result": "{'test_account_1': 'T', 'test_account_2': 'U'}",
+      "equivalent": true,
+      "performance_ratio": 0.13473683411029536,
+      "error_message": null,
+      "execution_time_original": 0.015240271999573451,
+      "execution_time_migrated": 0.0020534260002023075
+    },
+    {
+      "test_name": "account_mapping_access",
+      "original_result": "M",
+      "migrated_result": "M",
+      "equivalent": true,
+      "performance_ratio": 0.9585549157198568,
+      "error_message": null,
+      "execution_time_original": 2.8398999347700737e-05,
+      "execution_time_migrated": 2.722200042626355e-05
+    },
+    {
+      "test_name": "path_conversion",
+      "original_result": "PQ",
+      "migrated_result": "PQ",
+      "equivalent": true,
+      "performance_ratio": 0.8672805946188683,
+      "error_message": null,
+      "execution_time_original": 4.104899926460348e-05,
+      "execution_time_migrated": 3.5601000490714796e-05
+    },
+    {
+      "test_name": "large_scale_configuration",
+      "original_result": "{'large_0': 'A', 'large_1': 'B', 'large_2': 'C', 'large_3': 'D', 'large_4': 'E', 'large_5': 'F', 'large_6': 'G', 'large_7': 'H', 'large_8': 'I', 'large_9': 'J', 'large_10': 'K', 'large_11': 'L', 'large_12': 'M', 'large_13': 'N', 'large_14': 'O', 'large_15': 'P', 'large_16': 'Q', 'large_17': 'R', 'large_18': 'S', 'large_19': 'T'}",
+      "migrated_result": "{'large_0': 'A', 'large_1': 'B', 'large_2': 'C', 'large_3': 'D', 'large_4': 'E', 'large_5': 'F', 'large_6': 'G', 'large_7': 'H', 'large_8': 'I', 'large_9': 'J', 'large_10': 'K', 'large_11': 'L', 'large_12': 'M', 'large_13': 'N', 'large_14': 'O', 'large_15': 'P', 'large_16': 'Q', 'large_17': 'R', 'large_18': 'S', 'large_19': 'T'}",
+      "equivalent": true,
+      "performance_ratio": 1.104814180239685,
+      "error_message": null,
+      "execution_time_original": 3.352599924255628e-05,
+      "execution_time_migrated": 3.7039999369881116e-05
+    }
+  ],
+  "summary": "4/4 tests réussis, performance moyenne: 0.77x"
+}

@@ -12,7 +12,8 @@ import os
 # Path setup pour import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from icgs_core.dag import DAG, Transaction, TransactionMeasure
+from icgs_core.enhanced_dag import EnhancedDAG
+from icgs_core.dag import Transaction, TransactionMeasure
 from icgs_core.path_enumerator import DAGPathEnumerator
 from icgs_core.account_taxonomy import AccountTaxonomy
 from icgs_core.anchored_nfa_v2 import AnchoredWeightedNFA
@@ -23,8 +24,8 @@ class TestDiagnosticLPVariableConstruction(unittest.TestCase):
     """Test diagnostic pour analyser problème variables LP non référencées"""
 
     def setUp(self):
-        """Setup DAG minimal pour diagnostic LP"""
-        self.dag = DAG()
+        """Setup EnhancedDAG pour diagnostic LP avec API simplifiée"""
+        self.dag = EnhancedDAG()
 
     def test_01_nfa_state_to_variable_mapping(self):
         """Test 2.1: Vérifier mapping NFA states → variables LP"""
@@ -218,14 +219,14 @@ class TestDiagnosticLPVariableConstruction(unittest.TestCase):
             ]
         )
 
-        # Configurer taxonomie
+        # Configurer taxonomie via EnhancedDAG API
         node_mappings = {
-            "alice_source": None,
-            "alice_sink": None,
-            "bob_source": None,
-            "bob_sink": None
+            "alice_source": "A",
+            "alice_sink": "X",
+            "bob_source": "B",
+            "bob_sink": "Y"
         }
-        self.dag.account_taxonomy.update_taxonomy(node_mappings, 0)
+        self.dag.configure_accounts_simple(node_mappings)
 
         # Créer comptes
         self.dag._ensure_accounts_exist_with_taxonomy(transaction)

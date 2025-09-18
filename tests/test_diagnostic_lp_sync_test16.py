@@ -12,15 +12,16 @@ import os
 # Path setup pour import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from icgs_core.dag import DAG, Transaction, TransactionMeasure
+from icgs_core.enhanced_dag import EnhancedDAG
+from icgs_core.dag import Transaction, TransactionMeasure
 
 
 class TestDiagnosticLPSyncTest16(unittest.TestCase):
     """Diagnostic synchronisation LP variables après corrections taxonomie"""
 
     def setUp(self):
-        """Setup DAG avec taxonomie manuelle correcte"""
-        self.dag = DAG()
+        """Setup EnhancedDAG avec API simplifiée"""
+        self.dag = EnhancedDAG()
 
     def test_01_setup_correct_taxonomy_test16(self):
         """Étape 1: Configuration taxonomie Test 16 avec corrections"""
@@ -35,20 +36,22 @@ class TestDiagnosticLPSyncTest16(unittest.TestCase):
         }
 
         try:
-            self.dag.account_taxonomy.update_taxonomy(node_mappings_test16, 0)
-            print("✅ Taxonomie manuelle Test 16 configurée")
+            # Migration vers EnhancedDAG API - Gestion automatique transaction_num
+            configured_mappings = self.dag.configure_accounts_simple(node_mappings_test16)
+            print("✅ Taxonomie Test 16 configurée via EnhancedDAG API")
 
-            # Vérification mappings
+            # Vérification mappings avec gestion automatique du transaction_num
+            current_tx_num = self.dag.transaction_manager.get_current_transaction_num()
             for node_id, expected_char in node_mappings_test16.items():
-                actual_char = self.dag.account_taxonomy.get_character_mapping(node_id, 0)
-                print(f"  {node_id} → '{actual_char}'")
+                actual_char = self.dag.account_taxonomy.get_character_mapping(node_id, current_tx_num)
+                print(f"  {node_id} → '{actual_char}' (tx_num: {current_tx_num})")
                 self.assertEqual(actual_char, expected_char)
 
-            return node_mappings_test16
+            return configured_mappings
 
         except Exception as e:
             print(f"❌ Erreur configuration taxonomie: {e}")
-            self.fail(f"Taxonomy setup failed: {e}")
+            self.fail(f"Enhanced taxonomy setup failed: {e}")
 
     def test_02_create_transaction_test16(self):
         """Étape 2: Création transaction Test 16 standard"""

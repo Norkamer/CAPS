@@ -12,7 +12,8 @@ import os
 # Path setup pour import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from icgs_core.dag import DAG, Transaction, TransactionMeasure
+from icgs_core.enhanced_dag import EnhancedDAG
+from icgs_core.dag import Transaction, TransactionMeasure
 
 
 class TestDiagnosticPathEnumerationValidation(unittest.TestCase):
@@ -20,7 +21,7 @@ class TestDiagnosticPathEnumerationValidation(unittest.TestCase):
 
     def setUp(self):
         """Setup DAG minimal pour diagnostic"""
-        self.dag = DAG()
+        self.dag = EnhancedDAG()
 
     def test_01_basic_dag_structure_after_transaction(self):
         """Test 1.1: Vérifier structure DAG basique après ajout transaction"""

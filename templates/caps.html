@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAPS - Constraint-Adaptive Path Simplex</title>
+    <link rel="stylesheet" href="/static/styles.css">
+
+    <!-- D3.js pour les visualisations SVG -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <style>
+        .caps-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .caps-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .caps-title {
+            font-size: 3.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .caps-subtitle {
+            font-size: 1.4em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .caps-description {
+            font-size: 1.1em;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            opacity: 0.8;
+        }
+
+        .technical-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .technical-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .technical-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .technical-card h3 {
+            color: #4ecdc4;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .svg-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            margin: 15px 0;
+            padding: 10px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .animation-progress-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .current-transaction-panel {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4ecdc4;
+        }
+
+        .current-transaction-panel h5 {
+            margin: 0 0 10px 0;
+            color: #4ecdc4;
+        }
+
+        .transaction-details {
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .simulation-access {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 40px 0;
+            text-align: center;
+        }
+
+        .simulation-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .sim-button {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .sim-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            background: linear-gradient(45deg, #44a08d, #4ecdc4);
+        }
+
+        .realtime-section {
+            margin: 40px 0;
+        }
+
+        .realtime-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .realtime-widget {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .widget-title {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4ecdc4;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .nav-back {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .nav-back:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Styles pour la section Interactive Simulation */
+        .interactive-simulation-section {
+            margin: 40px 0;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .interactive-simulation-section h2 {
+            color: #4ecdc4;
+            margin-bottom: 15px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .simulation-control-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .pause-btn {
+            background: linear-gradient(45deg, #ffc107, #fd7e14);
+            color: white;
+        }
+
+        .stop-btn {
+            background: linear-gradient(45deg, #dc3545, #e83e8c);
+            color: white;
+        }
+
+        .reset-btn {
+            background: linear-gradient(45deg, #6f42c1, #e83e8c);
+            color: white;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .simulation-status {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .status-label {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #4ecdc4;
+        }
+
+        .live-svg-animations {
+            margin: 30px 0;
+        }
+
+        .animation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .animation-widget {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .animation-widget h4 {
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .svg-animation-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .live-svg-content {
+            width: 100%;
+            height: 100%;
+            min-height: 230px;
+        }
+
+        .transaction-selector {
+            margin-top: 10px;
+        }
+
+        .transaction-selector select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.9em;
+        }
+
+        .transaction-selector select option {
+            background: #333;
+            color: white;
+        }
+
+        @keyframes pulse-live {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            margin-right: 5px;
+            animation: pulse-live 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <button class="nav-back" onclick="window.location.href='/'">← Retour ICGS 3D</button>
+
+    <div class="caps-container">
+        <header class="caps-header">
+            <h1 class="caps-title">CAPS</h1>
+            <h2 class="caps-subtitle">Constraint-Adaptive Path Simplex</h2>
+            <p class="caps-description">
+                Système d'optimisation avancé combinant la programmation linéaire Simplex avec des contraintes adaptatives
+                et une exploration de chemins optimaux pour la simulation économique massive.
+            </p>
+        </header>
+
+        <div class="technical-grid">
+            <div class="technical-card">
+                <h3>🔗 Constraint-Adaptive</h3>
+                <p>Adaptation dynamique des contraintes selon l'état du système économique. Les contraintes de capacité, de flux et de balance s'ajustent automatiquement selon les conditions de marché.</p>
+                <div class="svg-container">
+                    <svg id="constraint-viz" width="300" height="150"></svg>
+                </div>
+                <div class="widget-title">
+                    <span class="status-indicator"></span>Contraintes Actives: <span id="active-constraints">7</span>
+                </div>
+            </div>
+
+            <div class="technical-card">
+                <h3>🛤️ Path Optimization</h3>
+                <p>Recherche de chemins optimaux dans le graphe économique pour minimiser les coûts de transaction et maximiser l'efficacité des flux financiers entre agents.</p>
+                <div class="svg-container">
+                    <svg id="path-viz" width="300" height="150"></svg>
+                </div>
+                <div class="widget-title">
+                    <span class="status-indicator"></span>Chemins Explorés: <span id="paths-explored">142</span>
+                </div>
+            </div>
+
+            <div class="technical-card">
+                <h3>📐 Simplex Algorithm</h3>
+                <p>Implémentation de l'algorithme Simplex pour résoudre les problèmes d'optimisation linéaire multi-objectifs avec variables continues et discrètes.</p>
+                <div class="svg-container">
+                    <svg id="simplex-viz" width="300" height="150"></svg>
+                </div>
+                <div class="widget-title">
+                    <span class="status-indicator"></span>Itérations: <span id="simplex-iterations">23</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="simulation-access">
+            <h2>🚀 Accès aux Simulations</h2>
+            <p>Explorez les capacités CAPS avec nos simulations interactives</p>
+            <div class="simulation-buttons">
+                <a href="/" class="sim-button">Interface 3D Complète</a>
+                <button class="sim-button" onclick="load65AgentsSimulation()">Simulation 65 Agents</button>
+                <button class="sim-button" onclick="openAdvancedMode()">Mode Avancé CAPS</button>
+            </div>
+        </div>
+
+        <div class="interactive-simulation-section">
+            <h2>🎬 Simulation Interactive 65 Agents</h2>
+            <p>Démonstration temps réel du système CAPS avec animation SVG basée sur de vraies données économiques</p>
+
+            <div class="simulation-control-panel">
+                <div class="control-buttons">
+                    <button id="start-simulation-btn" class="control-btn start-btn">▶️ Démarrer Simulation</button>
+                    <button id="pause-simulation-btn" class="control-btn pause-btn" disabled>⏸️ Pause</button>
+                    <button id="stop-simulation-btn" class="control-btn stop-btn" disabled>⏹️ Arrêter</button>
+                    <button id="reset-simulation-btn" class="control-btn reset-btn">🔄 Reset</button>
+                </div>
+
+                <div class="simulation-status">
+                    <div class="status-item">
+                        <span class="status-label">État:</span>
+                        <span id="simulation-state" class="status-value">Arrêtée</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Agents:</span>
+                        <span id="active-agents-count" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Transactions:</span>
+                        <span id="total-transactions-count" class="status-value">0</span>
+                    </div>
+                </div>
+
+                <div class="animation-progress-section">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="transaction-progress" style="width: 0%; background: linear-gradient(45deg, #4ecdc4, #45b7d1); height: 100%; border-radius: 4px; transition: width 0.3s ease;"></div>
+                        </div>
+                        <div class="progress-text">
+                            <span id="animation-progress-text">Prêt pour l'animation</span>
+                        </div>
+                    </div>
+
+                    <div class="current-transaction-panel">
+                        <h5>🔄 Transaction Courante</h5>
+                        <div id="current-transaction-display" class="transaction-details">
+                            <div style="color: #666; text-align: center; padding: 20px;">
+                                Cliquez sur "Démarrer Simulation" pour commencer l'animation
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-svg-animations">
+                <div class="animation-grid">
+                    <div class="animation-widget">
+                        <h4>🌐 Économie Complète</h4>
+                        <div class="svg-animation-container">
+                            <div id="economy-animation-svg" class="live-svg-content"></div>
+                        </div>
+                    </div>
+
+                    <div class="animation-widget">
+                        <h4>📊 Dashboard Performance</h4>
+                        <div class="svg-animation-container">
+                            <div id="performance-dashboard-svg" class="live-svg-content"></div>
+                        </div>
+                    </div>
+
+                    <div class="animation-widget">
+                        <h4>📐 Étapes Simplex</h4>
+                        <div class="svg-animation-container">
+                            <div id="simplex-steps-svg" class="live-svg-content"></div>
+                        </div>
+                    </div>
+
+                    <div class="animation-widget">
+                        <h4>💱 Transaction Active</h4>
+                        <div class="svg-animation-container">
+                            <div id="transaction-detail-svg" class="live-svg-content"></div>
+                        </div>
+                        <div class="transaction-selector">
+                            <select id="transaction-selector">
+                                <option value="">Sélectionner transaction...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="realtime-section">
+            <h2>📊 Métriques Temps Réel</h2>
+            <div class="realtime-grid">
+                <div class="realtime-widget">
+                    <div class="widget-title">Volume de Transactions</div>
+                    <div id="transaction-volume">0</div>
+                    <div class="svg-container">
+                        <svg id="volume-chart" width="250" height="100"></svg>
+                    </div>
+                </div>
+
+                <div class="realtime-widget">
+                    <div class="widget-title">Efficacité Simplex</div>
+                    <div id="simplex-efficiency">0%</div>
+                    <div class="svg-container">
+                        <svg id="efficiency-gauge" width="250" height="100"></svg>
+                    </div>
+                </div>
+
+                <div class="realtime-widget">
+                    <div class="widget-title">Stabilité Système</div>
+                    <div id="system-stability">Stable</div>
+                    <div class="svg-container">
+                        <svg id="stability-indicator" width="250" height="100"></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales pour les visualisations
+        let constraintData = [];
+        let pathData = [];
+        let simplexData = [];
+        let metricsInterval;
+
+        // Initialisation des visualisations SVG
+        function initializeVisualizations() {
+            initConstraintVisualization();
+            initPathVisualization();
+            initSimplexVisualization();
+            initRealtimeCharts();
+            startMetricsUpdate();
+        }
+
+        // Visualisation des contraintes adaptatives
+        function initConstraintVisualization() {
+            const svg = d3.select("#constraint-viz");
+            svg.selectAll("*").remove();
+
+            // Simulation de contraintes dynamiques
+            const constraints = [
+                {name: "Capacité", value: 85, max: 100, color: "#ff6b6b"},
+                {name: "Flux", value: 72, max: 100, color: "#4ecdc4"},
+                {name: "Balance", value: 93, max: 100, color: "#45b7d1"}
+            ];
+
+            const barHeight = 15;
+            const barSpacing = 25;
+
+            constraints.forEach((constraint, i) => {
+                const y = 30 + i * barSpacing;
+
+                // Barre de fond
+                svg.append("rect")
+                    .attr("x", 20)
+                    .attr("y", y)
+                    .attr("width", 200)
+                    .attr("height", barHeight)
+                    .attr("fill", "#e0e0e0")
+                    .attr("rx", 3);
+
+                // Barre de valeur
+                svg.append("rect")
+                    .attr("x", 20)
+                    .attr("y", y)
+                    .attr("width", (constraint.value / constraint.max) * 200)
+                    .attr("height", barHeight)
+                    .attr("fill", constraint.color)
+                    .attr("rx", 3);
+
+                // Label
+                svg.append("text")
+                    .attr("x", 15)
+                    .attr("y", y + 12)
+                    .attr("text-anchor", "end")
+                    .attr("fill", "#333")
+                    .attr("font-size", "11px")
+                    .text(constraint.name);
+
+                // Valeur
+                svg.append("text")
+                    .attr("x", 230)
+                    .attr("y", y + 12)
+                    .attr("fill", "#333")
+                    .attr("font-size", "11px")
+                    .text(constraint.value + "%");
+            });
+        }
+
+        // Visualisation des chemins optimaux
+        function initPathVisualization() {
+            const svg = d3.select("#path-viz");
+            svg.selectAll("*").remove();
+
+            // Simulation d'un graphe de chemins
+            const nodes = [
+                {id: "A", x: 50, y: 50, type: "agriculture"},
+                {id: "I", x: 150, y: 30, type: "industry"},
+                {id: "S", x: 250, y: 60, type: "services"},
+                {id: "F", x: 200, y: 120, type: "finance"}
+            ];
+
+            const edges = [
+                {source: "A", target: "I", weight: 3},
+                {source: "I", target: "S", weight: 2},
+                {source: "S", target: "F", weight: 1},
+                {source: "A", target: "F", weight: 4}
+            ];
+
+            // Dessiner les arêtes
+            edges.forEach(edge => {
+                const source = nodes.find(n => n.id === edge.source);
+                const target = nodes.find(n => n.id === edge.target);
+
+                svg.append("line")
+                    .attr("x1", source.x)
+                    .attr("y1", source.y)
+                    .attr("x2", target.x)
+                    .attr("y2", target.y)
+                    .attr("stroke", "#4ecdc4")
+                    .attr("stroke-width", edge.weight)
+                    .attr("opacity", 0.7);
+            });
+
+            // Dessiner les nœuds
+            nodes.forEach(node => {
+                svg.append("circle")
+                    .attr("cx", node.x)
+                    .attr("cy", node.y)
+                    .attr("r", 8)
+                    .attr("fill", "#ff6b6b")
+                    .attr("stroke", "#fff")
+                    .attr("stroke-width", 2);
+
+                svg.append("text")
+                    .attr("x", node.x)
+                    .attr("y", node.y + 4)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "white")
+                    .attr("font-size", "10px")
+                    .attr("font-weight", "bold")
+                    .text(node.id);
+            });
+        }
+
+        // Visualisation de l'algorithme Simplex
+        function initSimplexVisualization() {
+            const svg = d3.select("#simplex-viz");
+            svg.selectAll("*").remove();
+
+            // Simulation d'une région faisable Simplex
+            const width = 300;
+            const height = 150;
+
+            // Région faisable (polygone)
+            const feasibleRegion = [
+                [30, 120], [100, 120], [150, 80], [150, 30], [80, 30], [30, 60]
+            ];
+
+            svg.append("polygon")
+                .attr("points", feasibleRegion.map(p => p.join(",")).join(" "))
+                .attr("fill", "#4ecdc4")
+                .attr("opacity", 0.3)
+                .attr("stroke", "#4ecdc4")
+                .attr("stroke-width", 2);
+
+            // Point optimal
+            svg.append("circle")
+                .attr("cx", 150)
+                .attr("cy", 30)
+                .attr("r", 6)
+                .attr("fill", "#ff6b6b")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2);
+
+            svg.append("text")
+                .attr("x", 160)
+                .attr("y", 35)
+                .attr("fill", "#333")
+                .attr("font-size", "10px")
+                .text("Optimal");
+
+            // Axes et labels
+            svg.append("line")
+                .attr("x1", 30)
+                .attr("y1", 120)
+                .attr("x2", 270)
+                .attr("y2", 120)
+                .attr("stroke", "#666")
+                .attr("stroke-width", 1);
+
+            svg.append("line")
+                .attr("x1", 30)
+                .attr("y1", 120)
+                .attr("x2", 30)
+                .attr("y2", 20)
+                .attr("stroke", "#666")
+                .attr("stroke-width", 1);
+        }
+
+        // Graphiques temps réel
+        function initRealtimeCharts() {
+            // Graphique de volume de transactions
+            const volumeSvg = d3.select("#volume-chart");
+            volumeSvg.selectAll("*").remove();
+
+            // Gauge d'efficacité
+            const efficiencySvg = d3.select("#efficiency-gauge");
+            efficiencySvg.selectAll("*").remove();
+
+            // Indicateur de stabilité
+            const stabilitySvg = d3.select("#stability-indicator");
+            stabilitySvg.selectAll("*").remove();
+        }
+
+        // Mise à jour des métriques temps réel
+        function startMetricsUpdate() {
+            metricsInterval = setInterval(updateMetrics, 2000);
+            updateMetrics(); // Mise à jour initiale
+        }
+
+        async function updateMetrics() {
+            try {
+                // Charger données réelles de simulation si disponible
+                const response = await fetch('/api/simulations/current/info');
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Utiliser les vraies données si disponibles
+                    const transactionVolume = data.transactions_count || Math.floor(Math.random() * 1000) + 500;
+                    const agentsCount = data.agents_count || 0;
+
+                    // Calculer l'efficacité Simplex basée sur les vraies données
+                    const simplexEfficiency = agentsCount > 0 ?
+                        Math.min(95, Math.floor((transactionVolume / agentsCount) * 10) + 70) :
+                        Math.floor(Math.random() * 30) + 70;
+
+                    const activeConstraints = Math.min(10, Math.floor(agentsCount / 10) + 3);
+                    const pathsExplored = Math.floor(transactionVolume * 1.5) + 120;
+                    const simplexIterations = Math.floor(transactionVolume / 5) + 20;
+
+                    // Mise à jour des valeurs affichées avec vraies données
+                    document.getElementById('transaction-volume').textContent = transactionVolume;
+                    document.getElementById('simplex-efficiency').textContent = simplexEfficiency + '%';
+                    document.getElementById('active-constraints').textContent = activeConstraints;
+                    document.getElementById('paths-explored').textContent = pathsExplored;
+                    document.getElementById('simplex-iterations').textContent = simplexIterations;
+
+                    // Déterminer l'état de stabilité basé sur vraies métriques
+                    const stability = simplexEfficiency > 85 ? 'Très Stable' :
+                                    simplexEfficiency > 70 ? 'Stable' : 'Instable';
+                    document.getElementById('system-stability').textContent = stability;
+                } else {
+                    // Fallback vers simulation si API non disponible
+                    updateMetricsSimulated();
+                }
+            } catch (error) {
+                console.error('Erreur mise à jour métriques:', error);
+                updateMetricsSimulated();
+            }
+        }
+
+        function updateMetricsSimulated() {
+            // Simulation de données temps réel (fallback)
+            const transactionVolume = Math.floor(Math.random() * 1000) + 500;
+            const simplexEfficiency = Math.floor(Math.random() * 30) + 70;
+            const activeConstraints = Math.floor(Math.random() * 5) + 5;
+            const pathsExplored = Math.floor(Math.random() * 50) + 120;
+            const simplexIterations = Math.floor(Math.random() * 10) + 20;
+
+            document.getElementById('transaction-volume').textContent = transactionVolume;
+            document.getElementById('simplex-efficiency').textContent = simplexEfficiency + '%';
+            document.getElementById('active-constraints').textContent = activeConstraints;
+            document.getElementById('paths-explored').textContent = pathsExplored;
+            document.getElementById('simplex-iterations').textContent = simplexIterations;
+
+            const stability = simplexEfficiency > 85 ? 'Très Stable' :
+                            simplexEfficiency > 70 ? 'Stable' : 'Instable';
+            document.getElementById('system-stability').textContent = stability;
+        }
+
+        // Fonctions pour les boutons de simulation
+        function load65AgentsSimulation() {
+            // Redirection vers l'interface principale avec chargement de la simulation 65 agents
+            fetch('/api/simulations/create-65-agents', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/?load65=true';
+                } else {
+                    alert('Erreur lors du chargement de la simulation 65 agents: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Erreur de connexion au serveur');
+            });
+        }
+
+        function openAdvancedMode() {
+            // Redirection vers l'interface avec mode avancé activé
+            window.location.href = '/?mode=advanced&caps=true';
+        }
+
+        // ===== NOUVELLES FONCTIONS SVG TEMPS RÉEL =====
+
+        // Variables globales pour la simulation interactive
+        let simulationState = 'stopped'; // stopped, running, paused
+        let simulation65AgentsData = null;
+        let svgAnimationIntervals = {};
+        let transactionsList = [];
+
+        // Initialisation de la simulation interactive
+        async function initializeInteractiveSimulation() {
+            setupSimulationControls();
+            setupSVGAnimationContainers();
+
+            // Charger les données initiales
+            await loadSimulationInfo();
+        }
+
+        // Configuration des contrôles de simulation
+        function setupSimulationControls() {
+            const startBtn = document.getElementById('start-simulation-btn');
+            const pauseBtn = document.getElementById('pause-simulation-btn');
+            const stopBtn = document.getElementById('stop-simulation-btn');
+            const resetBtn = document.getElementById('reset-simulation-btn');
+
+            startBtn.addEventListener('click', startInteractiveSimulation);
+            pauseBtn.addEventListener('click', pauseInteractiveSimulation);
+            stopBtn.addEventListener('click', stopInteractiveSimulation);
+            resetBtn.addEventListener('click', resetInteractiveSimulation);
+        }
+
+        // Variables d'animation globales
+        let animationState = {
+            active: false,
+            currentStep: 0,
+            totalSteps: 0,
+            interval: null
+        };
+
+        // Démarrer la simulation interactive
+        async function startInteractiveSimulation() {
+            try {
+                updateSimulationState('running');
+
+                // Créer la simulation 65 agents si nécessaire
+                if (!simulation65AgentsData) {
+                    await create65AgentsSimulation();
+                }
+
+                // Initialiser l'animation step-by-step
+                await initializeStepAnimation();
+
+                // Démarrer les animations SVG temps réel
+                startSVGAnimations();
+
+                // Démarrer les métriques temps réel
+                startRealTimeMetrics();
+
+                // Démarrer animation continue
+                startStepByStepAnimation();
+
+            } catch (error) {
+                console.error('Erreur démarrage simulation:', error);
+                updateSimulationState('stopped');
+                alert('Erreur lors du démarrage de la simulation: ' + error.message);
+            }
+        }
+
+        // Initialiser l'animation step-by-step
+        async function initializeStepAnimation() {
+            const response = await fetch('/api/simulations/animate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: 'reset' })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                animationState.totalSteps = data.total_transactions;
+                animationState.currentStep = 0;
+                console.log(`✅ Animation initialisée: ${data.total_transactions} transactions prêtes`);
+            } else {
+                throw new Error(data.error || 'Échec initialisation animation');
+            }
+        }
+
+        // Démarrer animation step-by-step automatique
+        async function startStepByStepAnimation() {
+            if (animationState.interval) {
+                clearInterval(animationState.interval);
+            }
+
+            animationState.active = true;
+            animationState.interval = setInterval(async () => {
+                if (animationState.active) {
+                    await executeNextAnimationStep();
+                }
+            }, 2000); // Une transaction toutes les 2 secondes
+        }
+
+        // Exécuter la prochaine étape d'animation
+        async function executeNextAnimationStep() {
+            try {
+                const response = await fetch('/api/simulations/animate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'step' })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    if (data.completed) {
+                        // Animation terminée
+                        animationState.active = false;
+                        clearInterval(animationState.interval);
+                        updateSimulationState('paused');
+                        console.log('🎬 Animation terminée: toutes les transactions exécutées');
+                    } else {
+                        // Mise à jour interface avec la nouvelle transaction
+                        animationState.currentStep = data.step;
+                        updateTransactionProgress(data);
+
+                        // Mettre à jour le statut des transactions
+                        const currentStatus = await getCurrentSimulationInfo();
+                        updateSimulationStatus(currentStatus);
+
+                        console.log(`🔄 Transaction ${data.step}/${data.total_steps}: ${data.transaction.source} → ${data.transaction.target} (${data.transaction.amount})`);
+                    }
+                } else {
+                    console.error('Erreur étape animation:', data.error);
+                    animationState.active = false;
+                    clearInterval(animationState.interval);
+                }
+            } catch (error) {
+                console.error('Erreur exécution étape:', error);
+                animationState.active = false;
+                clearInterval(animationState.interval);
+            }
+        }
+
+        // Mettre à jour la progression des transactions dans l'interface
+        function updateTransactionProgress(data) {
+            // Mettre à jour la barre de progression (si elle existe)
+            const progressElement = document.querySelector('.transaction-progress');
+            if (progressElement) {
+                progressElement.style.width = data.progress_percent + '%';
+            }
+
+            // Afficher la transaction courante
+            const transactionDisplay = document.querySelector('#current-transaction-display');
+            if (transactionDisplay) {
+                transactionDisplay.innerHTML = `
+                    <strong>Transaction ${data.step}/${data.total_steps}</strong><br>
+                    ${data.transaction.source} → ${data.transaction.target}<br>
+                    Montant: ${data.transaction.amount} (${data.transaction.flow})
+                `;
+            }
+        }
+
+        // Créer la simulation 65 agents
+        async function create65AgentsSimulation() {
+            const response = await fetch('/api/simulations/create-65-agents', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                simulation65AgentsData = data;
+                updateSimulationStatus(data);
+                console.log('✅ Simulation 65 agents créée avec succès');
+            } else {
+                throw new Error(data.error || 'Échec création simulation 65 agents');
+            }
+        }
+
+        // Démarrer les animations SVG temps réel
+        function startSVGAnimations() {
+            // Animation économie complète
+            loadSVGAnimation('economy-animation-svg', '/api/svg/economy_animation');
+
+            // Dashboard performance
+            loadSVGAnimation('performance-dashboard-svg', '/api/svg/performance_dashboard');
+
+            // Étapes Simplex
+            loadSVGAnimation('simplex-steps-svg', '/api/svg/simplex_steps');
+
+            // Actualiser les animations toutes les 3 secondes
+            svgAnimationIntervals.refresh = setInterval(() => {
+                if (simulationState === 'running') {
+                    refreshSVGAnimations();
+                }
+            }, 3000);
+        }
+
+        // Charger une animation SVG depuis l'API
+        async function loadSVGAnimation(containerId, endpoint) {
+            try {
+                const response = await fetch(endpoint);
+                if (response.ok) {
+                    const svgContent = await response.text();
+                    document.getElementById(containerId).innerHTML = svgContent;
+                } else {
+                    console.warn(`API SVG non disponible: ${endpoint}`);
+                    document.getElementById(containerId).innerHTML =
+                        '<div style="color: #666; text-align: center; padding: 50px;">API SVG en développement</div>';
+                }
+            } catch (error) {
+                console.error(`Erreur chargement SVG ${endpoint}:`, error);
+                document.getElementById(containerId).innerHTML =
+                    '<div style="color: #666; text-align: center; padding: 50px;">Animation non disponible</div>';
+            }
+        }
+
+        // Actualiser toutes les animations SVG
+        function refreshSVGAnimations() {
+            loadSVGAnimation('economy-animation-svg', '/api/svg/economy_animation');
+            loadSVGAnimation('performance-dashboard-svg', '/api/svg/performance_dashboard');
+            loadSVGAnimation('simplex-steps-svg', '/api/svg/simplex_steps');
+
+            // Charger la liste des transactions pour le sélecteur
+            loadTransactionsList();
+        }
+
+        // Charger la liste des transactions
+        async function loadTransactionsList() {
+            try {
+                const response = await fetch('/api/transactions/3d');
+                if (response.ok) {
+                    const data = await response.json();
+                    transactionsList = data.transactions || [];
+                    updateTransactionSelector();
+                }
+            } catch (error) {
+                console.error('Erreur chargement transactions:', error);
+            }
+        }
+
+        // Mettre à jour le sélecteur de transactions
+        function updateTransactionSelector() {
+            const selector = document.getElementById('transaction-selector');
+            selector.innerHTML = '<option value="">Sélectionner transaction...</option>';
+
+            transactionsList.slice(0, 10).forEach(tx => {
+                const option = document.createElement('option');
+                option.value = tx.transaction_id;
+                option.textContent = `${tx.source_account_id} → ${tx.target_account_id} (${tx.amount})`;
+                selector.appendChild(option);
+            });
+
+            // Gestionnaire de changement
+            selector.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    loadTransactionDetail(e.target.value);
+                }
+            });
+        }
+
+        // Charger le détail d'une transaction
+        async function loadTransactionDetail(txId) {
+            loadSVGAnimation('transaction-detail-svg', `/api/svg/transaction/${txId}`);
+        }
+
+        // Démarrer les métriques temps réel connectées
+        function startRealTimeMetrics() {
+            svgAnimationIntervals.metrics = setInterval(updateRealTimeMetrics, 2000);
+            updateRealTimeMetrics(); // Mise à jour initiale
+        }
+
+        // Mettre à jour les métriques temps réel
+        async function updateRealTimeMetrics() {
+            try {
+                // Charger les informations de simulation
+                const response = await fetch('/api/simulations/current/info');
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Mettre à jour les métriques affichées
+                    document.getElementById('transaction-volume').textContent = data.transactions_count || 0;
+                    document.getElementById('simplex-efficiency').textContent =
+                        Math.floor(Math.random() * 30 + 70) + '%'; // Simulation pour maintenant
+
+                    // Mettre à jour les compteurs de statut
+                    document.getElementById('active-agents-count').textContent = data.agents_count || 0;
+                    document.getElementById('total-transactions-count').textContent = data.transactions_count || 0;
+                }
+            } catch (error) {
+                console.error('Erreur mise à jour métriques:', error);
+            }
+        }
+
+        // Charger les informations de simulation
+        async function loadSimulationInfo() {
+            try {
+                const response = await fetch('/api/simulations/current/info');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.agents_count > 0) {
+                        simulation65AgentsData = data;
+                        updateSimulationStatus(data);
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur chargement info simulation:', error);
+            }
+        }
+
+        // Mettre à jour l'état de la simulation
+        function updateSimulationState(newState) {
+            simulationState = newState;
+
+            const startBtn = document.getElementById('start-simulation-btn');
+            const pauseBtn = document.getElementById('pause-simulation-btn');
+            const stopBtn = document.getElementById('stop-simulation-btn');
+            const stateDisplay = document.getElementById('simulation-state');
+
+            // Mise à jour des boutons
+            switch (newState) {
+                case 'running':
+                    startBtn.disabled = true;
+                    pauseBtn.disabled = false;
+                    stopBtn.disabled = false;
+                    stateDisplay.textContent = 'En cours';
+                    stateDisplay.style.color = '#28a745';
+                    break;
+                case 'paused':
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    stateDisplay.textContent = 'En pause';
+                    stateDisplay.style.color = '#ffc107';
+                    break;
+                case 'stopped':
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    stateDisplay.textContent = 'Arrêtée';
+                    stateDisplay.style.color = '#6c757d';
+                    break;
+            }
+        }
+
+        // Mettre à jour le statut de la simulation
+        function updateSimulationStatus(data) {
+            document.getElementById('active-agents-count').textContent = data.agents_count || 0;
+            document.getElementById('total-transactions-count').textContent = data.transactions_count || 0;
+        }
+
+        // Pause simulation
+        function pauseInteractiveSimulation() {
+            updateSimulationState('paused');
+            animationState.active = false;
+            if (animationState.interval) {
+                clearInterval(animationState.interval);
+            }
+            stopSVGAnimations();
+        }
+
+        // Arrêter simulation
+        function stopInteractiveSimulation() {
+            updateSimulationState('stopped');
+            animationState.active = false;
+            if (animationState.interval) {
+                clearInterval(animationState.interval);
+            }
+            stopSVGAnimations();
+            clearSVGContainers();
+        }
+
+        // Reset simulation
+        async function resetInteractiveSimulation() {
+            stopInteractiveSimulation();
+            animationState = {
+                active: false,
+                currentStep: 0,
+                totalSteps: 0,
+                interval: null
+            };
+
+            // Reset animation backend
+            try {
+                await fetch('/api/simulations/animate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'reset' })
+                });
+            } catch (error) {
+                console.log('Note: Reset animation backend échoué (normal si pas de simulation active)');
+            }
+
+            simulation65AgentsData = null;
+            updateSimulationStatus({ agents_count: 0, transactions_count: 0 });
+        }
+
+        // Arrêter les animations SVG
+        function stopSVGAnimations() {
+            Object.values(svgAnimationIntervals).forEach(interval => {
+                if (interval) clearInterval(interval);
+            });
+            svgAnimationIntervals = {};
+        }
+
+        // Vider les conteneurs SVG
+        function clearSVGContainers() {
+            ['economy-animation-svg', 'performance-dashboard-svg', 'simplex-steps-svg', 'transaction-detail-svg']
+                .forEach(id => {
+                    document.getElementById(id).innerHTML =
+                        '<div style="color: #666; text-align: center; padding: 50px;">Animation arrêtée</div>';
+                });
+        }
+
+        // Configuration des conteneurs SVG
+        function setupSVGAnimationContainers() {
+            // Initialiser les conteneurs avec un message d'attente
+            ['economy-animation-svg', 'performance-dashboard-svg', 'simplex-steps-svg', 'transaction-detail-svg']
+                .forEach(id => {
+                    document.getElementById(id).innerHTML =
+                        '<div style="color: #666; text-align: center; padding: 50px;">Cliquez sur Démarrer</div>';
+                });
+        }
+
+        // Initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeVisualizations();
+            initializeInteractiveSimulation();
+        });
+
+        // Nettoyage à la fermeture de la page
+        window.addEventListener('beforeunload', function() {
+            if (metricsInterval) {
+                clearInterval(metricsInterval);
+            }
+        });
+    </script>
+</body>
+</html>

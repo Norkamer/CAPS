@@ -147,6 +147,11 @@ def index():
     """Page d'accueil ICGS 3D - Application SPA avec visualisation massive 65 agents"""
     return render_template('index.html')
 
+@app.route('/caps')
+def caps():
+    """Page CAPS - Constraint-Adaptive Path Simplex"""
+    return render_template('caps.html')
+
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     """Servir les fichiers statiques CSS/JS pour application 3D"""
@@ -1550,6 +1555,890 @@ def api_get_simulation_status():
         }), 500
 
 
+# ===============================================
+# PERSISTENCE API - SIMULATION SAVE/LOAD SYSTEM
+# ===============================================
+
+# Variables globales pour gestion état simulations
+current_simulation_source = "web_native"  # "web_native" ou "loaded"
+current_simulation_id = None
+current_simulation_metadata = None
+loaded_simulation = None
+
+
+def get_active_simulation():
+    """Retourne la simulation actuellement active (web_native ou loaded)"""
+    global current_simulation_source, loaded_simulation, web_manager
+
+    if current_simulation_source == "loaded" and loaded_simulation is not None:
+        return loaded_simulation
+    else:
+        return web_manager.icgs_core if web_manager else None
+
+
+def switch_to_simulation(simulation, metadata=None, simulation_id=None):
+    """Switch vers une simulation chargée avec préservation état"""
+    global current_simulation_source, current_simulation_id, current_simulation_metadata, loaded_simulation
+
+    current_simulation_source = "loaded"
+    current_simulation_id = simulation_id
+    current_simulation_metadata = metadata
+    loaded_simulation = simulation
+
+    print(f"🔄 Switch vers simulation: {metadata.name if metadata else simulation_id}")
+
+
+def switch_to_web_native():
+    """Retour vers simulation web native"""
+    global current_simulation_source, current_simulation_id, current_simulation_metadata, loaded_simulation
+
+    current_simulation_source = "web_native"
+    current_simulation_id = None
+    current_simulation_metadata = None
+    loaded_simulation = None
+
+    print("🔄 Retour simulation WebNative")
+
+
+@app.route('/api/simulations/save', methods=['POST'])
+def api_save_simulation():
+    """API: Sauvegarder simulation courante"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '')
+        description = data.get('description', '')
+        tags = data.get('tags', [])
+        compress = data.get('compress', True)
+
+        print(f"💾 Sauvegarde simulation: {name}")
+
+        # Récupérer simulation active
+        active_simulation = get_active_simulation()
+
+        if not active_simulation:
+            return jsonify({
+                'success': False,
+                'error': 'Aucune simulation active à sauvegarder'
+            }), 400
+
+        # Convertir en EconomicSimulation si nécessaire
+        if hasattr(active_simulation, 'icgs_core'):
+            # C'est un WebNativeICGS, créer EconomicSimulation équivalente
+            from icgs_simulation.api.icgs_bridge import EconomicSimulation
+
+            # Créer simulation temporaire pour sauvegarde
+            temp_simulation = EconomicSimulation(name or "web_simulation", agents_mode="7_agents")
+
+            # Transférer agents du web_manager vers EconomicSimulation
+            if hasattr(active_simulation, 'agents') and active_simulation.agents:
+                for agent_id, agent_info in active_simulation.agents.items():
+                    try:
+                        temp_simulation.create_agent(
+                            agent_id=agent_id,
+                            sector=agent_info.get('sector', 'SERVICES'),
+                            balance=Decimal(str(agent_info.get('balance', 1000)))
+                        )
+                    except Exception as e:
+                        print(f"Warning: Skip agent {agent_id}: {e}")
+
+            simulation_to_save = temp_simulation
+
+        else:
+            # C'est déjà une EconomicSimulation
+            simulation_to_save = active_simulation
+
+        # Sauvegarder avec le système de persistance
+        simulation_id = simulation_to_save.save_simulation(
+            name=name,
+            description=description,
+            tags=tags,
+            compress=compress
+        )
+
+        return jsonify({
+            'success': True,
+            'simulation_id': simulation_id,
+            'message': f'Simulation "{name}" sauvegardée avec succès'
+        })
+
+    except Exception as e:
+        print(f"❌ Erreur sauvegarde simulation: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erreur sauvegarde: {str(e)}'
+        }), 500
+
+
+@app.route('/api/simulations')
+def api_list_simulations():
+    """API: Lister toutes les simulations sauvegardées"""
+    try:
+        category_filter = request.args.get('category', None)
+
+        # Utiliser le système de persistance
+        from icgs_simulation.api.icgs_bridge import EconomicSimulation
+        simulations = EconomicSimulation.list_simulations(filter_category=category_filter)
+
+        # Convertir en format JSON
+        simulations_data = []
+        for sim_meta in simulations:
+            simulations_data.append({
+                'id': sim_meta.id,
+                'name': sim_meta.name,
+                'description': sim_meta.description,
+                'created_date': sim_meta.created_date.isoformat(),
+                'modified_date': sim_meta.modified_date.isoformat(),
+                'agents_mode': sim_meta.agents_mode,
+                'agents_count': sim_meta.agents_count,
+                'transactions_count': sim_meta.transactions_count,
+                'total_balance': str(sim_meta.total_balance),
+                'sectors_distribution': sim_meta.sectors_distribution,
+                'tags': sim_meta.tags,
+                'category': sim_meta.category
+            })
+
+        return jsonify({
+            'success': True,
+            'simulations': simulations_data,
+            'total_count': len(simulations_data),
+            'current_simulation': {
+                'source': current_simulation_source,
+                'id': current_simulation_id,
+                'name': current_simulation_metadata.name if current_simulation_metadata else None
+            }
+        })
+
+    except Exception as e:
+        print(f"❌ Erreur listing simulations: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erreur listing: {str(e)}'
+        }), 500
+
+
+@app.route('/api/simulations/load/<simulation_id>', methods=['POST'])
+def api_load_simulation(simulation_id):
+    """API: Charger simulation sauvegardée"""
+    try:
+        print(f"📂 Chargement simulation: {simulation_id}")
+
+        # Charger avec le système de persistance
+        from icgs_simulation.api.icgs_bridge import EconomicSimulation
+        loaded_sim = EconomicSimulation.load_simulation(simulation_id)
+
+        # Récupérer métadonnées
+        metadata = loaded_sim.get_simulation_metadata()
+
+        # Switch vers simulation chargée
+        switch_to_simulation(loaded_sim, metadata, simulation_id)
+
+        # Optimiser pour interface web
+        loaded_sim.optimize_for_web_load()
+
+        # Réponse avec détails simulation
+        simulation_info = {
+            'id': simulation_id,
+            'name': metadata.name,
+            'description': metadata.description,
+            'agents_count': len(loaded_sim.agents),
+            'transactions_count': len(loaded_sim.transactions),
+            'agents_mode': loaded_sim.agents_mode,
+            'sectors': list(set(agent.sector for agent in loaded_sim.agents.values())),
+            'total_balance': str(sum(agent.balance for agent in loaded_sim.agents.values()))
+        }
+
+        return jsonify({
+            'success': True,
+            'message': f'Simulation "{metadata.name}" chargée avec succès',
+            'simulation': simulation_info
+        })
+
+    except Exception as e:
+        print(f"❌ Erreur chargement simulation: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erreur chargement: {str(e)}'
+        }), 500
+
+
+@app.route('/api/simulations/<simulation_id>', methods=['DELETE'])
+def api_delete_simulation(simulation_id):
+    """API: Supprimer simulation sauvegardée"""
+    try:
+        print(f"🗑️ Suppression simulation: {simulation_id}")
+
+        # Utiliser le système de stockage direct
+        from icgs_simulation.persistence import SimulationStorage
+        storage = SimulationStorage()
+
+        # Récupérer nom avant suppression
+        try:
+            metadata = storage.load_metadata(simulation_id)
+            sim_name = metadata.name
+        except:
+            sim_name = "simulation"
+
+        # Supprimer
+        success = storage.delete_simulation(simulation_id)
+
+        if success:
+            # Si c'était la simulation courante, retour web native
+            if current_simulation_id == simulation_id:
+                switch_to_web_native()
+
+            return jsonify({
+                'success': True,
+                'message': f'Simulation "{sim_name}" supprimée avec succès'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Simulation non trouvée ou déjà supprimée'
+            }), 404
+
+    except Exception as e:
+        print(f"❌ Erreur suppression simulation: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erreur suppression: {str(e)}'
+        }), 500
+
+
+@app.route('/api/simulations/<simulation_id>/metadata')
+def api_get_simulation_metadata(simulation_id):
+    """API: Récupérer métadonnées simulation"""
+    try:
+        from icgs_simulation.persistence import SimulationStorage
+        storage = SimulationStorage()
+
+        metadata = storage.load_metadata(simulation_id)
+
+        return jsonify({
+            'success': True,
+            'metadata': {
+                'id': metadata.id,
+                'name': metadata.name,
+                'description': metadata.description,
+                'created_date': metadata.created_date.isoformat(),
+                'modified_date': metadata.modified_date.isoformat(),
+                'agents_mode': metadata.agents_mode,
+                'scenario_type': metadata.scenario_type,
+                'agents_count': metadata.agents_count,
+                'transactions_count': metadata.transactions_count,
+                'total_balance': str(metadata.total_balance),
+                'sectors_distribution': metadata.sectors_distribution,
+                'tags': metadata.tags,
+                'category': metadata.category,
+                'performance_metrics': metadata.performance_metrics
+            }
+        })
+
+    except Exception as e:
+        print(f"❌ Erreur métadonnées simulation: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erreur métadonnées: {str(e)}'
+        }), 500
+
+
+@app.route('/api/simulations/<simulation_id>/export', methods=['POST'])
+def api_export_simulation(simulation_id):
+    """API: Exporter simulation dans différents formats"""
+    try:
+        data = request.get_json() or {}
+        export_format = data.get('format', 'json')
+
+        print(f"📤 Export simulation {simulation_id} en format {export_format}")
+
+        # Si c'est la simulation courante chargée, utiliser l'instance directement
+        if current_simulation_id == simulation_id and loaded_simulation:
+            export_path = loaded_simulation.export_simulation_data(export_format)
+        else:
+            # Charger temporairement pour export
+            from icgs_simulation.api.icgs_bridge import EconomicSimulation
+            temp_sim = EconomicSimulation.load_simulation(simulation_id)
+            export_path = temp_sim.export_simulation_data(export_format)
+
+        return jsonify({
+            'success': True,
+            'export_path': export_path,
+            'format': export_format,
+            'message': f'Export {export_format.upper()} généré avec succès'
+        })
+
+    except Exception as e:
+        print(f"❌ Erreur export simulation: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Erreur export: {str(e)}'
+        }), 500
+
+
+@app.route('/api/simulations/switch-to-web-native', methods=['POST'])
+def api_switch_to_web_native():
+    """API: Retour vers simulation web native"""
+    try:
+        switch_to_web_native()
+
+        return jsonify({
+            'success': True,
+            'message': 'Retour vers simulation WebNative',
+            'current_source': current_simulation_source
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/simulations/current/info')
+def api_current_simulation_info():
+    """API: Informations sur la simulation actuellement active"""
+    try:
+        # Obtenir simulation active
+        active_sim = get_active_simulation()
+
+        # Construire info response
+        info = {
+            'source': current_simulation_source,
+            'loaded_simulation_id': current_simulation_id,
+            'simulation_metadata': current_simulation_metadata.to_dict() if current_simulation_metadata else None
+        }
+
+        # Ajouter compteurs agents/transactions
+        if active_sim:
+            if hasattr(active_sim, 'agents'):
+                info['agents_count'] = len(active_sim.agents)
+            if hasattr(active_sim, 'transactions'):
+                info['transactions_count'] = len(active_sim.transactions)
+        else:
+            # Fallback pour WebNative
+            try:
+                perf = icgs_bridge.get_simulation_metrics()
+                info['agents_count'] = perf.get('agents_count', 0)
+                info['transactions_count'] = perf.get('total_transactions', 0)
+            except:
+                info['agents_count'] = 0
+                info['transactions_count'] = 0
+
+        return jsonify(info)
+
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'source': current_simulation_source,
+            'loaded_simulation_id': current_simulation_id,
+            'agents_count': 0,
+            'transactions_count': 0
+        }), 500
+
+
+@app.route('/api/simulations/create-65-agents', methods=['POST'])
+def api_create_65_agents_simulation():
+    """API: Créer une simulation pré-configurée avec 65 agents"""
+    try:
+        import random
+        from decimal import Decimal
+
+        # Réinitialiser vers WebNative
+        global current_simulation_source, current_simulation_id, current_simulation_metadata, loaded_simulation
+
+        # Utiliser l'instance partagée web_manager.icgs_core
+        simulation = web_manager.icgs_core
+
+        # Configuration 65 agents selon les spécifications optimales
+        print("🚀 Création simulation 65 agents - Configuration massive")
+
+        agent_count = 0
+        total_balance = Decimal('0')
+        creation_stats = {}
+
+        # AGRICULTURE (10 agents) - Balance ~1250
+        agriculture_agents = [
+            (f"AGRI_{i:02d}", "AGRICULTURE", Decimal('1250') + Decimal(str(random.randint(-200, 200))))
+            for i in range(1, 11)
+        ]
+
+        # INDUSTRY (15 agents) - Balance ~900
+        industry_agents = [
+            (f"INDU_{i:02d}", "INDUSTRY", Decimal('900') + Decimal(str(random.randint(-150, 150))))
+            for i in range(1, 16)
+        ]
+
+        # SERVICES (20 agents) - Balance ~700
+        services_agents = [
+            (f"SERV_{i:02d}", "SERVICES", Decimal('700') + Decimal(str(random.randint(-100, 100))))
+            for i in range(1, 21)
+        ]
+
+        # FINANCE (8 agents) - Balance ~3000
+        finance_agents = [
+            (f"FINA_{i:02d}", "FINANCE", Decimal('3000') + Decimal(str(random.randint(-500, 500))))
+            for i in range(1, 9)
+        ]
+
+        # ENERGY (12 agents) - Balance ~1900
+        energy_agents = [
+            (f"ENER_{i:02d}", "ENERGY", Decimal('1900') + Decimal(str(random.randint(-300, 300))))
+            for i in range(1, 13)
+        ]
+
+        all_agents = agriculture_agents + industry_agents + services_agents + finance_agents + energy_agents
+
+        # Création des agents via WebNative avec logs détaillés
+        print(f"🔍 Tentative de création de {len(all_agents)} agents au total:")
+        for sector, agents_in_sector in [
+            ("AGRICULTURE", agriculture_agents),
+            ("INDUSTRY", industry_agents),
+            ("SERVICES", services_agents),
+            ("FINANCE", finance_agents),
+            ("ENERGY", energy_agents)
+        ]:
+            print(f"   📂 {sector}: {len(agents_in_sector)} agents prévus")
+
+        errors_by_sector = {}
+        success_by_sector = {}
+
+        for agent_id, sector, balance in all_agents:
+            try:
+                print(f"🔧 Tentative création agent {agent_id} ({sector}) balance={balance}")
+                web_manager.add_agent(agent_id, sector, balance)
+                agent_count += 1
+                total_balance += balance
+                print(f"✅ Agent {agent_id} créé avec succès ({agent_count}/{len(all_agents)})")
+
+                # Statistiques par secteur
+                if sector not in creation_stats:
+                    creation_stats[sector] = {'count': 0, 'total_balance': Decimal('0')}
+                if sector not in success_by_sector:
+                    success_by_sector[sector] = 0
+
+                creation_stats[sector]['count'] += 1
+                creation_stats[sector]['total_balance'] += balance
+                success_by_sector[sector] += 1
+
+            except Exception as e:
+                error_msg = f"Erreur création agent {agent_id} ({sector}): {e}"
+                print(f"❌ {error_msg}")
+
+                if sector not in errors_by_sector:
+                    errors_by_sector[sector] = []
+                errors_by_sector[sector].append(f"{agent_id}: {str(e)}")
+
+        # Rapport détaillé de création
+        print(f"\n📊 RAPPORT CRÉATION 65 AGENTS:")
+        print(f"   🎯 Total agents créés: {agent_count}/{len(all_agents)}")
+        print(f"   💰 Balance totale: {total_balance}")
+
+        for sector in ["AGRICULTURE", "INDUSTRY", "SERVICES", "FINANCE", "ENERGY"]:
+            successes = success_by_sector.get(sector, 0)
+            errors = len(errors_by_sector.get(sector, []))
+            expected = len([a for a in all_agents if a[1] == sector])
+            print(f"   📂 {sector}: {successes}/{expected} succès, {errors} erreurs")
+
+            # Détail des erreurs si présentes
+            if sector in errors_by_sector:
+                for error in errors_by_sector[sector][:3]:  # Limiter à 3 erreurs par secteur
+                    print(f"      ⚠️ {error}")
+                if len(errors_by_sector[sector]) > 3:
+                    print(f"      ... et {len(errors_by_sector[sector]) - 3} autres erreurs")
+
+        # Diagnostic WebNative
+        try:
+            print(f"\n🔍 DIAGNOSTIC WebNativeICGS:")
+            print(f"   📊 Agents actuels dans web_manager: {len(web_manager.agents) if hasattr(web_manager, 'agents') else 'N/A'}")
+            if hasattr(web_manager, 'virtual_pool'):
+                print(f"   🏗️ Pool virtuel disponible: {len(web_manager.virtual_pool)} secteurs")
+                for sector, capacity in web_manager.virtual_pool.items():
+                    print(f"      {sector}: capacité configurée")
+        except Exception as diag_e:
+            print(f"   ⚠️ Erreur diagnostic: {diag_e}")
+
+        # Calcul statistiques finales
+        final_stats = {}
+        for sector, stats in creation_stats.items():
+            avg_balance = stats['total_balance'] / stats['count'] if stats['count'] > 0 else 0
+            final_stats[sector] = {
+                'count': stats['count'],
+                'avg_balance': float(avg_balance),
+                'total_balance': float(stats['total_balance'])
+            }
+
+        # Revenir au mode web native
+        current_simulation_source = "web_native"
+        current_simulation_id = None
+        current_simulation_metadata = None
+        loaded_simulation = None
+
+        print(f"✅ Simulation 65 agents créée: {agent_count} agents, balance totale {total_balance}")
+
+        # ===============================
+        # GÉNÉRATION AUTOMATIQUE DE TRANSACTIONS INITIALES
+        # ===============================
+        print(f"\n🔄 Génération transactions automatiques...")
+        transactions_created = 0
+        transaction_volume = Decimal('0')
+
+        # DIAGNOSTIC ÉTAT WEB_MANAGER
+        print(f"🔍 DIAGNOSTIC WebNativeICGS avant transactions:")
+        print(f"   📊 Type web_manager: {type(web_manager)}")
+        print(f"   🗝️ Mappings real_to_virtual: {len(web_manager.real_to_virtual)} entrées")
+        print(f"   📋 Agent registry: {len(web_manager.agent_registry)} agents")
+        if len(web_manager.real_to_virtual) < 10:  # Si peu d'agents, afficher détails
+            print(f"   🔍 Mappings disponibles: {list(web_manager.real_to_virtual.keys())[:10]}")
+
+        try:
+            # Liste des agents créés par secteur pour transactions réalistes
+            agents_by_sector = {}
+            for sector, stats in creation_stats.items():
+                if stats['count'] > 0:
+                    # Récupérer les agent_ids réels de ce secteur
+                    sector_agents = []
+                    for agent_data in all_agents:
+                        if agent_data[1] == sector:  # agent_data = (agent_id, sector, balance)
+                            sector_agents.append(agent_data[0])
+                    agents_by_sector[sector] = sector_agents[:stats['count']]  # Limiter aux agents créés
+
+            print(f"   📊 Agents disponibles par secteur: {[(s, len(agents)) for s, agents in agents_by_sector.items()]}")
+
+            # Chaînes de transactions économiques réalistes
+            economic_flows = [
+                # Flux primaires
+                ('AGRICULTURE', 'INDUSTRY', 0.3),      # Matières premières → Transformation
+                ('AGRICULTURE', 'SERVICES', 0.2),      # Produits agricoles → Distribution
+                ('INDUSTRY', 'SERVICES', 0.4),         # Produits manufacturés → Commercialisation
+                ('INDUSTRY', 'ENERGY', 0.2),          # Demande énergétique industrie
+
+                # Flux financiers
+                ('FINANCE', 'AGRICULTURE', 0.15),      # Crédits agricoles
+                ('FINANCE', 'INDUSTRY', 0.25),         # Financement industriel
+                ('FINANCE', 'SERVICES', 0.2),          # Crédits services
+                ('FINANCE', 'ENERGY', 0.1),            # Financement énergie
+
+                # Flux énergétiques
+                ('ENERGY', 'AGRICULTURE', 0.2),        # Énergie agriculture
+                ('ENERGY', 'INDUSTRY', 0.4),           # Énergie industrie
+                ('ENERGY', 'SERVICES', 0.25),          # Énergie services
+
+                # Flux de services
+                ('SERVICES', 'AGRICULTURE', 0.15),     # Services aux agriculteurs
+                ('SERVICES', 'INDUSTRY', 0.3),         # Services aux industriels
+                ('SERVICES', 'FINANCE', 0.2),          # Services bancaires
+            ]
+
+            # Générer transactions selon les flux économiques
+            for source_sector, target_sector, intensity in economic_flows:
+                if source_sector in agents_by_sector and target_sector in agents_by_sector:
+                    source_agents = agents_by_sector[source_sector]
+                    target_agents = agents_by_sector[target_sector]
+
+                    # Nombre de transactions basé sur l'intensité et la taille des secteurs
+                    max_transactions = min(len(source_agents), len(target_agents))
+                    num_transactions = max(1, int(max_transactions * intensity))
+
+                    print(f"   🔄 Flux {source_sector} → {target_sector}: {num_transactions} transactions prévues")
+
+                    # Créer les transactions
+                    for i in range(num_transactions):
+                        try:
+                            source_agent = source_agents[i % len(source_agents)]
+                            target_agent = target_agents[i % len(target_agents)]
+
+                            # Montant réaliste basé sur l'intensité économique
+                            base_amount = 50 + (intensity * 200)  # 50-260 range
+                            amount = Decimal(str(base_amount + (i * 10)))  # Variation
+
+                            # Créer transaction via WebNativeICGS
+                            result = web_manager.process_transaction_lightweight(source_agent, target_agent, amount)
+
+                            if result.get('success', False):
+                                transactions_created += 1
+                                transaction_volume += amount
+                                print(f"      ✅ Transaction {source_agent} → {target_agent}: {amount}")
+                            else:
+                                # LOGS DÉTAILLÉS POUR DEBUGGING
+                                error_msg = result.get('error', 'Erreur inconnue')
+                                available_agents = result.get('available_agents', [])
+                                print(f"      ❌ Échec {source_agent} → {target_agent}: {error_msg}")
+                                if available_agents and len(available_agents) < 10:  # Afficher agents si liste courte
+                                    print(f"         Agents disponibles: {available_agents[:5]}")
+                                print(f"         Result complet: {str(result)[:200]}...")
+
+                        except Exception as tx_e:
+                            print(f"      ⚠️ Erreur transaction {source_sector}→{target_sector}: {tx_e}")
+
+            print(f"\n🎯 RÉSULTAT TRANSACTIONS:")
+            print(f"   ✅ {transactions_created} transactions créées")
+            print(f"   💰 Volume total: {transaction_volume}")
+            print(f"   📈 Volume moyen par transaction: {transaction_volume / transactions_created if transactions_created > 0 else 0}")
+
+        except Exception as gen_e:
+            print(f"⚠️ Erreur génération transactions: {gen_e}")
+            transactions_created = 0
+            transaction_volume = Decimal('0')
+
+        return jsonify({
+            'success': True,
+            'message': f'Simulation 65 agents créée avec succès',
+            'agents_created': agent_count,
+            'transactions_created': transactions_created,
+            'transaction_volume': float(transaction_volume),
+            'total_balance': float(total_balance),
+            'average_balance': float(total_balance / agent_count) if agent_count > 0 else 0,
+            'sectors_distribution': final_stats,
+            'simulation_source': 'web_native_65_agents'
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Erreur lors de la création simulation 65 agents: {str(e)}'
+        }), 500
+
+
+@app.route('/api/simulations/animate', methods=['POST'])
+def animate_simulation():
+    """
+    Animation continue des transactions - progression step-by-step
+    """
+    try:
+        data = request.get_json() or {}
+        action = data.get('action', 'start')  # start, step, pause, reset
+        speed = data.get('speed', 2.0)  # transactions par seconde
+
+        global web_manager
+
+        # Initialiser état d'animation s'il n'existe pas
+        if not hasattr(animate_simulation, 'animation_state'):
+            animate_simulation.animation_state = {
+                'active': False,
+                'current_step': 0,
+                'total_transactions': 0,
+                'transaction_queue': [],
+                'completed_transactions': []
+            }
+
+        if action == 'reset':
+            # Reset animation state
+            animate_simulation.animation_state = {
+                'active': False,
+                'current_step': 0,
+                'total_transactions': 0,
+                'transaction_queue': [],
+                'completed_transactions': []
+            }
+
+            # Diagnostic détaillé pour débugger le problème
+            print(f"🔍 DIAGNOSTIC ANIMATION RESET:")
+            print(f"   web_manager existe: {web_manager is not None}")
+            if web_manager:
+                print(f"   hasattr(web_manager, 'agents'): {hasattr(web_manager, 'agents')}")
+                if hasattr(web_manager, 'agents'):
+                    print(f"   len(web_manager.agents): {len(web_manager.agents)}")
+                print(f"   hasattr(web_manager, 'agent_registry'): {hasattr(web_manager, 'agent_registry')}")
+                if hasattr(web_manager, 'agent_registry'):
+                    print(f"   len(web_manager.agent_registry): {len(web_manager.agent_registry)}")
+
+            # Générer nouvelle queue de transactions - avec plusieurs fallbacks
+            agents_source = None
+            agents_count = 0
+
+            # Méthode 1: Essayer web_manager.agents (structure classique)
+            if web_manager and hasattr(web_manager, 'agents') and len(web_manager.agents) >= 65:
+                agents_source = web_manager.agents
+                agents_count = len(web_manager.agents)
+                print(f"✅ Source agents trouvée: web_manager.agents ({agents_count} agents)")
+
+            # Méthode 2: Essayer web_manager.agent_registry (structure WebNativeICGS)
+            elif web_manager and hasattr(web_manager, 'agent_registry') and len(web_manager.agent_registry) >= 65:
+                agents_source = web_manager.agent_registry
+                agents_count = len(web_manager.agent_registry)
+                print(f"✅ Source agents trouvée: web_manager.agent_registry ({agents_count} agents)")
+
+            # Méthode 3: Essayer web_manager.icgs_core.agents (cas ICGS bridge)
+            elif web_manager and hasattr(web_manager, 'icgs_core') and hasattr(web_manager.icgs_core, 'agents') and len(web_manager.icgs_core.agents) >= 65:
+                agents_source = web_manager.icgs_core.agents
+                agents_count = len(web_manager.icgs_core.agents)
+                print(f"✅ Source agents trouvée: web_manager.icgs_core.agents ({agents_count} agents)")
+
+            if agents_source and agents_count >= 65:
+                transaction_queue = []
+                print(f"🎯 Génération queue transactions avec {agents_count} agents disponibles")
+
+                # Flux économiques (similaire à create-65-agents mais pour animation)
+                flows = [
+                    ('AGRICULTURE', 'INDUSTRY', 3),
+                    ('AGRICULTURE', 'SERVICES', 2),
+                    ('INDUSTRY', 'SERVICES', 6),
+                    ('INDUSTRY', 'ENERGY', 2),
+                    ('FINANCE', 'AGRICULTURE', 1),
+                    ('FINANCE', 'INDUSTRY', 2),
+                    ('FINANCE', 'SERVICES', 1),
+                    ('FINANCE', 'ENERGY', 1),
+                    ('ENERGY', 'AGRICULTURE', 2),
+                    ('ENERGY', 'INDUSTRY', 4),
+                    ('ENERGY', 'SERVICES', 3),
+                    ('SERVICES', 'AGRICULTURE', 1),
+                    ('SERVICES', 'INDUSTRY', 4),
+                    ('SERVICES', 'FINANCE', 1)
+                ]
+
+                for source_sector, target_sector, count in flows:
+                    # Adapter la méthode d'accès selon la source d'agents trouvée
+                    if hasattr(list(agents_source.values())[0], 'sector'):
+                        # Structure classique avec objets agents ayant attribut sector
+                        source_agents = [aid for aid, agent in agents_source.items()
+                                       if agent.sector == source_sector][:count]
+                        target_agents = [aid for aid, agent in agents_source.items()
+                                       if agent.sector == target_sector][:count]
+                    else:
+                        # Structure WebNativeICGS avec dictionnaire d'infos
+                        source_agents = [aid for aid, agent_info in agents_source.items()
+                                       if (isinstance(agent_info, dict) and agent_info.get('sector') == source_sector) or
+                                          (hasattr(agent_info, 'sector') and agent_info.sector == source_sector)][:count]
+                        target_agents = [aid for aid, agent_info in agents_source.items()
+                                       if (isinstance(agent_info, dict) and agent_info.get('sector') == target_sector) or
+                                          (hasattr(agent_info, 'sector') and agent_info.sector == target_sector)][:count]
+
+                    for i, (source_agent, target_agent) in enumerate(zip(source_agents, target_agents)):
+                        amount = Decimal(str(80 + (i * 20)))  # Montants variables
+                        transaction_queue.append({
+                            'source': source_agent,
+                            'target': target_agent,
+                            'amount': amount,
+                            'flow': f"{source_sector}→{target_sector}"
+                        })
+
+                animate_simulation.animation_state['transaction_queue'] = transaction_queue
+                animate_simulation.animation_state['total_transactions'] = len(transaction_queue)
+
+                print(f"✅ Queue transactions générée: {len(transaction_queue)} transactions prêtes")
+                for i, tx in enumerate(transaction_queue[:5]):  # Afficher les 5 premières
+                    print(f"   Transaction {i+1}: {tx['source']} → {tx['target']} ({tx['amount']}) [{tx['flow']}]")
+                if len(transaction_queue) > 5:
+                    print(f"   ... et {len(transaction_queue) - 5} autres transactions")
+
+                return jsonify({
+                    'success': True,
+                    'action': 'reset',
+                    'total_transactions': animate_simulation.animation_state['total_transactions'],
+                    'message': f'Animation reset avec {len(transaction_queue)} transactions prêtes'
+                })
+            else:
+                print(f"❌ Aucune source d'agents valide trouvée pour l'animation")
+                print(f"   Agents disponibles: {agents_count} (minimum requis: 65)")
+
+                return jsonify({
+                    'success': False,
+                    'action': 'reset',
+                    'total_transactions': 0,
+                    'error': f'Pas assez d\'agents disponibles: {agents_count}/65. Créez d\'abord une simulation 65 agents.',
+                    'debug_info': {
+                        'web_manager_exists': web_manager is not None,
+                        'agents_count': agents_count,
+                        'agents_sources_checked': ['web_manager.agents', 'web_manager.agent_registry', 'web_manager.icgs_core.agents']
+                    }
+                })
+
+        elif action == 'step':
+            # Exécuter une transaction
+            if animate_simulation.animation_state['current_step'] < len(animate_simulation.animation_state['transaction_queue']):
+                tx = animate_simulation.animation_state['transaction_queue'][animate_simulation.animation_state['current_step']]
+
+                # Exécuter transaction
+                result = web_manager.process_transaction_lightweight(tx['source'], tx['target'], tx['amount'])
+
+                if result.get('success', False):
+                    animate_simulation.animation_state['completed_transactions'].append({
+                        'step': animate_simulation.animation_state['current_step'] + 1,
+                        'source': tx['source'],
+                        'target': tx['target'],
+                        'amount': float(tx['amount']),
+                        'flow': tx['flow'],
+                        'success': True
+                    })
+                    animate_simulation.animation_state['current_step'] += 1
+
+                    return jsonify({
+                        'success': True,
+                        'action': 'step',
+                        'step': animate_simulation.animation_state['current_step'],
+                        'total_steps': animate_simulation.animation_state['total_transactions'],
+                        'transaction': {
+                            'source': tx['source'],
+                            'target': tx['target'],
+                            'amount': float(tx['amount']),
+                            'flow': tx['flow']
+                        },
+                        'progress_percent': (animate_simulation.animation_state['current_step'] / animate_simulation.animation_state['total_transactions']) * 100,
+                        'completed': animate_simulation.animation_state['current_step'] >= animate_simulation.animation_state['total_transactions']
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'action': 'step',
+                        'error': f'Transaction failed: {result.get("error", "Unknown error")}',
+                        'step': animate_simulation.animation_state['current_step'] + 1
+                    })
+            else:
+                return jsonify({
+                    'success': True,
+                    'action': 'step',
+                    'completed': True,
+                    'message': 'Animation terminée - toutes les transactions exécutées',
+                    'total_completed': animate_simulation.animation_state['current_step']
+                })
+
+        elif action == 'start':
+            animate_simulation.animation_state['active'] = True
+            return jsonify({
+                'success': True,
+                'action': 'start',
+                'message': 'Animation démarrée - utiliser "step" pour progresser',
+                'current_step': animate_simulation.animation_state['current_step'],
+                'total_transactions': animate_simulation.animation_state['total_transactions']
+            })
+
+        elif action == 'pause':
+            animate_simulation.animation_state['active'] = False
+            return jsonify({
+                'success': True,
+                'action': 'pause',
+                'message': 'Animation mise en pause',
+                'current_step': animate_simulation.animation_state['current_step']
+            })
+
+        elif action == 'status':
+            return jsonify({
+                'success': True,
+                'action': 'status',
+                'active': animate_simulation.animation_state['active'],
+                'current_step': animate_simulation.animation_state['current_step'],
+                'total_transactions': animate_simulation.animation_state['total_transactions'],
+                'progress_percent': (animate_simulation.animation_state['current_step'] / animate_simulation.animation_state['total_transactions']) * 100 if animate_simulation.animation_state['total_transactions'] > 0 else 0,
+                'completed_transactions': len(animate_simulation.animation_state['completed_transactions']),
+                'queue_length': len(animate_simulation.animation_state['transaction_queue'])
+            })
+
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Action inconnue: {action}. Actions disponibles: start, step, pause, reset, status'
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Erreur animation: {str(e)}'
+        }), 500
+
+
+# ==========================
+# HTML TEMPLATE
+# ==========================
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="fr">
@@ -1582,6 +2471,10 @@ HTML_TEMPLATE = """
                 <button class="nav-button active" data-page="dashboard">
                     <span class="nav-icon">📊</span>
                     Dashboard 3D
+                </button>
+                <button class="nav-button" data-page="simulations">
+                    <span class="nav-icon">💾</span>
+                    Simulations
                 </button>
                 <button class="nav-button" data-page="transactions">
                     <span class="nav-icon">💰</span>
@@ -1633,6 +2526,81 @@ HTML_TEMPLATE = """
                             • Molette : Zoom<br>
                             • Clic droit + glisser : Panoramique
                         </p>
+                    </div>
+
+                    <div class="dashboard-persistence-section">
+                        <h4 style="margin-bottom: 10px;">Gestion Simulation</h4>
+                        <div class="dashboard-persistence-controls">
+                            <button id="dashboard-quick-save" class="action-btn save-btn">
+                                💾 Sauvegarde Rapide
+                            </button>
+                            <button id="dashboard-quick-load" class="action-btn load-btn">
+                                📥 Charger Simulation
+                            </button>
+                            <button id="dashboard-manage-sims" class="action-btn">
+                                🗂️ Gérer Simulations
+                            </button>
+                            <button id="dashboard-load-65-agents" class="action-btn massive-btn">
+                                🚀 Simulation 65 Agents
+                            </button>
+                        </div>
+                        <div id="dashboard-current-sim-status" style="margin-top: 10px; font-size: 0.85rem; opacity: 0.8;">
+                            <!-- Status will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulations Management Page -->
+                <div id="simulations-page" class="page-content" style="display: none;">
+                    <div class="page-header">
+                        <h2 class="page-title">Gestion des Simulations</h2>
+                        <p class="page-subtitle">Sauvegarde, chargement et gestion des simulations ICGS</p>
+                    </div>
+
+                    <div class="simulations-container">
+                        <!-- Current Simulation Status -->
+                        <div class="current-sim-status">
+                            <h3>Simulation Actuelle</h3>
+                            <div id="current-sim-info">
+                                <div class="loading">
+                                    <div class="spinner"></div>
+                                    <p>Chargement informations...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Save Current Simulation -->
+                        <div class="save-simulation-section">
+                            <h3>Sauvegarder Simulation Actuelle</h3>
+                            <div class="save-form">
+                                <input type="text" id="sim-name" placeholder="Nom de la simulation" />
+                                <textarea id="sim-description" placeholder="Description optionnelle..."></textarea>
+                                <input type="text" id="sim-tags" placeholder="Tags (séparés par des virgules)" />
+                                <button id="save-simulation-btn" class="action-btn save-btn">
+                                    💾 Sauvegarder
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Saved Simulations List -->
+                        <div class="saved-simulations-section">
+                            <h3>Simulations Sauvegardées</h3>
+                            <div class="simulations-filters">
+                                <select id="category-filter">
+                                    <option value="">Toutes les catégories</option>
+                                    <option value="user_simulation">Simulations utilisateur</option>
+                                    <option value="test">Tests</option>
+                                    <option value="demo">Démonstrations</option>
+                                </select>
+                                <button id="refresh-list-btn" class="action-btn">🔄 Actualiser</button>
+                            </div>
+                            <div id="simulations-list">
+                                <div class="loading">
+                                    <div class="spinner"></div>
+                                    <p>Chargement simulations...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1975,6 +2943,9 @@ HTML_TEMPLATE = """
             // Initialize SVG animation functionality
             initializeSvgAnimation();
 
+            // Initialize simulations management
+            initializeSimulations();
+
             // Load initial data
             updateDataStatus();
         });
@@ -2176,6 +3147,454 @@ HTML_TEMPLATE = """
                 statusDiv.innerHTML = `<div class="error">❌ Erreur chargement données: ${error.message}</div>`;
             }
         }
+
+        // ========== SIMULATIONS MANAGEMENT FUNCTIONS ==========
+
+        function initializeSimulations() {
+            // Setup event listeners for simulations page
+            const saveBtn = document.getElementById('save-simulation-btn');
+            const refreshBtn = document.getElementById('refresh-list-btn');
+            const categoryFilter = document.getElementById('category-filter');
+
+            if (saveBtn) {
+                saveBtn.addEventListener('click', saveCurrentSimulation);
+            }
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', loadSimulationsList);
+            }
+            if (categoryFilter) {
+                categoryFilter.addEventListener('change', loadSimulationsList);
+            }
+
+            // Setup dashboard persistence controls
+            const dashboardQuickSave = document.getElementById('dashboard-quick-save');
+            const dashboardQuickLoad = document.getElementById('dashboard-quick-load');
+            const dashboardManageSims = document.getElementById('dashboard-manage-sims');
+            const dashboardLoad65Agents = document.getElementById('dashboard-load-65-agents');
+
+            if (dashboardQuickSave) {
+                dashboardQuickSave.addEventListener('click', quickSaveSimulation);
+            }
+            if (dashboardQuickLoad) {
+                dashboardQuickLoad.addEventListener('click', showQuickLoadDialog);
+            }
+            if (dashboardManageSims) {
+                dashboardManageSims.addEventListener('click', () => {
+                    const simulationsTab = document.querySelector('[data-page="simulations"]');
+                    if (simulationsTab) simulationsTab.click();
+                });
+            }
+            if (dashboardLoad65Agents) {
+                dashboardLoad65Agents.addEventListener('click', load65AgentsSimulation);
+            }
+
+            // Load initial data when simulations page becomes active
+            const simulationsTab = document.querySelector('[data-page="simulations"]');
+            if (simulationsTab) {
+                simulationsTab.addEventListener('click', function() {
+                    setTimeout(() => {
+                        loadCurrentSimulationInfo();
+                        loadSimulationsList();
+                    }, 100);
+                });
+            }
+
+            // Load dashboard status on dashboard tab click
+            const dashboardTab = document.querySelector('[data-page="dashboard"]');
+            if (dashboardTab) {
+                dashboardTab.addEventListener('click', function() {
+                    setTimeout(() => {
+                        loadDashboardSimulationStatus();
+                    }, 100);
+                });
+            }
+
+            // Load initial dashboard status
+            loadDashboardSimulationStatus();
+        }
+
+        async function loadCurrentSimulationInfo() {
+            const infoDiv = document.getElementById('current-sim-info');
+            if (!infoDiv) return;
+
+            infoDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Chargement...</p></div>';
+
+            try {
+                const response = await fetch('/api/simulations/current/info');
+                const data = await response.json();
+
+                if (data.success) {
+                    const info = data.info;
+                    infoDiv.innerHTML = `
+                        <div class="current-sim-info">
+                            <div class="sim-stat"><strong>Source:</strong> <span>${info.source === 'web_native' ? 'Web Native' : 'Simulation Chargée'}</span></div>
+                            <div class="sim-stat"><strong>Agents:</strong> <span>${info.agents_count || 0}</span></div>
+                            <div class="sim-stat"><strong>Transactions:</strong> <span>${info.transactions_count || 0}</span></div>
+                            <div class="sim-stat"><strong>Balance Totale:</strong> <span>${info.total_balance || '0'}</span></div>
+                            ${info.loaded_simulation_id ? `<div class="sim-stat"><strong>ID Simulation:</strong> <span>${info.loaded_simulation_id}</span></div>` : ''}
+                            ${info.simulation_metadata && info.simulation_metadata.name ? `<div class="sim-stat"><strong>Nom:</strong> <span>${info.simulation_metadata.name}</span></div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    infoDiv.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+                }
+            } catch (error) {
+                infoDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function saveCurrentSimulation() {
+            const nameInput = document.getElementById('sim-name');
+            const descInput = document.getElementById('sim-description');
+            const tagsInput = document.getElementById('sim-tags');
+            const saveBtn = document.getElementById('save-simulation-btn');
+
+            if (!nameInput.value.trim()) {
+                alert('Veuillez entrer un nom pour la simulation');
+                return;
+            }
+
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = '💾 Sauvegarde...';
+            saveBtn.disabled = true;
+
+            try {
+                const requestData = {
+                    name: nameInput.value.trim(),
+                    description: descInput.value.trim(),
+                    tags: tagsInput.value.trim()
+                };
+
+                const response = await fetch('/api/simulations/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✅ Simulation sauvegardée: ${data.simulation_id}`);
+                    // Clear form
+                    nameInput.value = '';
+                    descInput.value = '';
+                    tagsInput.value = '';
+                    // Refresh list
+                    loadSimulationsList();
+                } else {
+                    alert(`❌ Erreur sauvegarde: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Erreur: ${error.message}`);
+            } finally {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+            }
+        }
+
+        async function loadSimulationsList() {
+            const listDiv = document.getElementById('simulations-list');
+            const categoryFilter = document.getElementById('category-filter');
+            if (!listDiv) return;
+
+            listDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Chargement...</p></div>';
+
+            try {
+                const category = categoryFilter ? categoryFilter.value : '';
+                const url = category ? `/api/simulations?category=${encodeURIComponent(category)}` : '/api/simulations';
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success && data.simulations) {
+                    if (data.simulations.length === 0) {
+                        listDiv.innerHTML = '<p>Aucune simulation sauvegardée</p>';
+                        return;
+                    }
+
+                    const simulationsHtml = data.simulations.map(sim => `
+                        <div class="simulation-card">
+                            <h4>${sim.name || 'Simulation sans nom'}</h4>
+                            <div class="sim-meta">
+                                <div>ID: ${sim.id}</div>
+                                <div>Créée: ${new Date(sim.created_date).toLocaleString()}</div>
+                                <div>Agents: ${sim.agents_count} | Transactions: ${sim.transactions_count}</div>
+                                <div>Balance: ${sim.total_balance}</div>
+                                ${sim.description ? `<div>Description: ${sim.description}</div>` : ''}
+                                ${sim.tags && sim.tags.length > 0 ? `<div>Tags: ${sim.tags.join(', ')}</div>` : ''}
+                            </div>
+                            <div class="sim-actions">
+                                <button class="action-btn load-btn" onclick="loadSimulation('${sim.id}')">
+                                    📥 Charger
+                                </button>
+                                <button class="action-btn delete-btn" onclick="deleteSimulation('${sim.id}', '${sim.name || 'simulation'}')">
+                                    🗑️ Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    listDiv.innerHTML = simulationsHtml;
+                } else {
+                    listDiv.innerHTML = `<div class="error">❌ ${data.error || 'Erreur chargement simulations'}</div>`;
+                }
+            } catch (error) {
+                listDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function loadSimulation(simulationId) {
+            if (!confirm('Charger cette simulation remplacera la simulation actuelle. Continuer ?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/simulations/${simulationId}/load`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Simulation chargée avec succès');
+                    // Refresh current simulation info
+                    loadCurrentSimulationInfo();
+                    // Refresh the dashboard if needed
+                    if (typeof updateMetrics === 'function') {
+                        updateMetrics();
+                    }
+                    // Switch to dashboard view
+                    const dashboardTab = document.querySelector('[data-page="dashboard"]');
+                    if (dashboardTab) {
+                        dashboardTab.click();
+                    }
+                } else {
+                    alert(`❌ Erreur chargement: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Erreur: ${error.message}`);
+            }
+        }
+
+        async function deleteSimulation(simulationId, simulationName) {
+            if (!confirm(`Êtes-vous sûr de vouloir supprimer la simulation "${simulationName}" ?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/simulations/${simulationId}/delete`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Simulation supprimée');
+                    loadSimulationsList(); // Refresh list
+                } else {
+                    alert(`❌ Erreur suppression: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Erreur: ${error.message}`);
+            }
+        }
+
+        // ========== DASHBOARD PERSISTENCE FUNCTIONS ==========
+
+        async function loadDashboardSimulationStatus() {
+            const statusDiv = document.getElementById('dashboard-current-sim-status');
+            if (!statusDiv) return;
+
+            try {
+                const response = await fetch('/api/simulations/current/info');
+                const data = await response.json();
+
+                if (data.success) {
+                    const info = data.info;
+                    const statusText = info.source === 'web_native'
+                        ? `Simulation Web Native: ${info.agents_count || 0} agents, ${info.transactions_count || 0} transactions`
+                        : `Simulation Chargée: "${info.simulation_metadata?.name || 'Sans nom'}" - ${info.agents_count || 0} agents`;
+
+                    statusDiv.innerHTML = `<span style="color: #38a169;">●</span> ${statusText}`;
+                } else {
+                    statusDiv.innerHTML = `<span style="color: #e53e3e;">●</span> Erreur chargement status`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span style="color: #e53e3e;">●</span> Status indisponible`;
+            }
+        }
+
+        async function quickSaveSimulation() {
+            const timestamp = new Date().toLocaleString('fr-FR').replace(/[/:\s]/g, '-');
+            const defaultName = `Simulation-${timestamp}`;
+
+            const name = prompt('Nom de la simulation:', defaultName);
+            if (!name) return;
+
+            const saveBtn = document.getElementById('dashboard-quick-save');
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = '💾 Sauvegarde...';
+            saveBtn.disabled = true;
+
+            try {
+                const requestData = {
+                    name: name.trim(),
+                    description: `Sauvegarde rapide depuis dashboard - ${new Date().toLocaleString()}`,
+                    tags: 'dashboard,quick-save'
+                };
+
+                const response = await fetch('/api/simulations/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✅ Simulation sauvegardée: ${data.simulation_id}`);
+                    loadDashboardSimulationStatus(); // Refresh status
+                } else {
+                    alert(`❌ Erreur sauvegarde: ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Erreur: ${error.message}`);
+            } finally {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+            }
+        }
+
+        async function showQuickLoadDialog() {
+            try {
+                const response = await fetch('/api/simulations');
+                const data = await response.json();
+
+                if (!data.success || !data.simulations || data.simulations.length === 0) {
+                    alert('Aucune simulation sauvegardée disponible');
+                    return;
+                }
+
+                // Create quick select dialog
+                const options = data.simulations.map(sim =>
+                    `${sim.name || 'Sans nom'} (${sim.agents_count} agents, ${new Date(sim.created_date).toLocaleDateString()})`
+                );
+
+                let selectedIndex = -1;
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                    background: white; border: 2px solid #ddd; border-radius: 10px; padding: 20px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; max-width: 500px; width: 90%;
+                `;
+
+                dialog.innerHTML = `
+                    <h3 style="margin-bottom: 15px;">Charger une simulation</h3>
+                    <select id="quick-load-select" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                        <option value="">-- Sélectionner une simulation --</option>
+                        ${data.simulations.map((sim, index) =>
+                            `<option value="${index}">${options[index]}</option>`
+                        ).join('')}
+                    </select>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="quick-load-cancel" class="action-btn" style="background: #718096;">Annuler</button>
+                        <button id="quick-load-confirm" class="action-btn load-btn">Charger</button>
+                    </div>
+                `;
+
+                document.body.appendChild(dialog);
+
+                // Handle dialog events
+                document.getElementById('quick-load-cancel').onclick = () => {
+                    document.body.removeChild(dialog);
+                };
+
+                document.getElementById('quick-load-confirm').onclick = async () => {
+                    const select = document.getElementById('quick-load-select');
+                    const selectedIndex = select.value;
+
+                    if (selectedIndex === '') {
+                        alert('Veuillez sélectionner une simulation');
+                        return;
+                    }
+
+                    const selectedSim = data.simulations[selectedIndex];
+                    document.body.removeChild(dialog);
+
+                    // Load the simulation
+                    if (confirm(`Charger "${selectedSim.name || 'simulation'}" ? Cela remplacera la simulation actuelle.`)) {
+                        await loadSimulation(selectedSim.id);
+                    }
+                };
+
+            } catch (error) {
+                alert(`❌ Erreur: ${error.message}`);
+            }
+        }
+
+        async function load65AgentsSimulation() {
+            try {
+                // Confirmation before creating massive simulation
+                if (!confirm('🚀 Créer une simulation massive avec 65 agents ?\n\n' +
+                            'Cette opération va :\n' +
+                            '• Réinitialiser la simulation actuelle\n' +
+                            '• Créer 65 agents répartis sur 5 secteurs\n' +
+                            '• AGRICULTURE: 10 agents (~1250 balance)\n' +
+                            '• INDUSTRY: 15 agents (~900 balance)\n' +
+                            '• SERVICES: 20 agents (~700 balance)\n' +
+                            '• FINANCE: 8 agents (~3000 balance)\n' +
+                            '• ENERGY: 12 agents (~1900 balance)\n\n' +
+                            'Continuer ?')) {
+                    return;
+                }
+
+                // Show loading
+                const originalText = dashboardLoad65Agents.innerHTML;
+                dashboardLoad65Agents.innerHTML = '🔄 Création en cours...';
+                dashboardLoad65Agents.disabled = true;
+
+                // Call API to create 65 agents simulation
+                const response = await fetch('/api/simulations/create-65-agents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Success notification
+                    alert(`✅ Simulation 65 agents créée avec succès !\n\n` +
+                          `📊 ${data.agents_created} agents créés\n` +
+                          `💰 Balance totale: ${data.total_balance.toLocaleString()} unités\n` +
+                          `📈 Balance moyenne: ${data.average_balance.toFixed(0)} unités/agent\n\n` +
+                          `Distribution par secteur:\n` +
+                          Object.entries(data.sectors_distribution).map(([sector, stats]) =>
+                            `• ${sector}: ${stats.count} agents (${stats.avg_balance.toFixed(0)} moy.)`
+                          ).join('\n'));
+
+                    // Refresh UI
+                    loadMetrics();
+                    loadCurrentSimulationInfo();
+
+                    // Update 3D view if available
+                    if (typeof update3DVisualization === 'function') {
+                        update3DVisualization();
+                    }
+
+                } else {
+                    alert(`❌ Erreur lors de la création de la simulation 65 agents:\n${data.error}`);
+                }
+
+            } catch (error) {
+                alert(`❌ Erreur réseau: ${error.message}`);
+            } finally {
+                // Restore button
+                dashboardLoad65Agents.innerHTML = originalText;
+                dashboardLoad65Agents.disabled = false;
+            }
+        }
     </script>
 
     <style>
@@ -2213,6 +3632,91 @@ HTML_TEMPLATE = """
         .status.failed { background: #e53e3e; }
         .loading { text-align: center; padding: 20px; }
         .full-width { grid-column: 1 / -1; }
+
+        /* Simulations Page Styles */
+        .simulations-container { display: flex; flex-direction: column; gap: 20px; }
+        .current-sim-status, .save-simulation-section, .saved-simulations-section {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .save-form { display: flex; flex-direction: column; gap: 10px; max-width: 400px; }
+        .save-form input, .save-form textarea {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .save-form textarea { resize: vertical; min-height: 60px; }
+        .action-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .save-btn { background: #48bb78; color: white; }
+        .save-btn:hover { background: #38a169; }
+        .load-btn { background: #4299e1; color: white; }
+        .load-btn:hover { background: #3182ce; }
+        .massive-btn { background: linear-gradient(135deg, #e53e3e, #dd6b20); color: white; font-weight: bold; }
+        .massive-btn:hover { background: linear-gradient(135deg, #c53030, #c05621); transform: translateY(-1px); }
+        .delete-btn { background: #f56565; color: white; }
+        .delete-btn:hover { background: #e53e3e; }
+        .simulations-filters { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; }
+        .simulations-filters select {
+            padding: 6px 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+        }
+        .simulation-card {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .simulation-card h4 { margin: 0 0 8px 0; color: #2d3748; }
+        .simulation-card .sim-meta {
+            font-size: 0.85rem;
+            color: #718096;
+            margin-bottom: 10px;
+        }
+        .simulation-card .sim-actions { display: flex; gap: 8px; }
+        .simulation-card .sim-actions button { font-size: 0.8rem; padding: 6px 12px; }
+        .current-sim-info {
+            background: #e6fffa;
+            border: 1px solid #81e6d9;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .current-sim-info .sim-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        /* Dashboard Persistence Styles */
+        .dashboard-persistence-section {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid #e2e8f0;
+        }
+        .dashboard-persistence-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .dashboard-persistence-controls .action-btn {
+            flex: 1;
+            min-width: 120px;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+        }
     </style>
 </head>
 <body>
@@ -2651,9 +4155,9 @@ HTML_TEMPLATE = """
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 os.makedirs(template_dir, exist_ok=True)
 
-# Écrire template HTML
-with open(os.path.join(template_dir, 'index.html'), 'w', encoding='utf-8') as f:
-    f.write(HTML_TEMPLATE)
+# Écrire template HTML - DISABLED to preserve external template with persistence features
+# with open(os.path.join(template_dir, 'index.html'), 'w', encoding='utf-8') as f:
+#     f.write(HTML_TEMPLATE)
 
 if __name__ == '__main__':
     print("🚀 Démarrage ICGS Web Visualizer...")

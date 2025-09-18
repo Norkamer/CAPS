@@ -12,7 +12,8 @@ import os
 # Path setup pour import modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from icgs_core.dag import DAG, Transaction, TransactionMeasure
+from icgs_core.enhanced_dag import EnhancedDAG
+from icgs_core.dag import Transaction, TransactionMeasure
 from icgs_core.path_enumerator import DAGPathEnumerator
 from icgs_core.account_taxonomy import AccountTaxonomy
 from icgs_core.anchored_nfa_v2 import AnchoredWeightedNFA
@@ -23,7 +24,7 @@ class TestDiagnosticNFAStateSync(unittest.TestCase):
 
     def setUp(self):
         """Setup pour diagnostic synchronisation NFA"""
-        self.dag = DAG()
+        self.dag = EnhancedDAG()
 
     def test_01_analyze_temp_nfa_vs_persistent_nfa(self):
         """Test 3.1: Analyser différence temp_nfa vs NFA persistant"""

@@ -1,0 +1,676 @@
+[00:00.000 --> 00:13.000]  Il n'y a pas une grosse marque mais t'as envie qu'il en soit dehors déjà, c'est pas mal.
+[00:13.000 --> 00:17.000]  On est bien là, tu oublies complètement le truc là-bas.
+[00:17.000 --> 00:26.000]  Grosse Rodo, on reprend tout, c'est juste...
+[00:26.000 --> 00:30.000]  Tu peux m'expliquer en fin de compte.
+[00:30.000 --> 00:36.000]  Grosse Rodo, sur quoi tu agis par rapport à la monnaie ?
+[00:36.000 --> 00:56.000]  Alors, l'idée fondamentale, c'est de trouver, c'est de...
+[00:56.000 --> 01:12.000]  trouver qu'une monnaie, quelle que soit sa définition, aura toujours des externalités.
+[01:12.000 --> 01:22.000]  Parce qu'elle pourra toujours essayer de réduire certaines mais n'arrivera pas à pouvoir intégrer de façon organique
+[01:22.000 --> 01:26.000]  les externalités qui émergeraient.
+[01:38.000 --> 01:48.000]  Donc ce que j'essaye de faire, c'est d'essayer de faire prendre en compte des externalités émergentes
+[01:48.000 --> 02:00.000]  par les choix des acheteurs et des vendeurs sur leur définition de la monnaie, c'est-à-dire ce qu'il y a de la valeur pour eux.
+[02:00.000 --> 02:14.000]  Utilisé dans le cadre des flux monétaires, c'est la valeur qu'ils attribuent à la monnaie qu'ils vont recevoir
+[02:14.000 --> 02:20.000]  en fonction de ce que cette monnaie a pu permettre de faire par le passé.
+[02:20.000 --> 02:44.000]  Est-ce que c'est un historique ? Est-ce que c'est une traçabilité ?
+[02:44.000 --> 02:54.000]  Alors, c'est l'utilisation du fait que dans certains des systèmes, en particulier les blockchains,
+[02:54.000 --> 03:06.000]  la suite de transactions est connue et les intervenances à ces transactions sont identifiées par leur clé publique,
+[03:06.000 --> 03:16.000]  ce qui ne permet pas toujours d'identifier les personnes ou les organiques pas associées,
+[03:16.000 --> 03:26.000]  mais auxquelles on peut associer des caractéristiques, en particulier sur la base du volontariat.
+[03:26.000 --> 03:50.000]  Une personne peut se déclarer vouloir suivre un comportement, déclarer une intention d'être vert et la définition de la monnaie en tenir compte.
+[03:56.000 --> 04:06.000]  Concrètement, si j'essaie de figurer ce que tu dis là,
+[04:06.000 --> 04:14.000]  typiquement, on ne se connait pas, si moi je veux être vert, je veux avoir une main transaction,
+[04:14.000 --> 04:20.000]  typiquement dans la transaction tu pourrais être capable de dire, parce que je porte une casquette verte,
+[04:20.000 --> 04:26.000]  tu sauras que tu peux me vendre ou pas quelque chose, ou j'accepterais que ça.
+[04:26.000 --> 04:30.000]  Est-ce que c'est ça, schématiquement, ou pas ?
+[04:30.000 --> 04:32.000]  Non.
+[04:32.000 --> 04:34.000]  D'accord. Pour moi, c'est avant.
+[04:42.000 --> 04:44.000]  Je vais poser la question autrement.
+[04:44.000 --> 04:50.000]  Comment l'autre peut savoir la déclaration que j'ai, l'intention par rapport à comment je reconnais la monnaie,
+[04:50.000 --> 04:56.000]  comment je définis la monnaie pour moi, comment l'autre peut le savoir avant la transaction ?
+[05:00.000 --> 05:02.000]  Alors...
+[05:16.000 --> 05:18.000]  Pour simplifier peut-être, je vais dire ça.
+[05:18.000 --> 05:24.000]  On est d'accord qu'on n'est pas dans une transaction face à face, hors numérique.
+[05:24.000 --> 05:30.000]  On est forcément dans un système numérique capable de laisser des traces, de laisser des déclarations,
+[05:30.000 --> 05:36.000]  de nommer les choses qui peuvent être anonymes, mais dans la transaction on sait si on veut ça ou pas ça.
+[05:36.000 --> 05:54.000]  Mais ce qui m'embête un peu, c'est que le choix de l'acheteur et le vendeur,
+[05:54.000 --> 05:59.000]  le choix du vendeur par l'acheteur ne fait pas partie du système de transaction.
+[05:59.000 --> 06:05.000]  C'est considéré comme le choix des acheteurs qui se fait en dehors du système de ce système-là,
+[06:05.000 --> 06:11.000]  qui est présupposé présent indépendamment du système de transaction.
+[06:11.000 --> 06:27.000]  On est là plutôt sur la négociation de la compatibilité entre les valeurs de l'acheteur et du vendeur
+[06:27.000 --> 06:34.000]  pour déterminer ce que ça coûterait à l'acheteur de faire cette transaction.
+[06:36.000 --> 06:40.000]  Bon, je crois que là on a un truc super. Non, non, mais justement là on a un truc super.
+[06:40.000 --> 06:58.000]  Je viens de dire, dans la transaction, le système propose de la compatibilité entre deux intentions
+[06:58.000 --> 07:00.000]  Oui, celui de l'acheteur et celui de l'vendeur
+[07:00.000 --> 07:04.000]  par rapport à des valeurs qui ont été déclarées au préalable.
+[07:05.000 --> 07:07.000]  Ça c'est le système.
+[07:12.000 --> 07:14.000]  Ça, techniquement, on ne va pas en parler maintenant.
+[07:14.000 --> 07:19.000]  Donc ça veut dire que là, ils se connaissent parce qu'ils se sont choisis.
+[07:19.000 --> 07:24.000]  Et dans la négociation, c'est une aide à la négociation,
+[07:24.000 --> 07:33.000]  le cadre de négociation est fait par les deux intentions déclarées des deux protagonistes.
+[07:33.000 --> 07:35.000]  Des deux protagonistes, oui.
+[07:40.000 --> 07:45.000]  Comment le système renseigne l'avancée de la négociation
+[07:45.000 --> 07:52.000]  ou est-ce que le système cherche la meilleure négociation possible pour l'un et pour l'autre
+[07:52.000 --> 08:02.000]  en disant, par rapport à vos valeurs, votre prix qui matche bien entre vos deux contraintes
+[08:02.000 --> 08:08.000]  on va dire vos deux choix délibérés de valeurs, c'est celui-là.
+[08:08.000 --> 08:10.000]  Est-ce que le système propose un prix ?
+[08:10.000 --> 08:17.000]  Alors, l'entrée dans le système, c'est les valeurs de l'acheteur,
+[08:17.000 --> 08:25.000]  les valeurs du vendeur et le minimum que demande le vendeur sur ses valeurs.
+[08:25.000 --> 08:27.000]  Pour chaque valeur ?
+[08:27.000 --> 08:29.000]  Non, sur sa combinaison de valeurs.
+[08:29.000 --> 08:32.000]  La combinaison de valeurs détermine un minimum ?
+[08:32.000 --> 08:40.000]  Un minimum, il veut que ce que donnera l'acheteur est un minimum de valeurs
+[08:40.000 --> 08:47.000]  sur sa définition de la valeur.
+[08:47.000 --> 08:56.000]  Et le système va calculer par un optimal que doit donner au minimum sur ses valeurs,
+[08:56.000 --> 09:03.000]  sur sa proposition de valeurs, l'acheteur pour pouvoir avoir validé la transaction.
+[09:03.000 --> 09:05.000]  D'accord.
+[09:05.000 --> 09:10.000]  Après, l'acheteur peut soit accepter ce prix,
+[09:10.000 --> 09:14.000]  et à ce moment-là, ou soumettre la transaction de façon définitive,
+[09:14.000 --> 09:21.000]  et pour signer la transaction, accepter la transaction,
+[09:21.000 --> 09:26.000]  soit l'acheteur peut trouver le prix sur ses valeurs trop hautes
+[09:26.000 --> 09:31.000]  et refuser ce que lui propose ce vendeur-là.
+[09:31.000 --> 09:36.000]  Ça veut dire, par exemple, qu'un acheteur peut très bien dire
+[09:36.000 --> 09:42.000]  pour tout ce qui est alimentation bio, je suis prêt à payer plus cher,
+[09:42.000 --> 09:46.000]  avec mon minimum qui remonte, parce que ça a de la valeur pour moi,
+[09:46.000 --> 09:50.000]  parce qu'il y a de la santé, il y a de l'énergie, il y a un circuit court, il y a tout ça.
+[09:50.000 --> 09:54.000]  Donc il peut le définir par un cas concret, d'accord ?
+[09:54.000 --> 10:02.000]  Et en face, admettons que ça soit un grand distributeur qui fait du bio, par exemple Carrefour, Potage City,
+[10:02.000 --> 10:05.000]  et puis il y a un petit cultivateur qui fait du bio.
+[10:05.000 --> 10:13.000]  Si les deux se présentent, on peut considérer que les valeurs ne sont pas tout à fait les mêmes,
+[10:14.000 --> 10:18.000]  ils vont prendre quand même une alimentation bio.
+[10:18.000 --> 10:22.000]  Comment le système va lui donner des indications à l'acheteur pour dire
+[10:22.000 --> 10:26.000]  là, ce n'est pas forcément le prix, ça va être autre chose ?
+[10:26.000 --> 10:29.000]  Est-ce que ça correspond à toutes les cases de valeurs ?
+[10:29.000 --> 10:38.000]  Par exemple, est-ce que les qualités des valeurs ont un système de corrélation ?
+[10:38.000 --> 10:41.000]  Je n'en sais rien comment tu vas calculer ça.
+[10:41.000 --> 10:45.000]  Est-ce que tu dis que c'est une combinaison pour un prix ?
+[10:51.000 --> 10:55.000]  Je dis tout ça parce que certainement que le prix bio du grand distributeur
+[10:55.000 --> 10:59.000]  va être inférieur au prix du bio du cultivateur.
+[10:59.000 --> 11:01.000]  C'est ça le truc.
+[11:01.000 --> 11:04.000]  Comment, est-ce que l'acheteur lui préférerait privilégier ?
+[11:04.000 --> 11:08.000]  Ça me donne un bon exemple.
+[11:08.000 --> 11:12.000]  Peut-être que tu n'as pas plus compliqué que ce que tu imaginais,
+[11:12.000 --> 11:22.000]  mais tu as le producteur bio qui a besoin pour faire ces productions d'acheter de l'engrais bio.
+[11:23.000 --> 11:36.000]  Et on va imaginer au moment où l'agriculteur va vouloir acheter de l'engrais bio,
+[11:36.000 --> 11:42.000]  ils sont entre personnes qui ont des convictions bio tous les deux,
+[11:42.000 --> 11:47.000]  et là on parle bien de conviction, pas juste de déclaration, d'adversion.
+[11:47.000 --> 11:56.000]  Ils vont donc payer entre eux avec une monnaie qui a une définition axée sur le bio.
+[12:02.000 --> 12:11.000]  Quand ce producteur va vendre en circuit court,
+[12:11.000 --> 12:16.000]  il va demander à récupérer de quoi acheter son engrais.
+[12:17.000 --> 12:25.000]  Il va donc demander cette monnaie bio à l'acheteur.
+[12:25.000 --> 12:36.000]  Si le client peut lui fournir de la monnaie bio parce que lui-même travaille dans le bio,
+[12:36.000 --> 12:48.000]  alors tout le circuit va se trouver avec une cohérence de valeurs fortes.
+[12:48.000 --> 12:56.000]  Donc tout le monde va exprimer leur valeur dans la valeur faciale de cette monnaie bio.
+[12:56.000 --> 13:12.000]  Si le supermarché lui achète du bio, il faut qu'il donne de la monnaie bio au producteur,
+[13:12.000 --> 13:19.000]  parce que c'est ce qu'il demande, mais lui il va passer par un marché de change.
+[13:19.000 --> 13:35.000]  Il va convertir des euros standard contre de la monnaie bio et va acheter la production demandée en bio.
+[13:35.000 --> 13:44.000]  Mais ce qu'il va demander à ses clients, c'est des euros qui ne sont pas labellisés bio.
+[13:44.000 --> 13:54.000]  Maintenant, l'acheteur se retrouve avec deux choix.
+[13:54.000 --> 14:10.000]  On va prendre l'acheteur qui a de l'euro issu d'un état salarié sur des rues jugiques.
+[14:10.000 --> 14:16.000]  On va considérer que c'est l'euro standard qui est utilisé dans la scie de chirurgie.
+[14:16.000 --> 14:34.000]  S'il achète le marché, il va acheter en euros la monnaie bio au prix en euros.
+[14:34.000 --> 14:43.000]  S'il veut acheter directement au producteur, il devra faire la même conversion que le supermarché.
+[14:43.000 --> 14:56.000]  Donc acheter directement au local ou au supermarché ne lui coûtera que la marge que demande le supermarché par rapport à l'achat direct.
+[14:56.000 --> 15:02.000]  On est dans le fonctionnement actuel ici.
+[15:02.000 --> 15:19.000]  Par contre, si le client est lui-même un salarié, il crée une boucle complète de circulation de la monnaie bio.
+[15:19.000 --> 15:37.000]  A ce moment-là, la monnaie va fonctionner comme une monnaie locale.
+[15:37.000 --> 15:56.000]  À ce point de l'échange, ce que je comprends, c'est que la monnaie est dédiée à un système de valeur.
+[15:56.000 --> 16:09.000]  Si on prend une filière de bois par exemple, la transformation de cultiver le bois jusqu'à le couper, l'emmener à une scierie et d'en faire de meubles,
+[16:09.000 --> 16:31.000]  il peut y avoir en fonction une monnaie filière bois respectueuse de la nature, une monnaie bois non respectueuse de la nature.
+[16:31.000 --> 16:46.000]  Et du coup, tu peux te dire pour la même chose, il me faut un meuble, tu sauras qu'en fin de compte, peut-être que ça a été filière bois respectueuse de la nature jusqu'à la scierie,
+[16:46.000 --> 16:50.000]  puis après ils ont mis des vernis à la con et puis c'est foutu.
+[16:50.000 --> 16:52.000]  C'est-à-dire que d'un seul coup, ça quitte le truc et c'est parti.
+[16:52.000 --> 17:01.000]  Toi, dans ton système, tu es capable de tracer les différents critères ou valeurs qui ont été respectés ou pas.
+[17:01.000 --> 17:03.000]  Remonter toute la chaîne de transformation.
+[17:03.000 --> 17:17.000]  Tu es capable de prendre presque de manière archéologique toute la transformation pour savoir si ça était respectueuse d'une monnaie bois,
+[17:17.000 --> 17:28.000]  monnaie bois respectueuse des forêts ou si c'est une monnaie bois non respectueuse, après tu peux respectueuse du vivant.
+[17:28.000 --> 17:34.000]  C'est-à-dire que le vernis, typiquement, ça a été respectueux jusqu'à un moment donné respectueuse de la forêt.
+[17:34.000 --> 17:46.000]  Et puis à un moment donné, on a mis du vernis à la con qui fait des problèmes endocriniens et là, tu n'es plus une monnaie, la combinaison donc, la monnaie respectueuse de la santé.
+[17:46.000 --> 17:52.000]  Alors que tu as respecté des forêts et le système est capable de le révéler.
+[17:52.000 --> 18:07.000]  Après, c'est en fonction des vendeurs, quand ils demandent, ils peuvent demander plus ou moins de monnaies en fonction du respect des monnaies dans leur vie à leur valeur.
+[18:07.000 --> 18:10.000]  Il y a compensation que... OK.
+[18:10.000 --> 18:13.000]  D'accord.
+[18:13.000 --> 18:16.000]  Moi, ça me fait penser à quoi là ?
+[18:16.000 --> 18:19.000]  À une monnaie.
+[18:19.000 --> 18:22.000]  Est-ce que tu as vu, j'ai une mascotte.
+[18:22.000 --> 18:31.000]  Il y a une petite poupée noire avec deux yeux, c'est Barbara Amman dans la série Barbara Amman.
+[18:31.000 --> 18:39.000]  C'est capable de manière low-tech, je trouve, de créer à la volée un meuble, une fonction, elle a besoin...
+[18:39.000 --> 18:46.000]  J'ai l'impression que la monnaie que tu es en train d'imaginer, c'est une monnaie, je parlais de caméléon tout à l'heure, mais c'est presque ça.
+[18:46.000 --> 18:57.000]  Une monnaie qui est capable de manière organique, grâce à des déclarations ADN en quelque sorte dans le truc, de dire ça c'est une monnaie léopard, la fonction c'est léopard,
+[18:57.000 --> 19:03.000]  il faut le transposer à des choses humaines qui sont bonnes ou pas par rapport à une relation, on va dire ça comme ça.
+[19:03.000 --> 19:06.000]  Ou ça c'est une monnaie crocodile, ou ça c'est une monnaie végétale.
+[19:06.000 --> 19:17.000]  Et avec le seul coup, c'est presque que la monnaie devient le reflet des intentions d'organisation humaine en disant, ton choix il est respecté.
+[19:17.000 --> 19:24.000]  C'est-à-dire que tu es capable de révéler, de voir ce que je te propose dans toute la transformation,
+[19:24.000 --> 19:33.000]  donc une traçabilité bien plus poussée, et du coup de se dire, ok, là je sais que ça s'est arrêté à cet endroit-là,
+[19:33.000 --> 19:39.000]  et dans la négociation, le système va me dire, là ça vaut deux ou trois fois plus parce que c'est à cause de ça.
+[19:39.000 --> 19:51.000]  Alors je suis obligé de forcer une précision, parce que quand tu fais tes présentations, on a l'impression que tu parles de chaînes logistiques,
+[19:52.000 --> 19:55.000]  puisque tu parles de transformation situative de ton bois.
+[19:55.000 --> 19:57.000]  Non, c'est une chaîne de valeur pour moi.
+[19:59.000 --> 20:02.000]  Respecté ou pas par rapport à la chaîne de transformation.
+[20:02.000 --> 20:12.000]  Alors que ce que teste mon système, c'est le flux monétaire, c'est-à-dire d'où vient, à quoi a servi cet argent avant.
+[20:12.000 --> 20:19.000]  C'est une petite différence, et je sais que c'est plus naturel de raisonner en termes de chaînes logistiques,
+[20:19.000 --> 20:22.000]  mais ce n'est pas comme ça que j'avais initialement conçu.
+[20:22.000 --> 20:30.000]  J'avais utilisé l'outil, même si je pense que l'outil pourrait être utilisé pour les chaînes logistiques, mais je l'avais initialement conçu.
+[20:30.000 --> 20:38.000]  Ce n'est pas tellement logistique, c'est qu'en fin de compte, si le flux monétaire, c'est comme un virus,
+[20:38.000 --> 20:44.000]  ça veut dire qu'en fin de compte, je te contamine ou pas, tu me contammines ou pas.
+[20:44.000 --> 20:54.000]  C'est-à-dire que si on reprend les affiliations par rapport à l'ADN humain dans les chromosomes et tout ça,
+[20:54.000 --> 21:04.000]  c'est de se dire que j'ai peut-être 20% d'Africains et 30% de Suédois alors que ça fait un paquet de temps que je suis en France.
+[21:04.000 --> 21:07.000]  C'est-à-dire qu'on a quand même hérité de tout ça.
+[21:07.000 --> 21:13.000]  Et là, il y a une notion d'héritage, de filiation, on sait ce qui se passe, ce n'est pas forcément lié à la logistique pour moi,
+[21:13.000 --> 21:18.000]  mais même si j'ai pris l'exemple pour l'illustrer, il y a quelque chose d'une transformation physique concrète.
+[21:18.000 --> 21:27.000]  Parce que si tu prends pour un service, tu pourrais très bien te dire, oui, en fin de compte, le service que tu as là, il est parti en Inde.
+[21:27.000 --> 21:29.000]  C'est des enfants qui l'ont fait.
+[21:29.000 --> 21:36.000]  Est-ce que c'est valable dans tes valeurs ou pas ? Parce que là, le truc, la monnaie, elle indique que ce sont des enfants qui ont travaillé,
+[21:36.000 --> 21:41.000]  et que toi, tu le tolères si jamais tu acceptes à ce prix-là ou pas.
+[21:42.000 --> 21:49.000]  Alors ça, ça me permet d'enchaîner une autre façon d'imaginer mon système.
+[21:49.000 --> 22:01.000]  C'est de considérer que si on a un système de libre-échange complet,
+[22:01.000 --> 22:09.000]  avec différentes monnaies et un système de change, c'est quasiment le système actuel,
+[22:09.000 --> 22:15.000]  on a des économies qui vont se spécialiser en fonction de leur avantage comparatif.
+[22:15.000 --> 22:19.000]  Ça, c'est les grands dons des économies classiques.
+[22:19.000 --> 22:29.000]  Simplement, si on commence à autoriser tout le monde à utiliser n'importe quelle monnaie,
+[22:29.000 --> 22:34.000]  c'est-à-dire qu'on donne cours légal de toutes les monnaies dans tous les pays,
+[22:34.000 --> 22:41.000]  on laisse le choix aux acheteurs et aux vendeurs des monnaies qu'ils utilisent,
+[22:41.000 --> 22:47.000]  mais à condition qu'ils adoptent les valeurs que véhicule cette monnaie.
+[22:47.000 --> 22:54.000]  Par exemple, tu as l'exemple d'un pays qui autorise le travail des enfants,
+[22:54.000 --> 22:58.000]  c'est quelque chose qui est porté par cette monnaie,
+[22:58.000 --> 23:01.000]  et ceux qui s'en foutent peuvent l'utiliser pour leur transaction.
+[23:01.000 --> 23:10.000]  Pas de problème, mais à l'inverse, si tu es producteur et que tu es contre l'exploration des enfants,
+[23:10.000 --> 23:16.000]  tu vas interdire qu'on t'achète des produits avec cet argent, tout simplement.
+[23:20.000 --> 23:26.000]  C'est comme si, en fin de compte, la monnaie étant caractérisée par des valeurs,
+[23:26.000 --> 23:31.000]  tu peux bloquer la transaction en disant que tu ne peux pas acheter,
+[23:31.000 --> 23:34.000]  tu vas la frelater, cette monnaie-là.
+[23:34.000 --> 23:39.000]  Si tu achètes, tu as toujours des enfants, au contraire aux valeurs.
+[23:39.000 --> 23:45.000]  Exactement, si une monnaie qui était initialement neutre est passée par une industrie
+[23:45.000 --> 23:52.000]  qui s'est autorisée à utiliser le travail des enfants,
+[23:52.000 --> 23:59.000]  ces salariés ne vont pas pouvoir acheter autant auprès des vendeurs
+[23:59.000 --> 24:03.000]  par rapport à la valeur française de cette monnaie, à cause de son historique.
+[24:05.000 --> 24:10.000]  Là, c'est encore une chose, c'est-à-dire que la manière de réguler les flux,
+[24:10.000 --> 24:13.000]  c'est de se dire que si tu ne joues pas le jeu de la monnaie qui était prévue,
+[24:13.000 --> 24:16.000]  tu vas payer plus ou gagner moins en tout cas.
+[24:18.000 --> 24:23.000]  Tu auras moins de contreparties, donc ça veut dire que la monnaie a moins de valeurs.
+[24:25.000 --> 24:29.000]  Alors maintenant, techniquement, en tout cas conceptuellement,
+[24:29.000 --> 24:39.000]  comment tu fais pour valider la traçabilité de l'usage de la monnaie,
+[24:40.000 --> 24:43.000]  enfin l'historique, comment tu le valides ?
+[24:43.000 --> 24:47.000]  Tu as parlé de blockchains, est-ce que c'est ça qui est le truc inviolable
+[24:47.000 --> 24:51.000]  et on marque dans le marbre les différents passages ?
+[24:51.000 --> 24:56.000]  Alors c'est plus facile à imaginer avec des blockchains tout simplement
+[24:56.000 --> 25:01.000]  parce que je m'appuie naturellement sur la connaissance des transactions antérieures,
+[25:01.000 --> 25:07.000]  alors qu'habituellement, les systèmes centralisés,
+[25:07.000 --> 25:10.000]  eux, vont avoir tendance à oublier l'historique,
+[25:10.000 --> 25:15.000]  mais c'est parce qu'ils choisissent de l'oublier, c'est pas incompatible,
+[25:15.000 --> 25:18.000]  c'est pas foncièrement incompatible.
+[25:18.000 --> 25:22.000]  Alors on le voit, avec le planchement d'argent, il suffit de faire la drogue,
+[25:22.000 --> 25:27.000]  ils ouvrent un commerce et puis ils achètent des trucs et hop, ça parti sur le circuit.
+[25:28.000 --> 25:37.000]  D'ailleurs, ça pose la question d'identifier dans le système actuel
+[25:37.000 --> 25:42.000]  les acteurs économiques qui jouent le rôle de blanchisseurs,
+[25:42.000 --> 25:45.000]  c'est-à-dire de personnes qui cassent l'historique,
+[25:45.000 --> 25:49.000]  qui empêchent la remontée au-delà de l'historique.
+[25:49.000 --> 25:56.000]  Habituellement, on considère que si tu as reçu un virement de bonne foi,
+[25:57.000 --> 26:00.000]  d'un acteur qui, lui, faisait du trafic,
+[26:00.000 --> 26:04.000]  mais que pour acheter un bien qui lui est totalement légit,
+[26:04.000 --> 26:06.000]  alors tu joues le rôle de blanchisseur.
+[26:06.000 --> 26:08.000]  Oui, c'est l'heure d'argent.
+[26:08.000 --> 26:14.000]  Alors, par contre, si tu as reçu cet argent en toute connaissance de cause,
+[26:14.000 --> 26:18.000]  là, par contre, tu es redevalle plus judicieusement.
+[26:18.000 --> 26:26.000]  Donc, avec mon système, je délite cette notion de blanchisseur
+[26:26.000 --> 26:32.000]  puisque je permets de remonter l'historique.
+[26:32.000 --> 26:37.000]  Après, je suis limité aux informations que contient cette historique,
+[26:37.000 --> 26:43.000]  c'est-à-dire que je ne suis pas pour identifier les personnes physiques ou institutionnelles.
+[26:43.000 --> 26:47.000]  D'ailleurs, je chèque les publics. C'est pas l'objectif.
+[26:47.000 --> 26:56.000]  Le mieux, c'est que les personnes, les caractéristiques des comptes
+[26:56.000 --> 27:00.000]  soient données sur le principe de volontariat.
+[27:00.000 --> 27:07.000]  Et une bonne façon de le faire, c'est simplement que les personnes déclarent
+[27:07.000 --> 27:12.000]  des règles ou des lois optionnelles qu'ils souhaitent suivre.
+[27:12.000 --> 27:17.000]  Et donc, en fonction des lois qui déclarent suivre,
+[27:17.000 --> 27:24.000]  ils seront reconnus différemment dans l'historique.
+[27:24.000 --> 27:37.000]  Techniquement, c'est convertir les comptes individuels
+[27:37.000 --> 27:47.000]  en alphabets pour mon langage de description de la monnaie.
+[27:47.000 --> 27:53.000]  C'est simplement, A se compte à le label A, celui-ci à le label C,
+[27:53.000 --> 27:56.000]  sans qu'il y ait de hiérarchie forcément entre ces labels.
+[27:56.000 --> 27:59.000]  Ce sont juste des lettres que j'irai complètement indépendamment.
+[27:59.000 --> 28:05.000]  Et dans la description du langage, on dit, si dépassé par un compte labé,
+[28:05.000 --> 28:08.000]  le disait A, alors sa monnaie vaut 10% de plus.
+[28:08.000 --> 28:13.000]  Le langage de règles, c'est juste ça.
+[28:13.000 --> 28:17.000]  Simplement, c'est fait avec les expressions régulières.
+[28:17.000 --> 28:24.000]  Ça veut dire que ça peut reconnaître n'importe quelles séquences de mots.
+[28:24.000 --> 28:29.000]  Ça peut remonter jusqu'à l'émetteur de la monnaie.
+[28:29.000 --> 28:34.000]  J'ai détecté des niveaux de hiérarchie, par exemple.
+[28:34.000 --> 28:42.000]  Si on considère qu'une caractéristique issue d'un produit de très haute technologie
+[28:42.000 --> 28:45.000]  doit être conservée très longtemps dans l'historique,
+[28:45.000 --> 28:47.000]  pris en compte très lentement.
+[28:47.000 --> 28:56.000]  On peut, alors que celui qui a étiqueté un produit de basse technologie,
+[28:56.000 --> 28:58.000]  papeterie ou infrastructure,
+[28:59.000 --> 29:07.000]  a peut-être besoin d'avoir moins d'impact sur la vie de l'argent.
+[29:07.000 --> 29:12.000]  Ça veut dire, ou dit autrement, que tu as des acteurs, par exemple,
+[29:12.000 --> 29:16.000]  si c'est utilisé par l'indépendance technologique,
+[29:16.000 --> 29:23.000]  qui va faire oublier l'historique de basse technologie du flux.
+[29:24.000 --> 29:29.000]  Tout ça, c'est possible de l'exprimer avec les expressions régulières,
+[29:29.000 --> 29:32.000]  les techniques sur les expressions régulières.
+[29:35.000 --> 29:41.000]  Est-ce que, d'après toi, ou tu en es de ta recherche,
+[29:41.000 --> 29:46.000]  comment des gens mal intentionnés pourraient tricher avec ce système-là ?
+[29:47.000 --> 29:52.000]  En tout cas, faire croire qu'ils sont valeureux, vertueux,
+[29:52.000 --> 29:54.000]  et qu'ils ne seraient pas du tout.
+[29:58.000 --> 30:03.000]  Si on appuie le système uniquement sur la base du volontariat,
+[30:03.000 --> 30:06.000]  ce qui est fortement recommandé,
+[30:06.000 --> 30:13.000]  à ce moment-là, il faut que la déclaration leur soit opposable juridiquement.
+[30:14.000 --> 30:21.000]  C'est-à-dire s'ils se déclarent suivre des process bio,
+[30:21.000 --> 30:26.000]  qu'ils le fassent effectivement sous peine de perdre leur label.
+[30:28.000 --> 30:31.000]  S'ils commencent à perdre leur label,
+[30:31.000 --> 30:36.000]  l'argent futur qui passeront par eux va se trouver dévalorisé
+[30:36.000 --> 30:38.000]  du fait de cette perte de label.
+[30:39.000 --> 30:42.000]  Mais il y a aussi possibilité, au choix des vendeurs,
+[30:42.000 --> 30:47.000]  que ça impacte aussi les flux passés.
+[30:47.000 --> 30:51.000]  Alors, ça n'aura pas les transactions passées,
+[30:51.000 --> 30:55.000]  mais par contre, toute transaction qui sera émise
+[30:55.000 --> 30:59.000]  après la connaissance de la valuation du label
+[30:59.000 --> 31:06.000]  pourrait, et c'est du conditionnel, au choix du vendeur,
+[31:06.000 --> 31:10.000]  être un facteur de sous-valorisation de cette perte.
+[31:10.000 --> 31:15.000]  En aucun cas, il y aura une cotation de notoriété
+[31:15.000 --> 31:19.000]  ou de réputation plutôt que de notoriété ?
+[31:19.000 --> 31:22.000]  Il faut que je distingue deux choses.
+[31:22.000 --> 31:27.000]  Dans le cas où ces labellisations,
+[31:27.000 --> 31:30.000]  que je préfère appeler taxonomie,
+[31:30.000 --> 31:34.000]  sont faites purement sur la base du volontariat,
+[31:35.000 --> 31:41.000]  c'est l'opposabilité judiciaire qui est le garant.
+[31:41.000 --> 31:46.000]  C'est-à-dire que là, c'est l'équivalent d'un tiers,
+[31:46.000 --> 31:50.000]  un genre de notaire qui consigne les trucs,
+[31:50.000 --> 31:54.000]  ou c'est numérique, un tiers de confiance numérique ?
+[31:54.000 --> 31:56.000]  Alors ?
+[31:56.000 --> 31:58.000]  Ou les deux ?
+[31:58.000 --> 32:03.000]  Ma technologie ne présuppose pas l'utilisation du blockchain
+[32:03.000 --> 32:05.000]  ou d'une centralisée.
+[32:05.000 --> 32:09.000]  Si on est dans un système centralisé,
+[32:09.000 --> 32:12.000]  c'est l'opérateur de centralisation
+[32:12.000 --> 32:15.000]  qui pour au-dessus du gira ses labels.
+[32:15.000 --> 32:17.000]  Peut-être en peer-to-peer.
+[32:17.000 --> 32:18.000]  Pardon ?
+[32:18.000 --> 32:20.000]  Peut-être en peer-to-peer.
+[32:20.000 --> 32:22.000]  Distribuer.
+[32:22.000 --> 32:25.000]  Là, tu penses plutôt blockchain dans ce cas-là ?
+[32:25.000 --> 32:27.000]  Je te demande justement.
+[32:27.000 --> 32:29.000]  Avec blockchain, il n'y a pas d'autre chose,
+[32:29.000 --> 32:32.000]  parce que je pensais à ce qu'on fait avec l'Assemblée actuelle.
+[32:32.000 --> 32:38.000]  Ils travaillent sur les nouvelles normes.
+[32:38.000 --> 32:40.000]  Alors, je ne connais pas.
+[32:40.000 --> 32:46.000]  En tout cas, l'aspect purement théorique mathématétique
+[32:46.000 --> 32:49.000]  est complètement agnostique sur cet aspect-là.
+[32:49.000 --> 32:55.000]  Ça tient plus de l'usage qu'il y a en effet
+[32:55.000 --> 33:00.000]  que de la caractéristique intrinsèque de la mise
+[33:00.000 --> 33:07.000]  en cohérence de la valeur de l'acheteur
+[33:07.000 --> 33:10.000]  et de la valeur du grandeur.
+[33:10.000 --> 33:12.000]  Il y a...
+[33:12.000 --> 33:15.000]  Oui, non, je ne vais pas...
+[33:15.000 --> 33:18.000]  Je vais éviter d'aller plus loin dans le niveau de complexité.
+[33:18.000 --> 33:21.000]  On est déjà bien allé au-dessus.
+[33:21.000 --> 33:24.000]  Là, on l'a vu au niveau micro.
+[33:24.000 --> 33:30.000]  Au niveau macro, est-ce que les gouvernants, les États,
+[33:30.000 --> 33:34.000]  fiscalement ont intérêt à mettre ça en place ?
+[33:34.000 --> 33:42.000]  Autrement dit, comment tu ferais pour faire cohabiter le système actuel ?
+[33:42.000 --> 33:48.000]  Donc, monnaie tangible, monnaie numérique,
+[33:48.000 --> 33:53.000]  carte Vanguard et compagnie, blockchain et pourquoi pas encore plus de trucs.
+[33:53.000 --> 33:57.000]  Et puis le système, ce n'est pas de la monnaie locale,
+[33:57.000 --> 34:02.000]  c'est une monnaie globale, multidimensionnelle, comme tu l'as dit.
+[34:02.000 --> 34:08.000]  C'est bien une monnaie en face, oui.
+[34:08.000 --> 34:12.000]  C'est pour ça un peu que j'ai laissé tomber la formulation monnaie au cingulier,
+[34:12.000 --> 34:19.000]  multidimensionnelle au pluriel, parce qu'il faut vraiment percevoir
+[34:19.000 --> 34:22.000]  la technologie comme une infrastructure monétaire
+[34:22.000 --> 34:33.000]  où plusieurs monnaies différentes pourraient circuler conjointement.
+[34:33.000 --> 34:39.000]  Du coup, la première problématique, c'est est-ce que la possibilité
+[34:39.000 --> 34:54.000]  de faire circuler les monnaies standard au sein de ce système,
+[34:54.000 --> 35:03.000]  alors ça c'est tout à fait possible de la même façon que circulent les stablecoins euros
+[35:03.000 --> 35:13.000]  avec un émetteur qui gâche, qui a bien la contrepartie en euros
+[35:13.000 --> 35:19.000]  correspondant au flux qui est en train de circuler sur cette représentation.
+[35:19.000 --> 35:29.000]  La deuxième question, c'est on a une monnaie qui circule, c'est sa convertibilité en euros,
+[35:29.000 --> 35:34.000]  puisqu'un gros avantage de bon système, c'est qu'il permet à plusieurs monnaies
+[35:34.000 --> 35:40.000]  d'interagir et de circuler au même système sans avoir de taux de conversion entre elles.
+[35:40.000 --> 35:51.000]  Et ça pose tout de suite un problème d'évaluation de la valeur du produit acheté.
+[35:52.000 --> 36:14.000]  Immédiatement, la possibilité d'avoir un marché de change entre ces monnaies émergentes,
+[36:14.000 --> 36:19.000]  ces définitions de monnaies qui circuleraient sur le plan, est une monnaie officielle,
+[36:19.000 --> 36:25.000]  et à mon avis résolvable, mais pas encore complètement étudiée à ce stade.
+[36:25.000 --> 36:34.000]  J'ai déjà au moins deux pistes de réflexion pour bien avancer pour ça.
+[36:34.000 --> 36:45.000]  Mais il existe aussi une autre possibilité. Pour l'instant, on n'a parlé qu'un seul opérateur,
+[36:45.000 --> 36:56.000]  qui est le minimum que demande l'acheteur et le maximum qui est prêt à payer le vendeur.
+[36:56.000 --> 37:05.000]  Mais ces opérations, tant qu'elles sont traduisibles en système d'une équation linéaire,
+[37:05.000 --> 37:12.000]  peuvent être implémentées et on peut très facilement envisager un opérateur tertiaire
+[37:12.000 --> 37:22.000]  qui, en plus, dévirait un pourcentage de ce flux vers un troisième compte de perception de DVA, par exemple.
+[37:22.000 --> 37:38.000]  Le problème que pose l'ajout de tel système fiscal à l'intérieur même du système de flux,
+[37:38.000 --> 37:46.000]  c'est qu'il faut absolument que la fiscalité soit proportionnelle.
+[37:47.000 --> 37:54.000]  Il y a une incompatibilité entre toute forme de fiscalité à effet de seuil et le système lui-même.
+[37:54.000 --> 37:59.000]  Par contre, si on imagine un système fiscal qui est proportionnel,
+[37:59.000 --> 38:05.000]  alors il y a moyen d'intégrer au sein même de ce système via les opérateurs tertiaires,
+[38:05.000 --> 38:13.000]  au lieu des opérateurs minaires entre deux acheteurs et vendeurs de sol, une fiscalité.
+[38:13.000 --> 38:17.000]  Il pourrait y avoir un taux incitatif exprès pour valoriser ça.
+[38:17.000 --> 38:23.000]  Et il y a mieux que ça.
+[38:23.000 --> 38:32.000]  Le vendeur peut choisir ce régime fiscal et peut décider de choisir un régime fiscal à 0%.
+[38:32.000 --> 38:38.000]  Mais le choix de ce régime fiscal est lui-même intégrable dans la taxonomie.
+[38:38.000 --> 38:46.000]  Donc, il peut être utilisé après par les vendeurs pour choisir ce qu'il accepte ou pas comme monnaie.
+[38:46.000 --> 38:57.000]  Et en particulier, refuser les monnaies qui se seraient systématiquement passées par des opérateurs fiscales n'aurait jamais rien fiscalisé.
+[38:58.000 --> 39:03.000]  Tu pourrais très bien dire que tu es à taux 0 en TVA,
+[39:03.000 --> 39:08.000]  parce que tu es d'utilité naturelle ou vivante.
+[39:08.000 --> 39:14.000]  Tu as choisi ça, donc tu réponds à des critères que le fiscal peut très bien vérifier.
+[39:14.000 --> 39:22.000]  Et si le producteur d'un produit accepte que tu aies respecté cette règle lorsque tu as acquitté ta monnaie,
+[39:22.000 --> 39:26.000]  la transaction pourrait totalement se faire.
+[39:26.000 --> 39:28.000]  D'accord.
+[39:28.000 --> 39:38.000]  Mais là aussi, là on commence à reconceptualiser toute la notion de fiscale fiscale,
+[39:38.000 --> 39:51.000]  puisque ça revient d'une certaine façon à permettre de choisir l'allocation de sa fiscalité à la carte.
+[39:51.000 --> 39:54.000]  Ah, on en a parlé hier.
+[39:54.000 --> 40:03.000]  Et c'est toujours la même chose.
+[40:03.000 --> 40:12.000]  C'est ce qui est un peu étonnant pour des activistes qui veulent être crispants,
+[40:12.000 --> 40:23.000]  c'est que tu auras peut-être remarqué, le vendeur avec son choix de définition de sa monnaie
+[40:23.000 --> 40:30.000]  est devenu l'élément, le facteur autour lequel tout s'articule.
+[40:30.000 --> 40:39.000]  En fin de compte, on a l'impression que la monnaie concentre dans sa définition,
+[40:39.000 --> 40:45.000]  la définition même de l'organisation sociale dans laquelle se trouvent tous les rapports,
+[40:45.000 --> 40:55.000]  entre l'état, le local, l'individu, les professionnels, tout est orchestré par rapport à ce socle,
+[40:55.000 --> 41:00.000]  cette combinaison de valeurs décrite dans cette monnaie-là,
+[41:00.000 --> 41:05.000]  ce qui veut dire que même s'il y a des valeurs dénominatives de chaque truc,
+[41:06.000 --> 41:13.000]  malgré tout, un euro bio, si on reprend ça, bois bio, a plus de valeurs normalement
+[41:13.000 --> 41:20.000]  qu'un euro, soit c'est directement compensé et puis on sait que c'est tout de suite 3, 4
+[41:20.000 --> 41:24.000]  et tu peux acheter beaucoup plus, mais généralement si tu achètes beaucoup plus,
+[41:24.000 --> 41:27.000]  tu retombes dans les choses qui ne sont pas vertueuses.
+[41:27.000 --> 41:30.000]  Faire gaffe aussi à ça, si tu retombes dans un truc.
+[41:30.000 --> 41:32.000]  D'un seul coup, tu fais des économies pour le bio, puis d'un seul coup,
+[41:32.000 --> 41:36.000]  tu vas acheter des meubles complètement dégueulasses au niveau des vernis.
+[41:36.000 --> 41:37.000]  Alors ?
+[41:37.000 --> 41:38.000]  Oui, c'est ton choix.
+[41:38.000 --> 41:39.000]  Oui.
+[41:39.000 --> 41:41.000]  Mais il peut être incohérent, mais on ne sait pas.
+[41:41.000 --> 41:44.000]  Ah ben, je se pense.
+[41:44.000 --> 41:51.000]  L'objectif est bien d'essayer d'avoir des émergences d'une façon de valoriser les choses
+[41:51.000 --> 41:55.000]  de façon organique en fonction des choix individuels.
+[41:55.000 --> 42:02.000]  Ceci ne présuppose absolument pas la cohérence de ces choix, mais reste quand même mieux
+[42:02.000 --> 42:07.000]  que la rétroaction actuelle qui s'appuie essentiellement sur le choix éclairé des acheteurs
+[42:07.000 --> 42:10.000]  et pour lequel on ne voit pas de cohérence.
+[42:10.000 --> 42:16.000]  Alors il y a ça, mais il y a surtout, je trouve, le fait, ce n'est pas une obligation,
+[42:16.000 --> 42:22.000]  mais il y a la tentative en tout cas d'être cohérent et en toute conscience,
+[42:22.000 --> 42:25.000]  c'est-à-dire de se dire, ben, ça j'accepte, ça je n'accepte pas.
+[42:25.000 --> 42:28.000]  Mais si tu n'acceptes pas, c'est quel impact dans ta vie tous les jours.
+[42:28.000 --> 42:36.000]  Ça veut dire que tes choix vont se dire, ben voilà, peut-être que mon pourcentage de mon panier familial
+[42:36.000 --> 42:45.000]  va passer de 5% pour l'alimentation à 15 ou 20, mais si jamais le système le compense,
+[42:45.000 --> 42:50.000]  puisque tu restes vertueux, d'un coup ça va être plus bas et meilleur,
+[42:50.000 --> 42:52.000]  mais ça veut dire que tu ne vas pas pouvoir non plus,
+[42:52.000 --> 42:57.000]  peut-être que les vacances avec un avion très loin, c'est impensable.
+[42:57.000 --> 43:00.000]  Ou alors tu vas avec un cheval, mais tu te débrouilles quand même.
+[43:00.000 --> 43:02.000]  Ah ben le but est effectivement...
+[43:02.000 --> 43:04.000]  Mais au moins tu es cohérent.
+[43:04.000 --> 43:11.000]  Voilà, c'est bien de vérifier à chaque fois la cohérence en termes de flux monétaires
+[43:11.000 --> 43:18.000]  de l'ensemble des transactions, aussi bien de ce que tu as reçu que de ce que tu utilises.
+[43:18.000 --> 43:24.000]  Alors ce qui est marrant, c'est quand même, là c'est la monnaie qui devient culture pour moi.
+[43:24.000 --> 43:28.000]  Comme tu dis là, c'est culturelle avec des valeurs et des trucs.
+[43:28.000 --> 43:34.000]  C'est que faire société, ça va être la cohabitation de plusieurs monnaies
+[43:34.000 --> 43:44.000]  représentant des valeurs culturelles différentes, et par contre tu te montres du doigt tout seul.
+[43:44.000 --> 43:46.000]  Oui, exactement !
+[43:46.000 --> 43:51.000]  Et tu dis, je t'emmerde, je fais ce que je veux, c'est mon pognon,
+[43:51.000 --> 43:55.000]  mais les enfants qui travaillent ça ne me dérange pas, et ainsi de suite.
+[43:55.000 --> 43:59.000]  Au moins tout le monde le voit. Je ne sais pas si c'est nominatif.
+[43:59.000 --> 44:03.000]  Alors c'est pour ça par contre qu'il y a un risque.
+[44:03.000 --> 44:07.000]  J'ai vraiment besoin de l'intégralité des transactions pour pouvoir faire ça,
+[44:08.000 --> 44:17.000]  et il ne faut pas que la connaissance de ces transactions puisse nuire dans la vie,
+[44:17.000 --> 44:23.000]  hors transaction économique, aux personnes. Là il y a un risque.
+[44:23.000 --> 44:27.000]  Après c'est à l'usage, et puis en plus c'est à l'usage avec un effet de seuil,
+[44:27.000 --> 44:33.000]  parce que c'est en fonction du nombre des personnes qui jouent le jeu qu'on pourrait.
+[44:33.000 --> 44:35.000]  J'ai l'impression que comme c'est numérique au départ,
+[44:35.000 --> 44:39.000]  ça pourrait presque être un jeu numérique, enfin pas un jeu numérique,
+[44:39.000 --> 44:44.000]  mais une vraie transaction numérique pour tous les achats qui sont en ligne.
+[44:44.000 --> 44:46.000]  Je pourrais.
+[44:46.000 --> 44:51.000]  Avant même de passer dans le tangible, parce que là c'est facile.
+[44:51.000 --> 44:53.000]  Donc en faire un jeu.
+[44:53.000 --> 44:57.000]  Non pas un jeu parce que tu aurais des vrais achats, et de l'argent quand même.
+[44:57.000 --> 45:00.000]  Mais par contre les règles du jeu seraient connues.
+[45:01.000 --> 45:06.000]  Ceux qui veulent vivre, moi je vends selon la monnaie, une telle,
+[45:06.000 --> 45:10.000]  et puis que les acheteurs disent, moi ça m'intéresse parce que tu représentes les valeurs.
+[45:13.000 --> 45:23.000]  C'est d'autant plus faisable que tout type de monnaie peut circuler dessus.
+[45:23.000 --> 45:27.000]  Il y a les monnaies que j'appelle abstracts,
+[45:27.000 --> 45:36.000]  c'est-à-dire ceux dont l'émetteur a une contre-pratie dans une monnaie préexistante.
+[45:36.000 --> 45:40.000]  C'est le code stablecoin euro.
+[45:40.000 --> 45:43.000]  Mais qui effectivement, du fait de sa circulation,
+[45:43.000 --> 45:50.000]  va acquérir des valeurs différentes selon les endroits par lesquels ils sont passés.
+[45:51.000 --> 45:58.000]  Et puis il y a, comme je le présentais au départ,
+[45:58.000 --> 46:03.000]  tous mes comptes sont des potentiels émetteurs de monnaie.
+[46:03.000 --> 46:06.000]  La seule chose qui fait que ces monnaies ne circulent pas,
+[46:06.000 --> 46:15.000]  c'est que généralement aucun vendeur ne va mettre dans sa description,
+[46:15.000 --> 46:20.000]  comme émetteur autorisé, les comptes des particuliers.
+[46:20.000 --> 46:24.000]  Mais c'est encore une fois le choix des vendeurs.
+[46:24.000 --> 46:30.000]  Dès qu'un groupe de personnes veut s'entendre,
+[46:30.000 --> 46:35.000]  il suffit qu'ils disent, un compte de particulier va servir d'émetteur,
+[46:35.000 --> 46:39.000]  ils acceptent tous ce compte de particulier comme émetteur,
+[46:39.000 --> 46:43.000]  et on a une création monétaire, entre guillemets, automatique.
+[46:43.000 --> 46:48.000]  Juste par le choix des acheteurs entre eux.
+[46:48.000 --> 46:54.000]  Et ça marche à partir du moment où tu as un groupe de personnes,
+[46:54.000 --> 46:57.000]  suffisamment nombreux, pour faire circuler cette monnaie.
+[46:57.000 --> 46:59.000]  Regarde le système actuel.
+[46:59.000 --> 47:06.000]  Youtube monétise les recommandations, les likes, les trucs et tout ça.
+[47:06.000 --> 47:09.000]  Et il monétise en fonction des seuils, des différents trucs, catégories, etc.
+[47:10.000 --> 47:16.000]  Là, rien n'empêche de dire que par la prescription et la recommandation,
+[47:16.000 --> 47:21.000]  tu crées une communauté sur des valeurs.
+[47:21.000 --> 47:23.000]  Comme une playlist, je pourrais très bien dire,
+[47:23.000 --> 47:28.000]  moi j'aime le rock et voilà ma playlist, tu suis ou tu suis pas, on s'en fout.
+[47:28.000 --> 47:34.000]  Mais là, tu dis la playlist des monnaies dans des actes tous les jours.
+[47:35.000 --> 47:40.000]  L'alimentation, des trucs assez classiques.
+[47:40.000 --> 47:42.000]  Ou pour les anniversaires.
+[47:42.000 --> 47:45.000]  C'est pour commencer les anniversaires, les fêtes, les Noël et tout ça.
+[47:45.000 --> 47:47.000]  De jouer pour être vertueux.
+[47:47.000 --> 47:50.000]  Tu dis, tiens, j'allais compenser un fabricant de meubles en bois,
+[47:50.000 --> 47:53.000]  enfin de jouer en bois, pourquoi pas.
+[47:53.000 --> 47:55.000]  Mais là, tu pourrais très bien, enfin je sais pas,
+[47:55.000 --> 47:58.000]  peut-être dis-moi si jamais je raisonne pas justement,
+[47:58.000 --> 48:03.000]  mais de le dire que en numérique, on pourrait instituer ça en disant,
+[48:03.000 --> 48:06.000]  moi je suis fabricant et je veux bien utiliser,
+[48:06.000 --> 48:11.000]  enfin générer cette monnaie vertueuse selon ces valeurs-là.
+[48:11.000 --> 48:18.000]  Ma forêt, les meubles sont certifiés de forêt vertueuse.
+[48:18.000 --> 48:22.000]  Pas le tête, les FCT, je sais pas quoi les trucs.
+[48:22.000 --> 48:24.000]  Ça, c'est envisageable.
+[48:24.000 --> 48:27.000]  Ça veut dire que t'as une collection quand même,
+[48:27.000 --> 48:30.000]  de label existant.
+[48:30.000 --> 48:34.000]  Il faudrait traduire quasiment en transaction monétaire
+[48:34.000 --> 48:38.000]  comme si la valeur de leur filier, entre guillemets,
+[48:38.000 --> 48:43.000]  devenait une valeur introduite dans l'ADN de la monnaie.
+[48:43.000 --> 48:46.000]  Oui, tout à fait.
+[48:46.000 --> 48:48.000]  Là on a compris.
+[48:48.000 --> 48:49.000]  Oui.
+[48:49.000 --> 48:51.000]  Bon, ok.
+[48:51.000 --> 48:55.000]  Alors maintenant, si jamais, là, c'est entre nous, d'accord ?
+[48:55.000 --> 48:56.000]  Oui.
+[48:56.000 --> 48:58.000]  Tu bouges pas, je vais juste regarder un truc,
+[48:58.000 --> 49:01.000]  mais on filme bien là où on est.
+[49:01.000 --> 49:02.000]  Je vous vois là-haut.
+[49:02.000 --> 49:04.000]  T'es un peu loin, mais c'est bon.
+[49:04.000 --> 49:05.000]  C'est parfait.
+[49:05.000 --> 49:07.000]  Non, non, avance-toi un peu.
+[49:07.000 --> 49:09.000]  Mets-toi là plus tôt là.
+[49:09.000 --> 49:12.000]  Là, l'égaciste plus difficile.
+[49:12.000 --> 49:14.000]  On s'est dit plein de choses.
+[49:14.000 --> 49:17.000]  Maintenant tu sais que j'ai compris certaines choses.
+[49:17.000 --> 49:20.000]  Je vais d'abord, ça marche mieux comme ça, déjà, pour commencer.
+[49:20.000 --> 49:22.000]  Beaucoup plus libre et beaucoup plus à l'aise.
+[49:22.000 --> 49:24.000]  Et puis surtout.
+[49:24.000 --> 49:26.000]  Et t'es dehors, t'as oublié gros sondeau,
+[49:26.000 --> 49:28.000]  même si des fois tu regardes.
+[49:28.000 --> 49:32.000]  Mais l'idée, c'est que si on avait à faire la synthèse de ça,
+[49:32.000 --> 49:35.000]  il y a quelques mots-clés qu'on a utilisés quand même.
+[49:35.000 --> 49:39.000]  Il y a des repères qu'on peut avoir là.
+[49:39.000 --> 49:41.000]  Ne explique pas tout, d'accord ?
+[49:41.000 --> 49:44.000]  Si on expliquait tout, c'est de me dire...
+[49:44.000 --> 49:48.000]  On a vu quand même qu'il y avait, sur la base du volontariat...
+[49:48.000 --> 49:50.000]  Il a fallu que je note.
+[49:50.000 --> 49:52.000]  On pourra regarder la vidéo.
+[49:52.000 --> 49:54.000]  On va extraire les trucs pour voir un peu.
+[49:54.000 --> 49:56.000]  Parce que je ne vais pas me rappeler les mots.
+[49:56.000 --> 49:59.000]  Tu as dit une combinaison au départ qui était intéressante.
+[49:59.000 --> 50:04.000]  C'est-à-dire qu'il y a des déclarations de chaque côté des valeurs qu'on compte respecter.
+[50:04.000 --> 50:05.000]  Oui.
+[50:05.000 --> 50:07.000]  Avant même la transaction.
+[50:07.000 --> 50:08.000]  Oui.
+[50:08.000 --> 50:09.000]  Tu es d'accord ?
+[50:09.000 --> 50:10.000]  Oui.
+[50:10.000 --> 50:14.000]  Sur cette base-là, le système ne met pas en relation...
+[50:14.000 --> 50:16.000]  Ce n'est pas une place de marché ?
+[50:16.000 --> 50:17.000]  Non.
+[50:17.000 --> 50:21.000]  Mais par contre, il est capable d'assister grosso modo à la négociation.
+[50:21.000 --> 50:23.000]  Sur la base de ces valeurs ?
+[50:23.000 --> 50:25.000]  Sur la base de ces valeurs, en disant...
+[50:25.000 --> 50:27.000]  Vous êtes compatible. Ou pas.
+[50:27.000 --> 50:30.000]  Ou voilà le chemin qui reste à faire pour que vous soyez compatible.
+[50:30.000 --> 50:32.000]  En tout cas, ce qui est sûr, c'est que...
+[50:32.000 --> 50:34.000]  Vous, votre profil, c'est de dire...
+[50:34.000 --> 50:35.000]  Vous avez fait ça.
+[50:35.000 --> 50:37.000]  C'est vertueux jusque-là.
+[50:37.000 --> 50:39.000]  Il y a eu des ailes un peu chaotiques.
+[50:39.000 --> 50:41.000]  Mais ce n'est pas si mal.
+[50:41.000 --> 50:44.000]  On est tous en transition.
+[50:44.000 --> 50:46.000]  Des fois, tu ne maîtrises pas trop.
+[50:46.000 --> 50:50.000]  Il faut quand même équilibrer les comptes tangibles à la banque.
+[50:50.000 --> 50:52.000]  Mais en tout cas...
+[50:52.000 --> 50:54.000]  Je connais votre pédigrée, grosso modo.
+[50:54.000 --> 50:55.000]  Oui.
+[50:55.000 --> 50:57.000]  C'est-à-dire l'élevage.
+[50:57.000 --> 50:59.000]  Vous respectez bien la race.
+[50:59.000 --> 51:01.000]  C'est bon.
+[51:01.000 --> 51:03.000]  D'autre côté, c'est pareil.
+[51:03.000 --> 51:05.000]  Et puis là, ça va matcher.
+[51:05.000 --> 51:08.000]  Donc ça, comment tu peux, avec que des mots-clés,
+[51:08.000 --> 51:10.000]  une phrase synthétique qui dit ça ?
+[51:10.000 --> 51:13.000]  Je sais que c'est réducteur par rapport à tout ce que tu imaginais.
+[51:13.000 --> 51:16.000]  Mais en fin de compte, c'est quand même le socle.
+[51:16.000 --> 51:17.000]  Il y a...
+[51:17.000 --> 51:19.000]  Tu connais, transaction,
+[51:19.000 --> 51:21.000]  consentement à des valeurs
+[51:21.000 --> 51:23.000]  et...
+[51:23.000 --> 51:25.000]  volontariat pour le faire.
+[51:25.000 --> 51:27.000]  Et voilà.
+[51:27.000 --> 51:29.000]  Tu veux t'y coller.
+[51:29.000 --> 51:31.000]  En une fois, si tu n'y arrives pas,
+[51:31.000 --> 51:33.000]  tu laisses un blanc, tu refais une deuxième fois
+[51:33.000 --> 51:35.000]  et puis tout va bien.
+[51:35.000 --> 51:37.000]  Donc...
+[51:39.000 --> 51:41.000]  Les acteurs économiques
+[51:41.000 --> 51:44.000]  sur la base du volontariat
+[51:44.000 --> 51:47.000]  indiquent les règles
+[51:47.000 --> 51:50.000]  qu'ils souhaitent respecter.
+[51:51.000 --> 51:54.000]  Et les vendeurs
+[51:54.000 --> 51:56.000]  vont évaluer
+[51:56.000 --> 51:58.000]  la valeur des monnaies
+[51:58.000 --> 52:00.000]  qui sont passées par ces personnes.
+[52:04.000 --> 52:08.000]  Et l'acheteur, lui,
+[52:08.000 --> 52:11.000]  va indiquer
+[52:11.000 --> 52:13.000]  ce qu'il est prêt
+[52:13.000 --> 52:15.000]  à accepter...
+[52:20.000 --> 52:22.000]  ce qu'il est prêt à accepter,
+[52:22.000 --> 52:24.000]  de céder
+[52:24.000 --> 52:26.000]  sur les gains qu'il a fait,
+[52:26.000 --> 52:28.000]  sur ces valeurs.
+[52:31.000 --> 52:34.000]  Puisqu'à l'heure du moment d'un achat,
+[52:34.000 --> 52:37.000]  il se déleste d'une partie de sa monnaie.
+[52:37.000 --> 52:39.000]  Donc il faut qu'il limite,
+[52:39.000 --> 52:41.000]  qu'il indique
+[52:41.000 --> 52:43.000]  son emploi au maximum,
+[52:43.000 --> 52:45.000]  qu'il est prêt à céder
+[52:45.000 --> 52:49.000]  sur ce qui fait sens pour lui.
+[52:49.000 --> 52:52.000]  Et le système va
+[52:52.000 --> 52:55.000]  faire une négociation automatisée
+[52:55.000 --> 52:58.000]  entre ce que demande le vendeur
+[52:58.000 --> 53:00.000]  et l'acheteur
+[53:00.000 --> 53:02.000]  pour voir si la transaction...
+[53:02.000 --> 53:04.000]  il peut y avoir entente
+[53:04.000 --> 53:06.000]  sur la transaction entre les deux personnes.
+[53:07.000 --> 53:10.000]  Ok. Super parce que tu l'as fait.
+[53:10.000 --> 53:11.000]  Oui.
+[53:11.000 --> 53:14.000]  Et donc, on va reprendre cette formule-là qui est bien.
+[53:14.000 --> 53:16.000]  Là, juste une précision
+[53:16.000 --> 53:18.000]  parce que j'en aperçois maintenant.
+[53:18.000 --> 53:20.000]  Un individu
+[53:20.000 --> 53:24.000]  qui a un portefeuille de monnaie
+[53:24.000 --> 53:26.000]  donc plus ou moins vertueuse
+[53:26.000 --> 53:28.000]  en fonction de ses achats.
+[53:28.000 --> 53:30.000]  Typiquement, ce qui compte pour lui,
+[53:30.000 --> 53:32.000]  c'est la santé et il se dit
+[53:32.000 --> 53:34.000]  que moi,
+[53:34.000 --> 53:36.000]  j'ai une monnaie
+[53:36.000 --> 53:38.000]  alimentation bio
+[53:38.000 --> 53:40.000]  que je veux.
+[53:40.000 --> 53:42.000]  J'en ai que 20% dans mon portefeuille.
+[53:42.000 --> 53:44.000]  J'ai du transport.
+[53:44.000 --> 53:46.000]  Je suis en ruralité.
+[53:46.000 --> 53:48.000]  J'ai besoin.
+[53:48.000 --> 53:50.000]  C'est pas top.
+[53:50.000 --> 53:52.000]  C'est-à-dire que là, ma monnaie transport,
+[53:52.000 --> 53:54.000]  elle est réellement...
+[53:54.000 --> 53:56.000]  Elle respecte pas le vivant,
+[53:56.000 --> 53:58.000]  elle respecte pas tout ça.
+[53:58.000 --> 54:00.000]  Je pollue et tout ça.
+[54:00.000 --> 54:02.000]  C'est quand même fréquentable.
+[54:02.000 --> 54:04.000]  Elle est juste, elle a une combinaison
+[54:04.000 --> 54:06.000]  qui est en transformation, en transition.
+[54:06.000 --> 54:08.000]  Il a une volonté de truc.
+[54:08.000 --> 54:10.000]  Il n'est pas encore cohérent.
+[54:10.000 --> 54:12.000]  Les moyens sont pas forcément là.
+[54:12.000 --> 54:14.000]  Par contre,
+[54:14.000 --> 54:16.000]  le système, lui,
+[54:16.000 --> 54:18.000]  dans sa recherche
+[54:18.000 --> 54:20.000]  de virtuosité,
+[54:20.000 --> 54:22.000]  de vertuosité,
+[54:22.000 --> 54:24.000]  va l'aider puisqu'il va pouvoir compenser
+[54:24.000 --> 54:26.000]  en disant
+[54:26.000 --> 54:28.000]  tu vas pouvoir te laisser de trucs
+[54:28.000 --> 54:30.000]  et tu vas gagner un peu plus
+[54:30.000 --> 54:32.000]  quand c'est vertueux
+[54:32.000 --> 54:34.000]  que quand ça ne l'est pas.
+[54:34.000 --> 54:36.000]  Donc ça, il va pouvoir rééquilibrer
+[54:36.000 --> 54:38.000]  en jouant,
+[54:38.000 --> 54:40.000]  pas en jouant, en vivant simplement.
+[54:40.000 --> 54:42.000]  En respectant
+[54:42.000 --> 54:44.000]  les règles qui se définissent pour lui-même,
+[54:44.000 --> 54:46.000]  il va commencer à voir les bénéfices
+[54:46.000 --> 54:48.000]  qu'il peut en tirer
+[54:48.000 --> 54:50.000]  par rapport à ces valeurs-là.
+[54:50.000 --> 54:52.000]  Ce ne sont pas forcément financiers.
+[54:52.000 --> 54:54.000]  C'est peut-être qualité de vie, qualité de santé,
+[54:54.000 --> 54:56.000]  qualité de relation, qualité au travail.
+[54:56.000 --> 54:58.000]  Le truc qu'il a défini
+[54:58.000 --> 55:00.000]  comme étant son package
+[55:00.000 --> 55:02.000]  portefeuille de valeurs,
+[55:02.000 --> 55:04.000]  mais de valeurs
+[55:06.000 --> 55:08.000]  déclarées quand même,
+[55:08.000 --> 55:10.000]  mais malgré tout,
+[55:10.000 --> 55:12.000]  expérimentales,
+[55:12.000 --> 55:14.000]  liées à l'expérience.
+[55:14.000 --> 55:16.000]  C'est du concret. Il fait les actes,
+[55:16.000 --> 55:18.000]  les transactions. Il est fait quand même.
+[55:18.000 --> 55:20.000]  Il peut vérifier lui-même
+[55:20.000 --> 55:22.000]  comme s'il y avait une autoévaluation
+[55:22.000 --> 55:24.000]  de ses décisions.
+[55:24.000 --> 55:26.000]  Ça, c'est hyper pédagogique.
+[55:26.000 --> 55:28.000]  C'est plutôt bien.
+[55:28.000 --> 55:30.000]  Le truc, à la limite même,
+[55:30.000 --> 55:32.000]  je parlais de playlist à l'heure,
+[55:32.000 --> 55:34.000]  des gens qui sont peut-être un peu plus avancés
+[55:34.000 --> 55:36.000]  dans le temps ou dans la profondeur
+[55:36.000 --> 55:38.000]  de ce qu'ils ont fait,
+[55:38.000 --> 55:40.000]  peuvent devenir des tops de playlist.
+[55:40.000 --> 55:42.000]  C'est un peu compact,
+[55:42.000 --> 55:44.000]  mais juste pour inciter l'exemplarité.
+[55:44.000 --> 55:46.000]  Je veux dire, mais comment tu as fait ?
+[55:46.000 --> 55:48.000]  Moi, je me fournis à tel endroit pour ça
+[55:48.000 --> 55:50.000]  les meubles. Je ne les achète plus là.
+[55:50.000 --> 55:52.000]  Je les achète là.
+[55:52.000 --> 55:54.000]  J'ai pris un vélo.
+[55:54.000 --> 55:56.000]  En fin de compte, cette échange-là,
+[55:56.000 --> 55:58.000]  je ne sais pas si c'est ça, mais est-ce que ça pourrait l'être ?
+[55:58.000 --> 56:00.000]  Il faut juste que je rectifie
+[56:00.000 --> 56:02.000]  une chose. Ce n'est pas en fonction
+[56:02.000 --> 56:04.000]  de l'endroit où il les achète.
+[56:04.000 --> 56:06.000]  Ce n'est pas le rôle de mon système.
+[56:06.000 --> 56:08.000]  C'est en fonction
+[56:08.000 --> 56:10.000]  de l'endroit où il travaille.
+[56:10.000 --> 56:12.000]  Ça, il faut que tu expliques.
+[56:16.000 --> 56:18.000]  Le flux monétaire,
+[56:18.000 --> 56:20.000]  ce que possède une personne
+[56:20.000 --> 56:22.000]  dans le terme de monnaie,
+[56:22.000 --> 56:24.000]  avant son achat,
+[56:24.000 --> 56:26.000]  c'est ce qu'il a récupéré par son salaire.
+[56:28.000 --> 56:30.000]  Je ne veux pas t'interrompre.
+[56:36.000 --> 56:38.000]  Ce qui veut dire que là,
+[56:38.000 --> 56:40.000]  il y a une grosse phase
+[56:40.000 --> 56:42.000]  qu'il ne faut pas oublier.
+[56:42.000 --> 56:44.000]  Soit il subit
+[56:46.000 --> 56:48.000]  les choix
+[56:48.000 --> 56:50.000]  de l'entreprise qui l'a embauchée.
+[56:54.000 --> 56:56.000]  Soit il négocie son salaire

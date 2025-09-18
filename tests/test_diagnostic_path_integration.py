@@ -5,7 +5,8 @@ Test unitaire pour identifier problème énumération path exacte
 
 import unittest
 from decimal import Decimal
-from icgs_core import DAG, Transaction, TransactionMeasure, AccountTaxonomy
+from icgs_core.enhanced_dag import EnhancedDAG
+from icgs_core import Transaction, TransactionMeasure, AccountTaxonomy
 from icgs_core.path_enumerator import DAGPathEnumerator
 
 
@@ -14,7 +15,7 @@ class TestDiagnosticPathIntegration(unittest.TestCase):
     
     def setUp(self):
         """Setup DAG minimal pour diagnostic"""
-        self.dag = DAG()
+        self.dag = EnhancedDAG()
         self.taxonomy = AccountTaxonomy()
         self.path_enumerator = DAGPathEnumerator(self.taxonomy)
     

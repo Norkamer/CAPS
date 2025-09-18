@@ -161,6 +161,9 @@ class WebNativeICGS:
         # Analyseur contexte pour suggestions
         self.context_analyzer = SimulationContextAnalyzer()
 
+        # Historique des transactions
+        self.transaction_history: List[Dict] = []
+
         # Mesures neutres par défaut
         self.neutral_measures = self._create_neutral_measures()
 
@@ -168,36 +171,53 @@ class WebNativeICGS:
         self.logger.info(f"Capacités: {self.get_pool_capacities()}")
 
     def _create_virtual_pool(self) -> Dict[str, List[Tuple[str, str]]]:
-        """Créer pool virtuel avec slots et caractères pré-alloués (évite collisions _source/_sink)"""
-        # SOLUTION: Allouer blocs de caractères espacés pour éviter collisions automatiques
-        # Chaque agent génère _source et _sink avec caractères séquentiels
+        """Créer pool virtuel avec slots et caractères pré-alloués pour 65 agents"""
+        # UNIQUEMENT des lettres pour source/sink distincts (A→a/A, B→b/B, etc.)
+        # Éviter collisions: répartition alphabétique avec espaces
+        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+        # Allocation optimisée pour éviter collisions inter-secteurs
         return {
             'AGRICULTURE': [
-                ('AGRI_SLOT_A', 'A'),  # A+B réservés pour _source/_sink
-                ('AGRI_SLOT_D', 'D'),  # D+E réservés
-                ('AGRI_SLOT_G', 'G')   # G+H réservés
+                # 10 slots AGRICULTURE (A-J)
+                ('AGRI_01', 'A'), ('AGRI_02', 'B'), ('AGRI_03', 'C'), ('AGRI_04', 'D'),
+                ('AGRI_05', 'E'), ('AGRI_06', 'F'), ('AGRI_07', 'G'), ('AGRI_08', 'H'),
+                ('AGRI_09', 'I'), ('AGRI_10', 'J')
             ],
             'INDUSTRY': [
-                ('IND_SLOT_I', 'I'),   # I+J réservés
-                ('IND_SLOT_K', 'K'),   # K+L réservés
-                ('IND_SLOT_M', 'M'),   # M+N réservés
-                ('IND_SLOT_O', 'O')    # O+P réservés
+                # 15 slots INDUSTRY (K-Y)
+                ('INDU_01', 'K'), ('INDU_02', 'L'), ('INDU_03', 'M'), ('INDU_04', 'N'),
+                ('INDU_05', 'O'), ('INDU_06', 'P'), ('INDU_07', 'Q'), ('INDU_08', 'R'),
+                ('INDU_09', 'S'), ('INDU_10', 'T'), ('INDU_11', 'U'), ('INDU_12', 'V'),
+                ('INDU_13', 'W'), ('INDU_14', 'X'), ('INDU_15', 'Y')
             ],
             'SERVICES': [
-                ('SERV_SLOT_Q', 'Q'),  # Q+R réservés (évite collision avec S!)
-                ('SERV_SLOT_S', 'S'),  # S+T réservés
-                ('SERV_SLOT_U', 'U'),  # U+V réservés
-                ('SERV_SLOT_W', 'W')   # W+X réservés
+                # 20 slots SERVICES (Z + réutilisation avec préfixes)
+                ('SERV_01', 'Z'),
+                # Réutilisation avec modification: chaque secteur utilise l'alphabet disponible
+                ('SERV_02', alphabet[0]), ('SERV_03', alphabet[1]), ('SERV_04', alphabet[2]),
+                ('SERV_05', alphabet[3]), ('SERV_06', alphabet[4]), ('SERV_07', alphabet[5]),
+                ('SERV_08', alphabet[6]), ('SERV_09', alphabet[7]), ('SERV_10', alphabet[8]),
+                ('SERV_11', alphabet[9]), ('SERV_12', alphabet[10]), ('SERV_13', alphabet[11]),
+                ('SERV_14', alphabet[12]), ('SERV_15', alphabet[13]), ('SERV_16', alphabet[14]),
+                ('SERV_17', alphabet[15]), ('SERV_18', alphabet[16]), ('SERV_19', alphabet[17]),
+                ('SERV_20', alphabet[18])
             ],
             'FINANCE': [
-                ('FIN_SLOT_Y', 'Y'),   # Y+Z réservés
-                ('FIN_SLOT_C', 'C')    # C+F réservés (réutilise espaces libres)
+                # 8 slots FINANCE (réutilisation alphabet fin)
+                ('FINA_01', alphabet[19]), ('FINA_02', alphabet[20]), ('FINA_03', alphabet[21]),
+                ('FINA_04', alphabet[22]), ('FINA_05', alphabet[23]), ('FINA_06', alphabet[24]),
+                ('FINA_07', alphabet[25]), ('FINA_08', alphabet[0])  # Cycle retour
             ],
             'ENERGY': [
-                ('ENG_SLOT_E', 'E'),   # E+F réservés
-                ('ENG_SLOT_F', 'F')    # F+G réservés (avec garde-fou)
+                # 12 slots ENERGY (réutilisation avec offset)
+                ('ENER_01', alphabet[1]), ('ENER_02', alphabet[2]), ('ENER_03', alphabet[3]),
+                ('ENER_04', alphabet[4]), ('ENER_05', alphabet[5]), ('ENER_06', alphabet[6]),
+                ('ENER_07', alphabet[7]), ('ENER_08', alphabet[8]), ('ENER_09', alphabet[9]),
+                ('ENER_10', alphabet[10]), ('ENER_11', alphabet[11]), ('ENER_12', alphabet[12])
             ]
-            # Note: Allocation évite collisions en laissant espace pour _source/_sink automatique
+            # Total: 10 + 15 + 20 + 8 + 12 = 65 slots
+            # Note: Réutilisation contrôlée avec _generate_unique_taxonomic_chars pour collision-free
         }
 
     def _configure_icgs_once(self) -> EconomicSimulation:
@@ -462,6 +482,70 @@ class WebNativeICGS:
         ))
 
         return sorted(suggestions, key=lambda s: s.confidence, reverse=True)
+
+    def process_transaction_lightweight(self, source_id: str, target_id: str, amount: Decimal) -> Dict[str, Any]:
+        """
+        Transaction simple pour WebNativeICGS qui évite la taxonomie lourde
+
+        Args:
+            source_id: Agent source réel
+            target_id: Agent cible réel
+            amount: Montant transaction
+
+        Returns:
+            Dict avec success, transaction_record
+        """
+        # Vérifier existence agents
+        if source_id not in self.real_to_virtual or target_id not in self.real_to_virtual:
+            return {
+                'success': False,
+                'error': f'Agents inexistants: {source_id} ou {target_id}',
+                'available_agents': list(self.real_to_virtual.keys())
+            }
+
+        # Informations agents
+        source_info = self.agent_registry[source_id]
+        target_info = self.agent_registry[target_id]
+
+        # Validation simple basée sur balances
+        if source_info.balance < amount:
+            return {
+                'success': False,
+                'error': f'Balance insuffisante: {source_info.balance} < {amount}',
+                'source_balance': float(source_info.balance),
+                'required_amount': float(amount)
+            }
+
+        # Transaction simplifiée réussie
+        tx_id = f"TX_web_native_lightweight_{len(self.transaction_history) + 1:03d}"
+
+        # Enregistrer pour analyse
+        self.context_analyzer.record_transaction(
+            source_id, target_id, source_info.sector, target_info.sector, True
+        )
+
+        # Mettre à jour statistiques
+        source_info.transaction_count += 1
+        target_info.transaction_count += 1
+
+        transaction_record = {
+            'timestamp': datetime.now().isoformat(),
+            'tx_id': tx_id,
+            'source_id': source_id,
+            'target_id': target_id,
+            'amount': float(amount),
+            'source_sector': source_info.sector,
+            'target_sector': target_info.sector,
+            'validation_method': 'lightweight',
+            'success': True
+        }
+
+        self.transaction_history.append(transaction_record)
+
+        return {
+            'success': True,
+            'transaction_record': transaction_record
+        }
 
     def process_transaction(self, source_id: str, target_id: str, amount: Decimal,
                           custom_measures: Optional[Dict] = None) -> Dict[str, Any]:
