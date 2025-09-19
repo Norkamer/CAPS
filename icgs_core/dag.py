@@ -42,6 +42,17 @@ from .dag_structures import (
 )
 from .exceptions import IntegrationLimitationError
 
+# Import validation data collector pour capture métriques réelles
+try:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from icgs_validation_collector import get_validation_collector
+    VALIDATION_COLLECTOR_AVAILABLE = True
+except ImportError:
+    VALIDATION_COLLECTOR_AVAILABLE = False
+    logging.warning("ValidationDataCollector not available, using fallback mode")
+
 logger = logging.getLogger(__name__)
 
 
@@ -480,7 +491,27 @@ class DAG:
                 
                 if solution.cross_validation_passed:
                     self.stats['cross_validations_performed'] += 1
-                
+
+                # NOUVEAU: Capture métriques validation réelles pour visualisations SVG
+                if VALIDATION_COLLECTOR_AVAILABLE:
+                    try:
+                        collector = get_validation_collector()
+                        nfa_states_count = len(temp_nfa.get_final_states()) if hasattr(temp_nfa, 'get_final_states') else 0
+                        collector.capture_simplex_metrics(
+                            transaction_num=self.transaction_counter,
+                            transaction_id=transaction.transaction_id,
+                            path_classes=path_classes,
+                            lp_problem=lp_problem,
+                            simplex_solution=solution,
+                            enumeration_time_ms=enum_time,
+                            simplex_solve_time_ms=simplex_time,
+                            nfa_final_states_count=nfa_states_count
+                        )
+                        self.logger.debug(f"Validation metrics captured for transaction {self.transaction_counter}")
+                    except Exception as collector_error:
+                        # Non-critique : ne pas faire échouer validation si collecteur a problème
+                        self.logger.warning(f"Failed to capture validation metrics: {collector_error}")
+
                 self.logger.info(f"Simplex validation successful: {solution.status.value}, iterations={solution.iterations_used}, warm_start={solution.warm_start_successful}")
                 return True
             else:

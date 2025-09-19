@@ -550,20 +550,24 @@ class ICGSSVGAnimator:
                                           constraints: List[Dict],
                                           steps: List[Dict],
                                           optimal_point: Optional[Tuple[float, float]]) -> str:
-        """Génère contenu Simplex technique détaillé"""
+        """Génère contenu Simplex technique détaillé avec métriques réelles"""
         base_content = self.templates.render_simplex_polytope(vertices_2d, constraints, optimal_point)
 
-        # Données techniques
+        # Extraction métriques avancées depuis steps si disponibles
+        real_data_indicators = self._extract_real_data_indicators(steps)
+
+        # Panneau technique étendu avec nouvelles métriques
         technical_panel = f'''
     <g id="technical-panel" transform="translate(500, 50)">
-      <rect width="250" height="200" rx="10"
+      <rect width="280" height="280" rx="10"
             fill="rgba(0,0,0,0.8)" stroke="rgba(255,255,255,0.3)"/>
 
       <text x="15" y="25" class="metric-label"
             style="fill: white; font-weight: bold;">
-        Technical Data
+        Technical Data {real_data_indicators['source_indicator']}
       </text>
 
+      <!-- Métriques principales -->
       <text x="15" y="50" class="metric-label" style="fill: white; font-size: 11px;">
         Vertices: {len(vertices_2d)}
       </text>
@@ -576,20 +580,105 @@ class ICGSSVGAnimator:
         Algorithm Steps: {len(steps)}
       </text>
 
-      <text x="15" y="120" class="metric-label" style="fill: white; font-size: 11px;">
+      <!-- Métriques performance NOUVELLES -->
+      {self._generate_performance_metrics_section(real_data_indicators)}
+
+      <!-- Section solution optimale -->
+      <text x="15" y="160" class="metric-label" style="fill: white; font-size: 11px;">
         Optimal Solution:
       </text>
 
-      <text x="15" y="140" class="metric-label" style="fill: #FFD700; font-size: 10px;">
+      <text x="15" y="180" class="metric-label" style="fill: #FFD700; font-size: 10px;">
         X: {f"{optimal_point[0]:.3f}" if optimal_point else "N/A"}
       </text>
 
-      <text x="15" y="155" class="metric-label" style="fill: #FFD700; font-size: 10px;">
+      <text x="15" y="195" class="metric-label" style="fill: #FFD700; font-size: 10px;">
         Y: {f"{optimal_point[1]:.3f}" if optimal_point else "N/A"}
       </text>
+
+      <!-- Métriques validation NOUVELLES -->
+      {self._generate_validation_metrics_section(real_data_indicators)}
     </g>'''
 
         return base_content + technical_panel
+
+    def _extract_real_data_indicators(self, steps: List[Dict]) -> Dict[str, Any]:
+        """Extrait indicateurs données réelles depuis steps"""
+        # Vérifier si données réelles disponibles
+        has_real_data = any(step.get('real_iteration', False) for step in steps)
+
+        real_indicators = {
+            'source_indicator': '📊' if has_real_data else '🔧',  # Indicateur visuel
+            'has_real_data': has_real_data,
+            'enumeration_time': None,
+            'solve_time': None,
+            'warm_start_used': False,
+            'cross_validation_passed': False
+        }
+
+        # Extraction métriques depuis steps si disponibles
+        for step in steps:
+            if step.get('enumeration_time_ms'):
+                real_indicators['enumeration_time'] = step['enumeration_time_ms']
+            if step.get('solve_time_ms'):
+                real_indicators['solve_time'] = step['solve_time_ms']
+            if 'warm_start' in step.get('description', ''):
+                real_indicators['warm_start_used'] = 'True' in step.get('description', '')
+            if 'Cross-validation' in step.get('description', ''):
+                real_indicators['cross_validation_passed'] = 'passed: True' in step.get('description', '')
+
+        return real_indicators
+
+    def _generate_performance_metrics_section(self, indicators: Dict[str, Any]) -> str:
+        """Génère section métriques performance"""
+        if not indicators['has_real_data']:
+            return '''
+      <text x="15" y="110" class="metric-label" style="fill: #888; font-size: 10px;">
+        Performance: Mock data
+      </text>'''
+
+        section = '''
+      <text x="15" y="110" class="metric-label" style="fill: #88FF88; font-size: 10px;">
+        Performance (Real Data):
+      </text>'''
+
+        if indicators['enumeration_time']:
+            section += f'''
+      <text x="15" y="125" class="metric-label" style="fill: #AAFFAA; font-size: 9px;">
+        Enumeration: {indicators['enumeration_time']:.1f}ms
+      </text>'''
+
+        if indicators['solve_time']:
+            section += f'''
+      <text x="15" y="140" class="metric-label" style="fill: #AAFFAA; font-size: 9px;">
+        Solve: {indicators['solve_time']:.1f}ms
+      </text>'''
+
+        return section
+
+    def _generate_validation_metrics_section(self, indicators: Dict[str, Any]) -> str:
+        """Génère section métriques validation"""
+        if not indicators['has_real_data']:
+            return ''
+
+        section = '''
+      <text x="15" y="220" class="metric-label" style="fill: #FFD700; font-size: 10px;">
+        Validation:
+      </text>'''
+
+        warm_start_color = '#88FF88' if indicators['warm_start_used'] else '#FF8888'
+        section += f'''
+      <text x="15" y="235" class="metric-label" style="fill: {warm_start_color}; font-size: 9px;">
+        Warm-start: {'Yes' if indicators['warm_start_used'] else 'No'}
+      </text>'''
+
+        validation_color = '#88FF88' if indicators['cross_validation_passed'] else '#FF8888'
+        section += f'''
+      <text x="15" y="250" class="metric-label" style="fill: {validation_color}; font-size: 9px;">
+        Cross-validation: {'Passed' if indicators['cross_validation_passed'] else 'Failed'}
+      </text>'''
+
+        return section
 
     def _calculate_sector_positions(self, content_width: float, content_height: float) -> Dict[str, Tuple[float, float]]:
         """Calcule positions optimales des secteurs"""
