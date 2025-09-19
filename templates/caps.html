@@ -1980,6 +1980,9 @@
 
             // Mise à jour de métriques additionnelles
             updateTransactionMetrics(data);
+
+            // Actualiser les animations SVG avec la nouvelle transaction
+            refreshSVGAnimations();
         }
 
         // Nouveau: Métriques détaillées de transaction
@@ -2054,14 +2057,17 @@
 
         // Démarrer les animations SVG temps réel
         function startSVGAnimations() {
+            // Récupérer l'étape courante
+            const currentStep = animationState.currentStep || 1;
+
             // Animation économie complète
-            loadSVGAnimation('economy-animation-svg', '/api/svg/economy_animation');
+            loadSVGAnimation('economy-animation-svg', `/api/svg/economy_animation?current_step=${currentStep}`);
 
             // Dashboard performance
-            loadSVGAnimation('performance-dashboard-svg', '/api/svg/performance_dashboard');
+            loadSVGAnimation('performance-dashboard-svg', `/api/svg/performance_dashboard?current_step=${currentStep}`);
 
             // Étapes Simplex
-            loadSVGAnimation('simplex-steps-svg', '/api/svg/simplex_steps');
+            loadSVGAnimation('simplex-steps-svg', `/api/svg/simplex_steps?current_step=${currentStep}`);
 
             // Actualiser les animations toutes les 3 secondes
             svgAnimationIntervals.refresh = setInterval(() => {
@@ -2148,9 +2154,12 @@
 
         // Actualiser toutes les animations SVG
         function refreshSVGAnimations() {
-            loadSVGAnimation('economy-animation-svg', '/api/svg/economy_animation');
-            loadSVGAnimation('performance-dashboard-svg', '/api/svg/performance_dashboard');
-            loadSVGAnimation('simplex-steps-svg', '/api/svg/simplex_steps');
+            // Récupérer l'étape courante
+            const currentStep = animationState.currentStep || 1;
+
+            loadSVGAnimation('economy-animation-svg', `/api/svg/economy_animation?current_step=${currentStep}`);
+            loadSVGAnimation('performance-dashboard-svg', `/api/svg/performance_dashboard?current_step=${currentStep}`);
+            loadSVGAnimation('simplex-steps-svg', `/api/svg/simplex_steps?current_step=${currentStep}`);
 
             // Charger la liste des transactions pour le sélecteur
             loadTransactionsList();

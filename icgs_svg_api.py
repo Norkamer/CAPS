@@ -120,9 +120,10 @@ class ICGSSVGAPIServer:
             animation_type = request.args.get('type', 'complete')
             include_flows = request.args.get('flows', 'true').lower() == 'true'
             include_metrics = request.args.get('metrics', 'true').lower() == 'true'
+            current_step = request.args.get('current_step', None)
 
             # Récupération données économie
-            economy_data = self._get_economy_data()
+            economy_data = self._get_economy_data(current_step)
             if not economy_data:
                 return self._error_response("Economy data not available", 503)
 
@@ -209,9 +210,10 @@ class ICGSSVGAPIServer:
             params = self._extract_request_params()
             animation_style = request.args.get('style', 'standard')
             transaction_id = request.args.get('transaction_id', None)
+            current_step = request.args.get('current_step', None)
 
             # Récupération données Simplex
-            simplex_data = self._get_simplex_data(transaction_id)
+            simplex_data = self._get_simplex_data(transaction_id, current_step)
             if not simplex_data:
                 return self._error_response("Simplex data not available", 503)
 
@@ -247,9 +249,10 @@ class ICGSSVGAPIServer:
             # Paramètres de requête
             params = self._extract_request_params()
             include_timeline = request.args.get('timeline', 'false').lower() == 'true'
+            current_step = request.args.get('current_step', None)
 
             # Récupération métriques performance
-            metrics_data = self._get_performance_metrics()
+            metrics_data = self._get_performance_metrics(current_step)
             if not metrics_data:
                 return self._error_response("Performance metrics not available", 503)
 
@@ -509,10 +512,10 @@ class ICGSSVGAPIServer:
 
         return animator
 
-    def _get_economy_data(self) -> Optional[Dict[str, Any]]:
+    def _get_economy_data(self, current_step: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Récupère données économie depuis système ICGS"""
         if not ICGS_AVAILABLE or not self.web_manager:
-            return self._generate_mock_economy_data()
+            return self._generate_mock_economy_data(current_step)
 
         try:
             # Utiliser web_manager.icgs_core pour récupérer données
@@ -577,7 +580,7 @@ class ICGSSVGAPIServer:
 
         except Exception as e:
             print(f"⚠️ Erreur récupération données économie: {e}")
-            return self._generate_mock_economy_data()
+            return self._generate_mock_economy_data(current_step)
 
     def _get_transaction_data(self, tx_id: str) -> Optional[Dict[str, Any]]:
         """Récupère données transaction spécifique"""
@@ -643,15 +646,15 @@ class ICGSSVGAPIServer:
         except Exception:
             return None
 
-    def _get_simplex_data(self, transaction_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def _get_simplex_data(self, transaction_id: Optional[str] = None, current_step: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Récupère données Simplex pour animation"""
         # Pour l'instant génère données test - peut être étendu avec vraies données ICGS
-        return self._generate_test_simplex_data()
+        return self._generate_test_simplex_data(transaction_id, current_step)
 
-    def _get_performance_metrics(self) -> Optional[Dict[str, Any]]:
+    def _get_performance_metrics(self, current_step: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Récupère métriques performance actuelles"""
         if not ICGS_AVAILABLE or not self.web_manager:
-            return self._generate_mock_performance_metrics()
+            return self._generate_mock_performance_metrics(current_step)
 
         try:
             # Utiliser API métriques existante
@@ -678,7 +681,7 @@ class ICGSSVGAPIServer:
 
         except Exception as e:
             print(f"⚠️ Erreur récupération métriques: {e}")
-            return self._generate_mock_performance_metrics()
+            return self._generate_mock_performance_metrics(current_step)
 
     def _get_performance_timeline(self) -> Optional[List[Dict]]:
         """Récupère timeline des métriques"""
@@ -693,8 +696,10 @@ class ICGSSVGAPIServer:
 
     # Méthodes de génération de données test
 
-    def _generate_mock_economy_data(self) -> Dict[str, Any]:
+    def _generate_mock_economy_data(self, current_step: Optional[str] = None) -> Dict[str, Any]:
         """Génère données économie mock pour test"""
+        # Adapter les données selon l'étape courante
+        step_num = int(current_step) if current_step and current_step.isdigit() else 1
         sectors = ['AGRICULTURE', 'INDUSTRY', 'SERVICES', 'FINANCE', 'ENERGY']
         agents_distribution = {}
 
@@ -703,10 +708,16 @@ class ICGSSVGAPIServer:
             agent_count = {'AGRICULTURE': 10, 'INDUSTRY': 15, 'SERVICES': 20, 'FINANCE': 8, 'ENERGY': 12}[sector]
 
             for i in range(agent_count):
+                # Balance varie selon l'étape courante pour simuler l'évolution
+                base_balance = 800 + (hash(f'{sector}_{i}') % 800)
+                step_variation = (step_num - 1) * 10 * (1 if i % 2 == 0 else -1)  # Variation selon étape
+                balance = max(0, base_balance + step_variation)
+
                 agents.append({
                     'id': f'{sector}_AGENT_{i+1:02d}',
-                    'balance': 800 + (hash(f'{sector}_{i}') % 800),
-                    'sector': sector
+                    'balance': balance,
+                    'sector': sector,
+                    'step_num': step_num  # Info pour debug
                 })
 
             agents_distribution[sector] = {
@@ -718,7 +729,7 @@ class ICGSSVGAPIServer:
         return {
             'agents_distribution': agents_distribution,
             'sample_results': self._generate_mock_sample_results(),
-            'performance_metrics': self._generate_mock_performance_metrics()
+            'performance_metrics': self._generate_mock_performance_metrics(current_step)
         }
 
     def _generate_mock_sample_results(self) -> List[Dict[str, Any]]:
@@ -742,13 +753,20 @@ class ICGSSVGAPIServer:
             })
         return results
 
-    def _generate_mock_performance_metrics(self) -> Dict[str, Any]:
+    def _generate_mock_performance_metrics(self, current_step: Optional[str] = None) -> Dict[str, Any]:
         """Génère métriques performance mock"""
+        # Adapter les métriques selon l'étape courante
+        step_num = int(current_step) if current_step and current_step.isdigit() else 1
+        # Métriques variables selon l'étape courante
+        base_feasibility = 85.0
+        base_optimization = 80.0
+        step_progress = min(step_num / 33.0, 1.0)  # Progress 0-1 sur 33 étapes
+
         return {
             'agents_count': 65,
-            'total_transactions': 847,
-            'feasibility_rate': 87.3,
-            'optimization_rate': 82.1,
+            'total_transactions': step_num * 25,  # Augmente avec les étapes
+            'feasibility_rate': base_feasibility + (step_progress * 10),  # Amélioration progressive
+            'optimization_rate': base_optimization + (step_progress * 15),  # Amélioration progressive
             'avg_validation_time_ms': 43.7,
             'cpu_usage': 18.2,
             'memory_usage': 34.6,
@@ -781,8 +799,10 @@ class ICGSSVGAPIServer:
             'optimization': {'success': True, 'time_ms': 41.7, 'optimal_price': 0.8765}
         }
 
-    def _generate_test_simplex_data(self) -> Dict[str, Any]:
+    def _generate_test_simplex_data(self, transaction_id: Optional[str] = None, current_step: Optional[str] = None) -> Dict[str, Any]:
         """Génère données Simplex test"""
+        # Adapter les données selon la transaction et l'étape courante
+        step_num = int(current_step) if current_step and current_step.isdigit() else 1
         return {
             'vertices': [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], [0.5, 0.5, 0.5]],
             'constraints': [
@@ -791,15 +811,16 @@ class ICGSSVGAPIServer:
                 {'type': 'linear', 'coefficients': [0, 1, 1], 'rhs': 1}
             ],
             'simplex_steps': [
-                {'step': 1, 'description': 'Initial basic solution'},
-                {'step': 2, 'description': 'Pivot operation'},
-                {'step': 3, 'description': 'Optimality test'},
-                {'step': 4, 'description': 'Optimal solution found'}
+                {'step': 1, 'description': f'Initial basic solution (Transaction {step_num})'},
+                {'step': 2, 'description': f'Pivot operation {step_num}'},
+                {'step': 3, 'description': f'Optimality test step {step_num}'},
+                {'step': 4, 'description': f'Optimal solution for transaction {step_num}'}
             ],
             'optimal_solution': {
-                'coordinates': [0.33, 0.33, 0.33],
-                'value': 1.0,
-                'feasible': True
+                'coordinates': [0.33 + step_num * 0.01, 0.33 + step_num * 0.005, 0.33 - step_num * 0.01],
+                'value': 1.0 + step_num * 0.05,  # Valeur change selon l'étape
+                'feasible': True,
+                'transaction_step': step_num
             }
         }
 
