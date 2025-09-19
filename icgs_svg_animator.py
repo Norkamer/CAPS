@@ -211,9 +211,17 @@ class ICGSSVGAnimator:
                     vertices_2d, optimal_point_2d
                 )
 
-            svg_content = self.templates.get_base_svg_structure(
-                f"Simplex Animation - {animation_style.title()}", content
-            )
+            # Construire titre dynamique avec transaction courante
+            metadata = simplex_data.get('transaction_metadata', {})
+            current_step = metadata.get('current_step')
+            total_steps = metadata.get('total_steps', 33)
+
+            if current_step and current_step.isdigit():
+                title = f"Simplex Animation - Transaction {current_step}/{total_steps}"
+            else:
+                title = f"Simplex Animation - {animation_style.title()}"  # fallback
+
+            svg_content = self.templates.get_base_svg_structure(title, content)
 
             self._update_generation_stats(start_time)
             return svg_content

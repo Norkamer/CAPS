@@ -77,6 +77,31 @@ function updateTransactionProgress(data) {
 }
 ```
 
+### 3. Correction Erreur JavaScript Critique
+
+#### Problème identifié :
+- **Erreur**: `ReferenceError: getCurrentSimulationInfo is not defined`
+- **Impact**: Les animations SVG s'affichaient comme du texte au lieu de graphiques
+- **Cause**: Fonction manquante appelée dans `executeNextAnimationStep()`
+
+#### Solution implémentée :
+```javascript
+async function getCurrentSimulationInfo() {
+    try {
+        const response = await fetch('/api/simulations/current/info');
+        if (response.ok) {
+            const data = await response.json();
+            return data;
+        } else {
+            throw new Error('Failed to fetch simulation info');
+        }
+    } catch (error) {
+        console.warn('⚠️ Erreur récupération info simulation:', error);
+        return { agents_count: 0, transactions_count: 0 };
+    }
+}
+```
+
 ## 📊 Tests de Non-Régression
 
 ### Validation des données dynamiques :
@@ -94,21 +119,24 @@ function updateTransactionProgress(data) {
 - ✅ URLs contiennent le paramètre `current_step=${currentStep}`
 - ✅ `refreshSVGAnimations()` appelée lors des changements de transaction
 - ✅ Synchronisation temps réel fonctionnelle
+- ✅ Fonction `getCurrentSimulationInfo()` correctement définie
+- ✅ Aucune erreur JavaScript en console
+- ✅ SVG s'affichent comme graphiques (plus de texte brut)
 
 ## 🎯 Résultat Final
 
 ### Comportement avant :
 ```
-Transaction 1 → Animation statique
-Transaction 5 → Animation identique
-Transaction 33 → Animation identique
+Transaction 1 → Animation statique + Erreur JavaScript
+Transaction 5 → Animation identique + SVG en texte brut
+Transaction 33 → Animation identique + Console errors
 ```
 
 ### Comportement après :
 ```
-Transaction 1 → Animation spécifique étape 1 (85% feasibility)
-Transaction 5 → Animation spécifique étape 5 (86% feasibility)
-Transaction 33 → Animation spécifique étape 33 (95% feasibility)
+Transaction 1 → Animation spécifique étape 1 (85% feasibility) + Rendu SVG correct
+Transaction 5 → Animation spécifique étape 5 (86% feasibility) + Aucune erreur
+Transaction 33 → Animation spécifique étape 33 (95% feasibility) + Interface stable
 ```
 
 ## 🛠️ Impact Technique

@@ -2248,6 +2248,22 @@
             }
         }
 
+        // Récupérer les informations de simulation (pour executeNextAnimationStep)
+        async function getCurrentSimulationInfo() {
+            try {
+                const response = await fetch('/api/simulations/current/info');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data;
+                } else {
+                    throw new Error('Failed to fetch simulation info');
+                }
+            } catch (error) {
+                console.warn('⚠️ Erreur récupération info simulation:', error);
+                return { agents_count: 0, transactions_count: 0 }; // fallback
+            }
+        }
+
         // Mettre à jour l'état de la simulation
         function updateSimulationState(newState) {
             simulationState = newState;

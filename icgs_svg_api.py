@@ -821,6 +821,11 @@ class ICGSSVGAPIServer:
                 'value': 1.0 + step_num * 0.05,  # Valeur change selon l'étape
                 'feasible': True,
                 'transaction_step': step_num
+            },
+            'transaction_metadata': {
+                'current_step': current_step,
+                'transaction_id': transaction_id,
+                'total_steps': 33  # Nombre total d'étapes par défaut
             }
         }
 
