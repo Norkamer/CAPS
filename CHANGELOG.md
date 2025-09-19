@@ -5,6 +5,34 @@ All notable changes to CAPS (Computation Analytics & Policy Simulation) will be 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-09-19 - Validation Académique Complète & Nettoyage Documentation 🎓
+
+### ✅ Validation Académique 100% Réussie
+- **192/192 Tests Académiques**: Tous tests passent maintenant (100% succès)
+- **Corrections API NFA**: Migration API `evaluate_word()` → retour `Set[str]`
+- **Support Character Classes**: Thompson NFA supporte `[A-Z]+` patterns
+- **Pytest Compatibility**: Tests WebNative compatibles structure pytest
+
+### 🗑️ Nettoyage Documentation Majeur
+- **17 Fichiers .md Obsolètes Supprimés**: Élimination analyses contradictoires et rapports dépassés
+- **Documentation Consolidée**: Focus sur informations actuelles et pertinentes
+- **Navigation Simplifiée**: 48 → 31 fichiers .md (~35% réduction)
+
+### 🔧 Corrections Techniques
+- **API Character Manager**: `get_sector_characters()` → `get_character_set_info().characters`
+- **Test Structure**: Suppression constructeurs `__init__()` incompatibles pytest
+- **Pattern Validation**: Mise à jour patterns regex supportés
+
+### 📚 Documentation Mise à Jour
+- **README.md**: 132/132 → 192/192 tests, statut prêt papier académique
+- **COMPLETE_ACADEMIC_VALIDATION_REPORT.md**: Réécriture complète 100% succès
+- **Architecture Guides**: Documentation changements API
+
+### 🎯 Impact
+- **Système Prêt Publication**: Validation académique tier-1 confirmée
+- **Maintenance Simplifiée**: Documentation claire et actuelle uniquement
+- **Onboarding Facilité**: Navigation documentation optimisée
+
 ## [1.2.0] - 2025-09-17 - Semaine 2: Extension 40 Agents SUCCESS 🎯
 
 ### 🎯 Objectifs Semaine 2 RÉALISÉS

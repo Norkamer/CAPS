@@ -49,7 +49,7 @@ CAPS/
 # Installation développement
 pip install -e .
 
-# Validation système (125+ tests)
+# Validation système (192 tests académiques)
 python -m pytest tests/ -v
 
 # Test simulation économique
@@ -102,12 +102,13 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 
 ## 📊 Performance & Validation
 
-### 🎯 Métriques Industrielles (Semaine 2 Validées)
+### 🎯 Métriques Industrielles & Académiques
 - **100% FEASIBILITY** : vs 16.7% baseline (×6 amélioration maintenue)
 - **1.06ms validation** : Performance <100ms objectif dépassé (×94 faster)
-- **132/132 tests** : Non-régression totale (125 core + 7 Semaine 2)
+- **192/192 tests** : Validation académique complète (100% succès) ✅
 - **7→40→65 agents** : Scalabilité architecture progressive démontrée
 - **19 flux automatiques** : Inter-sectoral flows en 0.17ms création
+- **Prêt papier académique** : Système entièrement validé 🎓
 
 ### 🏭 Distribution Économique Réaliste
 | Secteur | Agents | Balance Moy | Poids | Description |
