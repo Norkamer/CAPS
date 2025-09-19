@@ -206,4 +206,32 @@ pipeline_state = collector.get_pipeline_state(transaction_num)
 ```
 
 **✅ Status** : Pipeline implémenté et opérationnel
-**🔍 Prochaines étapes** : Validation avec simulations économiques réelles
+
+## 🧪 **Tests de non-régression - Résultats**
+
+### **Tests effectués le 2025-09-19** :
+
+#### **✅ Modes Simplex Animation** :
+- **Standard** (fallback) : Fonctionne correctement avec données mock
+- **Educational** : Synchronisation transaction réussie
+- **Technical** : Métriques enrichies opérationnelles, indicateurs visuels 📊/🔧
+
+#### **✅ Autres animations** :
+- **Economy Animation** : Paramètre `current_step` pris en compte
+- **Performance Dashboard** : Métriques temps réel synchronisées
+
+#### **✅ Compatibilité backward** :
+- APIs fonctionnent sans paramètres (mode fallback)
+- Aucune régression sur fonctionnalités existantes
+
+#### **✅ Validation fallbacks** :
+- Collecteur validation initialisé correctement
+- Fallback automatique vers données mock en cas d'absence de données réelles
+- Aucun impact sur pipeline validation principal
+
+#### **✅ Architecture non-invasive** :
+- Serveur stable, traitement requests avec status 200
+- Validation collector fonctionne de manière transparente
+- Pipeline core non affecté par collecte métriques
+
+**🔍 Prochaines étapes** : Déploiement en production avec simulations économiques réelles
