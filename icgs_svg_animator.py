@@ -581,11 +581,11 @@ class ICGSSVGAnimator:
       </text>
 
       <text x="15" y="140" class="metric-label" style="fill: #FFD700; font-size: 10px;">
-        X: {optimal_point[0]:.3f if optimal_point else 'N/A'}
+        X: {f"{optimal_point[0]:.3f}" if optimal_point else "N/A"}
       </text>
 
       <text x="15" y="155" class="metric-label" style="fill: #FFD700; font-size: 10px;">
-        Y: {optimal_point[1]:.3f if optimal_point else 'N/A'}
+        Y: {f"{optimal_point[1]:.3f}" if optimal_point else "N/A"}
       </text>
     </g>'''
 

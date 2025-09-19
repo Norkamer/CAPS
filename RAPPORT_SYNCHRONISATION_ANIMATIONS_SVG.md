@@ -102,6 +102,24 @@ async function getCurrentSimulationInfo() {
 }
 ```
 
+### 4. Correction Erreur F-String Mode Technical
+
+#### Problème identifié :
+- **Erreur**: `Invalid format specifier '.3f if optimal_point else 'N/A'' for object of type 'float'`
+- **Impact**: Mode `style=technical` générait une erreur Python au lieu d'afficher le panneau technique
+- **Cause**: Syntaxe f-string invalide dans `_generate_technical_simplex_content()`
+
+#### Solution implémentée (`icgs_svg_animator.py`) :
+```python
+# Avant (❌ Erreur)
+X: {optimal_point[0]:.3f if optimal_point else 'N/A'}
+Y: {optimal_point[1]:.3f if optimal_point else 'N/A'}
+
+# Après (✅ Corrigé)
+X: {f"{optimal_point[0]:.3f}" if optimal_point else "N/A"}
+Y: {f"{optimal_point[1]:.3f}" if optimal_point else "N/A"}
+```
+
 ## 📊 Tests de Non-Régression
 
 ### Validation des données dynamiques :
@@ -123,20 +141,27 @@ async function getCurrentSimulationInfo() {
 - ✅ Aucune erreur JavaScript en console
 - ✅ SVG s'affichent comme graphiques (plus de texte brut)
 
+### Tests modes Simplex (3 styles disponibles) :
+- ✅ **Standard** (`?style=standard`) : Polytope de base avec titre dynamique
+- ✅ **Educational** (`?style=educational`) : Polytope + étapes algorithme Simplex
+- ✅ **Technical** (`?style=technical`) : Polytope + panneau technique détaillé
+- ✅ Coordonnées optimales affichées correctement (X: 309.000, Y: 225.625)
+- ✅ Pas de régression sur les autres animations (economy, performance)
+
 ## 🎯 Résultat Final
 
 ### Comportement avant :
 ```
-Transaction 1 → Animation statique + Erreur JavaScript
-Transaction 5 → Animation identique + SVG en texte brut
-Transaction 33 → Animation identique + Console errors
+Transaction 1 → Animation statique + Erreur JavaScript + Mode technical cassé
+Transaction 5 → Animation identique + SVG en texte brut + Erreur f-string
+Transaction 33 → Animation identique + Console errors + Technical non fonctionnel
 ```
 
 ### Comportement après :
 ```
-Transaction 1 → Animation spécifique étape 1 (85% feasibility) + Rendu SVG correct
-Transaction 5 → Animation spécifique étape 5 (86% feasibility) + Aucune erreur
-Transaction 33 → Animation spécifique étape 33 (95% feasibility) + Interface stable
+Transaction 1 → Animation spécifique étape 1 (85% feasibility) + Rendu SVG correct + 3 modes Simplex
+Transaction 5 → Animation spécifique étape 5 (86% feasibility) + Aucune erreur + Technical opérationnel
+Transaction 33 → Animation spécifique étape 33 (95% feasibility) + Interface stable + Coordonnées optimales
 ```
 
 ## 🛠️ Impact Technique
