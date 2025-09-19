@@ -169,7 +169,7 @@ class TestAcademicNFACharacterClassIntegration:
             assert len(evaluation) > 0, f"Industry word {word} should match"
 
             # Collection états finals atteints
-            for state_id in evaluation.final_states_reached:
+            for state_id in evaluation:
                 final_states_reached.add(state_id)
 
         # PROPRIÉTÉ CRITIQUE: Tous mots → même état final unique
@@ -207,8 +207,7 @@ class TestAcademicNFACharacterClassIntegration:
                 eval_result = self.nfa.evaluate_word(word)
                 evaluations.append({
                     'final_states_count': len(eval_result),
-                    'final_states': sorted(eval_result.final_states_reached),
-                    'matched_regexes': sorted(eval_result.matched_regexes)
+                    'final_states': sorted(eval_result)
                 })
 
             # Validation déterminisme: tous résultats identiques
@@ -286,7 +285,7 @@ class TestAcademicNFACharacterClassIntegration:
         assert len(set(chars_allocated)) == len(chars_allocated), "Character collision should be resolved"
 
         # Construction NFA avec pattern character-class INDUSTRY
-        industry_chars = self.char_manager.get_sector_characters('INDUSTRY')
+        industry_chars = self.char_manager.get_character_set_info('INDUSTRY').characters
         industry_pattern = f".*[{''.join(industry_chars)}].*"
 
         pipeline_nfa = AnchoredWeightedNFA("pipeline_integration")
@@ -310,7 +309,7 @@ class TestAcademicNFACharacterClassIntegration:
 
         # PROPRIÉTÉ CRITIQUE ICGS: Tous agents même secteur → même classification
         final_states_by_agent = {
-            agent: set(eval_result.final_states_reached)
+            agent: set(eval_result)
             for agent, eval_result in path_evaluations.items()
         }
 

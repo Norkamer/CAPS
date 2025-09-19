@@ -30,7 +30,8 @@ from icgs_simulation.api.icgs_bridge import SimulationMode
 class TestWebNativeFinalValidation:
     """Test validation finale optimisé WebNativeICGS"""
 
-    def __init__(self):
+    def setup_method(self):
+        """Setup pour chaque test (pytest style)"""
         self.web_manager = WebNativeICGS()
         self.test_counter = 0
         self.results = {
@@ -40,8 +41,9 @@ class TestWebNativeFinalValidation:
             'integration_apis': {'passed': 0, 'total': 0}
         }
 
-    def run_final_validation(self):
+    def test_webnative_final_validation(self):
         """Validation finale production WebNativeICGS"""
+        self.setup_method()  # Initialize test variables
         print("🏗️ Test Académique 25: WebNativeICGS - Validation Finale Production")
         print("=" * 75)
 
@@ -286,8 +288,8 @@ class TestWebNativeFinalValidation:
 
 def main():
     """Fonction principale test final"""
-    test_suite = TestWebNativeFinalValidation()
-    test_suite.run_final_validation()
+    import unittest
+    unittest.main()
 
 
 if __name__ == "__main__":

@@ -11,6 +11,10 @@ Fonctionnalités:
 - Construction dynamique d'automate depuis patterns
 - Support expressions régulières complètes (via module regex)
 
+API CHANGE: evaluate_word() retourne maintenant Set[str] directement
+- Avant: objet avec attributs .final_states_reached, .matched_regexes
+- Maintenant: Set[str] des états finaux atteints pour simplification API
+
 Complexité:
 - Construction: O(R × S) où R=regex, S=états moyens par regex
 - Évaluation: O(M × T) où M=longueur mot, T=transitions actives moyennes

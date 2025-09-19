@@ -13,6 +13,11 @@ EXTENSION: Support regex character-class pour résolution multi-agents limitatio
 - Compatibilité patterns classiques + character-class
 - Matching complet tous caractères dans sets nommés
 
+API CHANGE: evaluate_word() return type
+- ANCIEN: evaluate_word() retournait objet avec .final_states_reached, .matched_regexes
+- NOUVEAU: evaluate_word() retourne directement Set[str] des états finaux atteints
+- Migration: remplacer eval_result.final_states_reached par eval_result
+
 Objectif: Élimination matches partiels + cohérence temporelle + character-sets support
 Propriétés:
 - Ancrage automatique: ajout ".*$" si nécessaire pour regex complète

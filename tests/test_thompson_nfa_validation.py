@@ -58,8 +58,8 @@ class TestRegexParser(unittest.TestCase):
 
     def test_pattern_validation(self):
         """Test validation patterns supportés"""
-        valid_patterns = [".*N.*", "^A.*", ".*B$", "N", "ABC"]
-        invalid_patterns = ["[A-Z]+", "a{2,5}"]
+        valid_patterns = [".*N.*", "^A.*", ".*B$", "N", "ABC", "[A-Z]+"]
+        invalid_patterns = ["a{2,5}"]
 
         for pattern in valid_patterns:
             self.assertTrue(self.parser.validate_pattern(pattern),
