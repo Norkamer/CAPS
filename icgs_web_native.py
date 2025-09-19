@@ -235,7 +235,7 @@ class WebNativeICGS:
 
     def _configure_icgs_once(self) -> EconomicSimulation:
         """Configuration unique ICGS avec TOUS les slots virtuels et taxonomie explicite (Option A)"""
-        icgs = EconomicSimulation("web_native_pool")
+        icgs = EconomicSimulation("web_native_pool", agents_mode="65_agents")
 
         # OPTION A: Créer agents avec taxonomie explicite pour éviter collisions
         for sector, slots in self.virtual_pool.items():

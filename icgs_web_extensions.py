@@ -25,7 +25,7 @@ def register_academic_routes(app):
         """API: Lancer simulation académique complète avec scénarios théorématiques"""
         try:
             # Créer simulation académique avec scénario économiquement cohérent
-            sim = EconomicSimulation("web_academic_demo")
+            sim = EconomicSimulation("web_academic_demo", agents_mode="65_agents")
 
             # Écosystème innovation académique AgTech
             academic_agents = [
@@ -209,7 +209,7 @@ def register_academic_routes(app):
         """API: Validation des 5 théorèmes académiques ICGS"""
         try:
             # Simulation rapide pour valider théorèmes
-            sim = EconomicSimulation("theorem_validation")
+            sim = EconomicSimulation("theorem_validation", agents_mode="65_agents")
 
             # Test théorème 1: Cohérence FEASIBILITY ⊆ OPTIMIZATION
             alice = sim.create_agent("ALICE_THEOREM", "FINANCE", Decimal('1000'))
@@ -285,7 +285,7 @@ def register_academic_routes(app):
         """API: Données polytope authentiques pour visualisation 3D"""
         try:
             # Créer simulation avec collecteur 3D intégré
-            sim = EconomicSimulation("polytope_demo")
+            sim = EconomicSimulation("polytope_demo", agents_mode="65_agents")
 
             # Vérifier si collecteur 3D disponible
             if not hasattr(sim, '_get_3d_collector') and not hasattr(sim, 'icgs_core'):

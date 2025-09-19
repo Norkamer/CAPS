@@ -152,6 +152,11 @@ def caps():
     """Page CAPS - Constraint-Adaptive Path Simplex"""
     return render_template('caps.html')
 
+@app.route('/caps2')
+def caps2():
+    """Page CAPS2 - Simplex 65 Agents avec ValidationDataCollector"""
+    return render_template('caps2.html')
+
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     """Servir les fichiers statiques CSS/JS pour application 3D"""
@@ -1627,7 +1632,7 @@ def api_save_simulation():
             from icgs_simulation.api.icgs_bridge import EconomicSimulation
 
             # Créer simulation temporaire pour sauvegarde
-            temp_simulation = EconomicSimulation(name or "web_simulation", agents_mode="7_agents")
+            temp_simulation = EconomicSimulation(name or "web_simulation", agents_mode="65_agents")
 
             # Transférer agents du web_manager vers EconomicSimulation
             if hasattr(active_simulation, 'agents') and active_simulation.agents:
@@ -2150,8 +2155,8 @@ def api_create_65_agents_simulation():
                             base_amount = 50 + (intensity * 200)  # 50-260 range
                             amount = Decimal(str(base_amount + (i * 10)))  # Variation
 
-                            # Créer transaction via WebNativeICGS
-                            result = web_manager.process_transaction_lightweight(source_agent, target_agent, amount)
+                            # Créer transaction via WebNativeICGS - UTILISE VALIDATION COMPLÈTE POUR ValidationDataCollector
+                            result = web_manager.process_transaction(source_agent, target_agent, amount)
 
                             if result.get('success', False):
                                 transactions_created += 1
@@ -2306,6 +2311,157 @@ def _execute_transaction_with_registry(agents_source, source_name, source_id, ta
             'success': False,
             'error': f'Erreur exécution transaction: {str(e)}'
         }
+
+
+@app.route('/api/validation-collector/status')
+def validation_collector_status():
+    """
+    Debug endpoint pour vérifier l'état de ValidationDataCollector
+    """
+    try:
+        # Import validation collector avec gestion d'erreur
+        try:
+            from icgs_validation_collector import get_validation_collector
+            collector = get_validation_collector()
+
+            # Statistiques collecteur
+            stats = collector.get_statistics()
+
+            # État cache
+            cache_info = {
+                'cache_size': len(collector._metrics_cache),
+                'pipeline_states': len(collector._pipeline_states),
+                'cached_transactions': list(collector._metrics_cache.keys())
+            }
+
+            # Test dernière transaction capturée
+            last_transaction = None
+            if collector._metrics_cache:
+                last_tx_num = max(collector._metrics_cache.keys())
+                last_transaction = {
+                    'transaction_num': last_tx_num,
+                    'vertices_count': collector._metrics_cache[last_tx_num].vertices_count,
+                    'constraints_count': collector._metrics_cache[last_tx_num].constraints_count,
+                    'algorithm_steps': collector._metrics_cache[last_tx_num].algorithm_steps,
+                    'capture_time': collector._metrics_cache[last_tx_num].capture_time
+                }
+
+            return jsonify({
+                'success': True,
+                'validation_collector_available': True,
+                'statistics': stats,
+                'cache_info': cache_info,
+                'last_transaction': last_transaction,
+                'real_data_available': len(collector._metrics_cache) > 0
+            })
+
+        except ImportError as ie:
+            return jsonify({
+                'success': True,
+                'validation_collector_available': False,
+                'error': f'ValidationDataCollector import failed: {ie}',
+                'real_data_available': False
+            })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to check ValidationDataCollector status: {str(e)}'
+        }), 500
+
+
+@app.route('/api/transaction/simplex-direct', methods=['POST'])
+def process_simplex_direct_transaction():
+    """
+    Endpoint pour transaction Simplex directe qui contourne WebNativeICGS
+    et déclenche ValidationDataCollector via DAG._validate_transaction_simplex()
+    """
+    try:
+        data = request.get_json() or {}
+        source_id = data.get('source_id')
+        target_id = data.get('target_id')
+        amount = data.get('amount', 100.0)
+
+        if not source_id or not target_id:
+            return jsonify({
+                'success': False,
+                'error': 'source_id and target_id required'
+            }), 400
+
+        # Import simulation et ValidationDataCollector
+        try:
+            from icgs_simulation.api.icgs_bridge import EconomicSimulation, SimulationMode
+            from icgs_validation_collector import get_validation_collector
+            from decimal import Decimal
+
+            # Créer simulation avec configuration minimale
+            simulation = EconomicSimulation(agents_mode="65_agents")
+
+            # Vérifier ValidationDataCollector avant
+            collector = get_validation_collector()
+            captures_before = collector.stats['captures_performed']
+
+            # Configuration simulation pour transaction Simplex
+            try:
+                # Créer agents si nécessaire
+                if source_id not in simulation.agents:
+                    simulation.create_agent(source_id, 'AGRICULTURE', 1000.0)
+                if target_id not in simulation.agents:
+                    simulation.create_agent(target_id, 'INDUSTRY', 1000.0)
+
+                # Configuration taxonomie nécessaire
+                simulation._configure_taxonomy_batch()
+
+                # Créer transaction
+                tx_id = simulation.create_transaction(source_id, target_id, amount)
+
+                # Déclencher validation Simplex via OPTIMIZATION mode (plus susceptible d'utiliser Simplex)
+                result_feasibility = simulation.validate_transaction(tx_id, SimulationMode.FEASIBILITY)
+                result_optimization = simulation.validate_transaction(tx_id, SimulationMode.OPTIMIZATION)
+
+                # Vérifier ValidationDataCollector après
+                captures_after = collector.stats['captures_performed']
+
+                return jsonify({
+                    'success': True,
+                    'simulation_results': {
+                        'feasibility': str(result_feasibility),
+                        'optimization': str(result_optimization)
+                    },
+                    'validation_data_collector': {
+                        'captures_before': captures_before,
+                        'captures_after': captures_after,
+                        'captured_new_data': captures_after > captures_before,
+                        'cache_size': len(collector._metrics_cache),
+                        'cached_transactions': list(collector._metrics_cache.keys())
+                    },
+                    'transaction': {
+                        'id': tx_id,
+                        'source': source_id,
+                        'target': target_id,
+                        'amount': float(amount)
+                    }
+                })
+
+            except Exception as validation_error:
+                return jsonify({
+                    'success': False,
+                    'error': f'Simplex validation failed: {validation_error}',
+                    'captures_before': captures_before,
+                    'captures_after': collector.stats['captures_performed']
+                })
+
+        except ImportError as ie:
+            return jsonify({
+                'success': False,
+                'error': f'DAG import failed: {ie}'
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Direct Simplex transaction failed: {str(e)}'
+        }), 500
 
 
 @app.route('/api/simulations/animate', methods=['POST'])
