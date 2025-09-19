@@ -42,16 +42,27 @@ from .dag_structures import (
 )
 from .exceptions import IntegrationLimitationError
 
-# Import validation data collector pour capture métriques réelles
-try:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from icgs_validation_collector import get_validation_collector
-    VALIDATION_COLLECTOR_AVAILABLE = True
-except ImportError:
-    VALIDATION_COLLECTOR_AVAILABLE = False
-    logging.warning("ValidationDataCollector not available, using fallback mode")
+# Lazy import validation data collector pour éviter importation circulaire
+def _get_validation_collector_lazy():
+    """Import paresseux ValidationDataCollector pour éviter circular imports"""
+    try:
+        import sys
+        import os
+
+        # Ajouter le répertoire parent pour import ValidationDataCollector
+        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if parent_dir not in sys.path:
+            sys.path.append(parent_dir)
+
+        from icgs_validation_collector import get_validation_collector
+        return get_validation_collector(), True
+
+    except ImportError as e:
+        logging.error(f"❌ ValidationDataCollector lazy import failed: {e}")
+        return None, False
+    except Exception as e:
+        logging.error(f"❌ ValidationDataCollector lazy import unexpected error: {e}")
+        return None, False
 
 logger = logging.getLogger(__name__)
 
@@ -493,11 +504,20 @@ class DAG:
                     self.stats['cross_validations_performed'] += 1
 
                 # NOUVEAU: Capture métriques validation réelles pour visualisations SVG
-                if VALIDATION_COLLECTOR_AVAILABLE:
+                self.logger.info(f"📊 Attempting to capture validation metrics for transaction {self.transaction_counter}")
+
+                # Utilisation import paresseux pour éviter circular imports
+                collector, collector_available = _get_validation_collector_lazy()
+
+                if collector_available and collector is not None:
                     try:
-                        collector = get_validation_collector()
+                        self.logger.info("📊 ValidationDataCollector successfully imported and instantiated")
+
                         nfa_states_count = len(temp_nfa.get_final_states()) if hasattr(temp_nfa, 'get_final_states') else 0
-                        collector.capture_simplex_metrics(
+
+                        self.logger.info(f"📊 Capturing metrics: tx_num={self.transaction_counter}, vertices={len(path_classes) if path_classes else 0}, constraints={len(lp_problem.constraints) if lp_problem.constraints else 0}")
+
+                        metrics = collector.capture_simplex_metrics(
                             transaction_num=self.transaction_counter,
                             transaction_id=transaction.transaction_id,
                             path_classes=path_classes,
@@ -507,10 +527,17 @@ class DAG:
                             simplex_solve_time_ms=simplex_time,
                             nfa_final_states_count=nfa_states_count
                         )
-                        self.logger.debug(f"Validation metrics captured for transaction {self.transaction_counter}")
+
+                        self.logger.info(f"✅ Validation metrics captured successfully for transaction {self.transaction_counter}")
+                        self.logger.info(f"✅ Metrics: vertices={metrics.vertices_count}, constraints={metrics.constraints_count}, steps={metrics.algorithm_steps}")
+
                     except Exception as collector_error:
                         # Non-critique : ne pas faire échouer validation si collecteur a problème
-                        self.logger.warning(f"Failed to capture validation metrics: {collector_error}")
+                        self.logger.error(f"❌ Failed to capture validation metrics: {collector_error}")
+                        import traceback
+                        self.logger.error(f"❌ Traceback: {traceback.format_exc()}")
+                else:
+                    self.logger.warning(f"⚠️ ValidationDataCollector not available with lazy import")
 
                 self.logger.info(f"Simplex validation successful: {solution.status.value}, iterations={solution.iterations_used}, warm_start={solution.warm_start_successful}")
                 return True

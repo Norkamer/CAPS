@@ -21,9 +21,35 @@ import time
 import logging
 from functools import lru_cache
 
-# Import des modules ICGS pour types
-from icgs_core.simplex_solver import SimplexSolution, SolutionStatus
-from icgs_core.linear_programming import LinearProgram
+# Import des modules ICGS pour types avec gestion d'erreur robuste
+try:
+    from icgs_core.simplex_solver import SimplexSolution, SolutionStatus
+    from icgs_core.linear_programming import LinearProgram
+    ICGS_CORE_TYPES_AVAILABLE = True
+    logging.info("✅ ICGS core types imported successfully in ValidationDataCollector")
+except ImportError as e:
+    # Fallback: définir types minimaux pour compatibilité
+    logging.error(f"❌ ICGS core types import failed: {e}")
+    ICGS_CORE_TYPES_AVAILABLE = False
+
+    # Types fallback
+    class SolutionStatus:
+        FEASIBLE = "FEASIBLE"
+        INFEASIBLE = "INFEASIBLE"
+        UNBOUNDED = "UNBOUNDED"
+        UNKNOWN = "UNKNOWN"
+
+    class SimplexSolution:
+        def __init__(self):
+            self.status = SolutionStatus.UNKNOWN
+            self.iterations_used = 0
+            self.variables = {}
+            self.warm_start_successful = False
+            self.cross_validation_passed = False
+
+    class LinearProgram:
+        def __init__(self):
+            self.constraints = []
 
 logger = logging.getLogger(__name__)
 
@@ -127,23 +153,35 @@ class ValidationDataCollector:
             SimplexMetrics: Métriques capturées et mises en cache
         """
         try:
-            # Extraction métriques depuis objets réels
-            vertices_count = len(path_classes) if path_classes else 0
-            constraints_count = len(lp_problem.constraints) if lp_problem.constraints else 0
-            algorithm_steps = simplex_solution.iterations_used if simplex_solution else 0
+            logger.info(f"📊 capture_simplex_metrics called: tx_num={transaction_num}, tx_id={transaction_id}")
+
+            # Extraction métriques depuis objets réels avec gestion défensive
+            vertices_count = len(path_classes) if path_classes and hasattr(path_classes, '__len__') else 0
+            constraints_count = len(lp_problem.constraints) if lp_problem and hasattr(lp_problem, 'constraints') and lp_problem.constraints else 0
+            algorithm_steps = getattr(simplex_solution, 'iterations_used', 0) if simplex_solution else 0
+
+            logger.info(f"📊 Extracted basic metrics: vertices={vertices_count}, constraints={constraints_count}, steps={algorithm_steps}")
 
             # Coordonnées optimales depuis solution réelle
             optimal_coordinates = []
             optimal_value = 0.0
 
-            if simplex_solution and simplex_solution.variables:
-                # Extraction variables solution (format Decimal → float)
-                optimal_coordinates = [
-                    float(value) for value in simplex_solution.variables.values()
-                ]
+            if simplex_solution and hasattr(simplex_solution, 'variables') and simplex_solution.variables:
+                try:
+                    # Extraction variables solution (format Decimal → float)
+                    optimal_coordinates = [
+                        float(value) for value in simplex_solution.variables.values()
+                    ]
+                    logger.info(f"📊 Extracted coordinates: {len(optimal_coordinates)} variables")
+                except Exception as coord_error:
+                    logger.warning(f"⚠️ Failed to extract coordinates: {coord_error}")
+
                 # Valeur objective si disponible
                 if hasattr(simplex_solution, 'objective_value'):
-                    optimal_value = float(simplex_solution.objective_value)
+                    try:
+                        optimal_value = float(simplex_solution.objective_value)
+                    except Exception:
+                        optimal_value = 0.0
 
             # Construction metrics complètes
             metrics = SimplexMetrics(
