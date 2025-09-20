@@ -423,6 +423,14 @@ class EconomicSimulation:
         self.logger.info(f"Agent créé: {agent_id} ({sector}, balance={balance})")
         return agent
 
+    @property
+    def account_taxonomy(self):
+        """
+        Propriété de compatibilité pour accès legacy à account_taxonomy
+        Expose self.dag.account_taxonomy pour tests et code legacy
+        """
+        return self.dag.account_taxonomy
+
     def create_inter_sectoral_flows_batch(self, flow_intensity: float = 0.5) -> List[str]:
         """
         Crée automatiquement des transactions inter-sectorielles selon patterns économiques
