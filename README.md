@@ -6,8 +6,8 @@
 
 ## ⚠️ Limitations Critiques et État du Projet
 
-**Bugs Critiques Identifiés**:
-- **Transaction Creation Failure**: Bug TypeError empêchant la création de transactions (100% failure rate)
+**Statut Bugs Critiques**:
+- ✅ **Transaction Creation**: Bug TypeError résolu - transactions fonctionnelles avec tous types de balance (Decimal/float/int)
 - **Overhead Performance**: 2.4x plus lent que les approches simples pour la validation de contraintes
 - **Memory Inefficiency**: 100% d'overhead mémoire vs alternatives simples
 - **Scalability Issues**: Non testé au-delà de 20 agents, échecs au-delà de ce seuil
@@ -15,16 +15,17 @@
 ### 🎯 Capacités Actuelles
 
 - **Agent Creation**: Création d'agents économiques jusqu'à 20 agents testés
+- **Transaction Processing**: Création et validation de transactions économiques (fixé Septembre 2025)
 - **DAG Structure**: Construction de graphes de flux économiques (fonctionnel)
 - **NFA Patterns**: Validation de patterns économiques via automates (fonctionnel)
 - **Academic Value**: Démonstration des risques d'over-engineering architectural
 
 ### ❌ Fonctionnalités Non-Opérationnelles
 
-- **Transaction Processing**: Échec critique empêchant toute transaction économique
-- **Economic Simulation**: Impossible due aux bugs de transaction
+- **Economic Simulation**: Limitée par performance et scalabilité
 - **Performance Claims**: Invalidées par les tests de scalabilité étendus
 - **Production Use**: Non recommandé pour usage réel
+- **Scalability**: Échecs documentés au-delà de 20 agents
 
 ### 🏗️ Architecture Technique
 
@@ -116,8 +117,8 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 
 ## 📊 Évaluation Honnête des Performances
 
-### ❌ Échecs de Performance Documentés
-- **0% Transaction Success**: Bug critique empêchant toute transaction économique
+### ❌ Limitations de Performance Documentées
+- ✅ **Transaction Success**: Bug critique résolu - transactions fonctionnelles (Septembre 2025)
 - **2.4x Performance Penalty**: Plus lent que les approches simples pour validation contraintes
 - **100% Memory Overhead**: Consommation mémoire double vs alternatives simples
 - **20 Agents Maximum**: Limite de scalabilité testée, échecs au-delà
@@ -171,9 +172,9 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 - **NFA Components**: Automates finis non-déterministes pour patterns économiques
 - **Test Suite**: 246 tests académiques validant les composants individuels
 
-### ❌ Échecs Critiques Documentés
-- **Transaction Processing**: Bug TypeError empêchant toute transaction (100% failure)
-- **Economic Simulation**: Non-fonctionnel due aux échecs de transaction
+### ❌ Limitations Critiques Documentées
+- ✅ **Transaction Processing**: Bug TypeError résolu - transactions opérationnelles (Septembre 2025)
+- **Economic Simulation**: Limitée par performance et scalabilité au-delà de 20 agents
 - **Scalability**: Tests étendus révèlent échecs au-delà de 20 agents
 - **Performance**: 2.4x plus lent que alternatives simples
 

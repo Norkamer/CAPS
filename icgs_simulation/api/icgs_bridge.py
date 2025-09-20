@@ -16,7 +16,7 @@ import time
 import threading
 import weakref
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache
@@ -353,7 +353,7 @@ class EconomicSimulation:
             }
 
     def create_agent(self, agent_id: str, sector: str,
-                    balance: Optional[Decimal] = None,
+                    balance: Optional[Union[Decimal, float, int]] = None,
                     metadata: Optional[Dict[str, Any]] = None) -> SimulationAgent:
         """
         Crée un agent économique dans le secteur spécifié
@@ -361,7 +361,7 @@ class EconomicSimulation:
         Args:
             agent_id: Identifiant unique de l'agent
             sector: Secteur économique (AGRICULTURE, INDUSTRY, SERVICES, etc.)
-            balance: Balance initiale (optionnel, utilise valeur recommandée)
+            balance: Balance initiale (Decimal, float, ou int - converti en Decimal)
             metadata: Métadonnées supplémentaires
 
         Returns:
@@ -373,6 +373,11 @@ class EconomicSimulation:
         # Utiliser balance recommandée si non spécifiée
         if balance is None:
             balance = get_recommended_balance(sector)
+
+        # FIX CRITIQUE: Type enforcement - conversion systématique vers Decimal
+        # Résout TypeError: float * Decimal dans create_inter_sectoral_flows_batch()
+        if not isinstance(balance, Decimal):
+            balance = Decimal(str(balance))
 
         # Récupérer informations secteur
         sector_info = get_sector_info(sector)

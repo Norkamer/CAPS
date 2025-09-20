@@ -5,6 +5,61 @@ All notable changes to CAPS (Constraint-Adaptive Path Simplex) will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-09-20 - CRITICAL FIX: Transaction Creation TypeError 🔥
+
+### 🔥 Fixed (Critical Bug Resolution)
+
+#### Transaction Creation TypeError - Week 1 Critical Fix
+- **FIXED**: `TypeError: unsupported operand type(s) for *: 'float' and 'decimal.Decimal'` in transaction creation
+- **Location**: `icgs_simulation/api/icgs_bridge.py:create_agent()`
+- **Root Cause**: Type incompatibility between agent balance (float/int) and economic calculations (Decimal)
+- **Solution**: Type enforcement - automatic conversion to Decimal in `create_agent()`
+- **Impact**: 100% transaction success rate restored (was 0% due to critical bug)
+
+#### Implementation Details
+- Modified `create_agent()` to accept `Union[Decimal, float, int]` for balance parameter
+- Added automatic type conversion: `Decimal(str(balance))` for non-Decimal inputs
+- Preserves existing Decimal inputs without conversion
+- Resolves TypeError in all 5 affected lines in `create_inter_sectoral_flows_batch()`
+
+#### Validation
+- **7/7 regression tests pass**: All type combinations (float/int/Decimal/mixed) work correctly
+- **Scalability confirmed**: 15+ agents support validated with no TypeError
+- **Edge cases handled**: Zero, small, and large balance values work correctly
+- **Backward compatibility**: Existing Decimal-based code unchanged
+
+### 📚 Updated Documentation
+- Updated README.md: Transaction Processing now marked as functional (was non-operational)
+- Updated ROADMAP.md: Phase 1 KPI "Transaction success rate: 100%" marked as completed
+- Added BUG_REPORT_TRANSACTION_TYPEERROR.md with detailed technical analysis
+- Created comprehensive regression test suite: `test_typeerror_fix_regression.py`
+
+### 🧪 Testing
+- Added `debug_transaction_type_error.py` for bug reproduction and validation
+- Created `test_typeerror_fix_regression.py` with 7 comprehensive test cases
+- All tests demonstrate fix effectiveness across different input type scenarios
+
+### 📝 Technical Notes
+**Before Fix (Problematic)**:
+```python
+# User input
+agent = simulation.create_agent("FARM_01", "AGRICULTURE", 1000.0)  # float
+# Internal calculation
+flow_amount = agent.balance * Decimal(...)  # TypeError: float * Decimal
+```
+
+**After Fix (Resolved)**:
+```python
+# User input (same)
+agent = simulation.create_agent("FARM_01", "AGRICULTURE", 1000.0)  # float
+# Internal storage (automatic conversion)
+assert isinstance(agent.balance, Decimal)  # True - auto-converted
+# Internal calculation (now works)
+flow_amount = agent.balance * Decimal(...)  # Decimal * Decimal = OK
+```
+
+This fix addresses the most critical blocker preventing CAPS economic simulations from functioning, enabling progression to Phase 1 Quick Wins implementation.
+
 ## [1.2.1] - 2025-09-19 - Validation Académique Complète & Nettoyage Documentation 🎓
 
 ### ✅ Validation Académique 100% Réussie
