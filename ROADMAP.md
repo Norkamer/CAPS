@@ -30,7 +30,26 @@ Transformer CAPS d'un outil de recherche académique avec limitations critiques 
 ## Phase 1: Foundation Repair & Simplification
 **Timeline**: 3-6 mois | **Priority**: Critical | **Risk**: High
 
-### 1.1 Critical Bug Resolution (Month 1-2)
+### 1.0 Quick Architectural Wins (Month 1, Weeks 1-2)
+**Objective**: Éliminer l'over-engineering identifié avec quick wins immédiats
+
+**Tasks**:
+- [ ] **Suppression Limite 3 Agents/Secteur**: Remplacer AGENTS_PER_SECTOR = 3 par système dynamique
+  - Impact immédiat: Débloque cas d'usage économiques réels
+  - Timeline: 1-2 jours (changement simple mais fondamental)
+  - Testing: Validation avec 5, 10, 15+ agents par secteur
+- [ ] **Élimination Mapping Unicode**: Remplacer caractères Unicode par UUID/identifiants simples
+  - Bénéfices: Portabilité, extensibilité, maintenabilité
+  - Timeline: 3-5 jours (refactoring API layer)
+  - Migration: Scripts automatiques pour existing data
+
+**Success Criteria**:
+- Support dynamique agents per sector (unlimited capacity)
+- Migration complète away from Unicode mapping
+- API simplifiée avec identifiants standards
+- Aucune régression fonctionnalité existante
+
+### 1.1 Critical Bug Resolution (Month 1-2, Adjusted Timeline)
 **Objective**: Résoudre les bugs empêchant fonctionnalité de base
 
 **Tasks**:
@@ -46,7 +65,7 @@ Transformer CAPS d'un outil de recherche académique avec limitations critiques 
 - Zero critical bugs bloquant fonctionnalité de base
 - Tests end-to-end passent pour 20 agents minimum
 
-### 1.2 Architecture Evaluation (Month 2-3)
+### 1.3 Architecture Evaluation (Month 2-3)
 **Objective**: Évaluer nécessité réelle architecture hybride
 
 **Tasks**:
@@ -65,7 +84,7 @@ Transformer CAPS d'un outil de recherche académique avec limitations critiques 
 - Performance gap <50% vs alternatives (improvement from 2.4x)
 - Roadmap technique claire pour phases suivantes
 
-### 1.3 Test Foundation Rebuild (Month 3-4)
+### 1.4 Test Foundation Rebuild (Month 3-4)
 **Objective**: Établir foundation testing robuste
 
 **Tasks**:
@@ -79,7 +98,7 @@ Transformer CAPS d'un outil de recherche académique avec limitations critiques 
 - Scalability validée jusqu'à 100 agents minimum
 - CI/CD pipeline opérationnel avec quality gates
 
-### 1.4 Documentation Foundation (Month 4-6)
+### 1.5 Documentation Foundation (Month 4-6)
 **Objective**: Documentation technique et utilisateur de base
 
 **Tasks**:
@@ -271,6 +290,9 @@ Transformer CAPS d'un outil de recherche académique avec limitations critiques 
 ## Success Metrics & KPIs
 
 ### Phase 1 KPIs
+- [ ] **Quick Wins Architecturaux**: Support dynamique agents/secteur + suppression Unicode mapping
+- [ ] **Agent Capacity**: Support unlimited agents per sector (removed 3-agent limit)
+- [ ] **ID System**: Migration complète vers identifiants standards (UUID/incremental)
 - [ ] Transaction success rate: 100%
 - [ ] Performance gap vs simples alternatives: <50% (from 2.4x)
 - [ ] Agent scalability: 100 agents minimum

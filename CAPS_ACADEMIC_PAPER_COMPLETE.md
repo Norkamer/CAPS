@@ -510,6 +510,31 @@ The 2.4x performance penalty vs. simple alternatives necessitates rigorous archi
 - Quantitative cost-benefit analysis with measurable criteria
 - Decision framework for architectural complexity justification
 
+**Quick Architectural Simplifications**:
+The documented over-engineering presents immediate opportunities for simplification with measurable benefits:
+
+*Case Study 1: Agent Capacity Limitation Removal*
+```python
+# Current over-engineering: Arbitrary 3-agent limit
+AGENTS_PER_SECTOR = 3  # Blocks realistic economic scenarios
+
+# Proposed simplification: Dynamic capacity
+agents_per_sector = {}  # Enables realistic economic modeling
+```
+This change immediately unlocks practical economic use cases while reducing architectural constraints. Research should document the decision process, implementation approach, and impact measurement.
+
+*Case Study 2: Unicode Mapping System Elimination*
+```python
+# Current complexity: Unicode character mapping
+agent_char = chr(0x10000 + sector_offset + agent_index)  # Limited scalability
+
+# Simplified approach: Standard identifiers
+agent_id = str(uuid.uuid4())  # Portable, extensible, maintainable
+```
+This simplification improves portability, maintainability, and extensibility while reducing implementation complexity. Documentation should include migration strategies and performance comparisons.
+
+These concrete examples provide research opportunities for studying when and how to reduce architectural complexity, establishing empirical methods for evaluating simplification decisions, and measuring the practical impact of complexity reduction on system usability and maintainability.
+
 **Scalability Foundation**:
 Current 20-agent limitation requires systematic scalability engineering:
 - Algorithm optimization for linear complexity maintenance

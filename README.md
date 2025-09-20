@@ -225,6 +225,7 @@ CAPS entreprend une transformation sur 24 mois pour passer d'outil de recherche 
 
 | Phase | KPI Principal | Target | Status |
 |-------|---------------|--------|--------|
+| Quick Wins | Agent Capacity + ID System | Unlimited agents/sector + UUID | ❌ Limited to 3 agents + Unicode |
 | Phase 1 | Transaction Success Rate | 100% | ❌ 0% (bug critique) |
 | Phase 2 | Performance vs NetworkX | Equal/Better | ❌ 2.4x slower |
 | Phase 3 | Academic Adoption | 3+ institutions | ❌ 0 institutions |

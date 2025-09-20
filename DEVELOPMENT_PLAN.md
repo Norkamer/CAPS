@@ -50,9 +50,99 @@ TypeError: unsupported operand type(s) for *: 'float' and 'decimal.Decimal'
 
 ## Phase 1 Development Plan
 
-### Month 1-2: Critical Bug Resolution
+### Month 1: Quick Architectural Wins & Critical Bug Resolution
 
-#### 1.1 Transaction Creation Fix (Weeks 1-4)
+#### 0.1 Quick Architectural Wins (Weeks 1-2) - Priority P0
+
+These immediate simplifications address core over-engineering issues identified in the academic evaluation, providing quick wins that unlock practical utility while reducing architectural complexity.
+
+##### 0.1.1 Suppression Limite 3 Agents/Secteur (Priority P0)
+
+**Current Over-Engineering:**
+```python
+# AVANT : Limitation arbitraire et absurde
+AGENTS_PER_SECTOR = 3  # ❌ Bloque cas d'usage réels
+```
+
+**Simplified Implementation:**
+```python
+# APRÈS : Architecture dynamique et extensible
+agents_per_sector = {}  # ✅ Sans limite arbitraire
+# Permet: AGRICULTURE: 15 agents, INDUSTRY: 8 agents, etc.
+```
+
+**Implementation Tasks:**
+- [ ] **Remove Hard Limits**: Eliminate AGENTS_PER_SECTOR constant from all modules
+- [ ] **Dynamic Agent Management**: Implement flexible agent-per-sector tracking
+- [ ] **API Updates**: Update agent creation APIs to support unlimited agents per sector
+- [ ] **Validation Logic**: Replace hard-coded limits with configurable constraints
+
+**Testing Requirements:**
+- [ ] **Scalability Tests**: Validate with 5, 10, 15+ agents per sector
+- [ ] **Economic Scenarios**: Test realistic economic distributions
+- [ ] **Regression Tests**: Ensure no existing functionality breaks
+- [ ] **Performance Impact**: Measure performance with varied agent distributions
+
+**Success Criteria:**
+- Support for unlimited agents per sector (configurable constraints only)
+- No degradation in existing functionality
+- Successful creation of realistic economic scenarios
+
+**Impact**: Débloque immédiatement les cas d'usage économiques réels
+
+##### 0.1.2 Élimination Mapping Unicode (Priority P1)
+
+**Current Over-Engineering:**
+```python
+# AVANT : Complexité Unicode inutile
+agent_char = chr(0x10000 + sector_offset + agent_index)  # ❌
+# Problèmes: portabilité, maintenance, extensibilité limitée
+```
+
+**Simplified Implementation:**
+```python
+# APRÈS : Identifiants standards et portables
+import uuid
+agent_id = str(uuid.uuid4())  # ✅ Portable, extensible, maintenable
+# Alternative: agent_id = f"{sector}_{incremental_id}"
+```
+
+**Implementation Tasks:**
+- [ ] **ID System Design**: Choose between UUID vs simple incremental IDs
+- [ ] **Migration Strategy**: Plan migration from Unicode to standard IDs
+- [ ] **API Refactoring**: Update all APIs to use new ID system
+- [ ] **Data Migration**: Scripts to convert existing Unicode mappings
+
+**Testing Requirements:**
+- [ ] **Migration Tests**: Validate smooth transition from Unicode system
+- [ ] **Performance Tests**: Ensure ID operations remain fast
+- [ ] **Compatibility Tests**: Verify backward compatibility during transition
+- [ ] **Integration Tests**: End-to-end testing with new ID system
+
+**Success Criteria:**
+- Complete removal of Unicode character mapping system
+- Standard, portable agent identification system
+- Maintained or improved performance
+- Successful data migration without loss
+
+**Benefits**: Portabilité, extensibilité, maintenabilité
+
+##### 0.1.3 Quick Wins Integration (Week 2)
+
+**Coordination Tasks:**
+- [ ] **System Integration**: Ensure both simplifications work together
+- [ ] **Documentation Updates**: Update all references to old systems
+- [ ] **API Consistency**: Maintain consistent API patterns across changes
+- [ ] **Performance Validation**: Measure combined impact of simplifications
+
+**Timeline Adjustment:**
+- **Week 1**: Agent limit removal + initial Unicode system analysis
+- **Week 2**: Unicode system replacement + integration testing
+- **Success Milestone**: Two major over-engineering issues resolved
+
+### Month 1-2: Critical Bug Resolution (Adjusted Timeline)
+
+#### 1.1 Transaction Creation Fix (Weeks 3-6)
 
 **Investigation Tasks:**
 - [ ] **Code Audit**: Systematic review of transaction creation pipeline
@@ -83,7 +173,7 @@ TypeError: unsupported operand type(s) for *: 'float' and 'decimal.Decimal'
 - Type safety validated across all transaction operations
 - No regression in existing agent creation functionality
 
-#### 1.2 Performance Profiling (Weeks 3-6)
+#### 1.2 Performance Profiling (Weeks 5-8)
 
 **Profiling Tasks:**
 - [ ] **Performance Baseline**: Establish current performance characteristics
@@ -404,6 +494,14 @@ class PerformanceTest:
 ## Success Metrics & Validation
 
 ### Phase 1 Success Criteria
+
+#### Architectural Simplification Requirements (Quick Wins)
+- [ ] **Dynamic Agent Support**: Support for unlimited agents per sector (configurable constraints only)
+- [ ] **Unicode System Removal**: Complete elimination of Unicode character mapping system
+- [ ] **Standard ID System**: Implementation of portable, standard agent identification (UUID or incremental)
+- [ ] **API Modernization**: Simplified APIs without artificial limitations
+- [ ] **Backward Compatibility**: Smooth migration without data loss or functionality regression
+- [ ] **Documentation Updates**: All references to old systems updated in documentation
 
 #### Functional Requirements
 - [ ] **Transaction Success Rate**: 100% for basic economic scenarios
