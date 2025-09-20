@@ -1,8 +1,15 @@
-# Academic Paper Execution Plan - CAPS Performance Validation
+# ⚠️ OBSOLETE: Academic Paper Execution Plan - CAPS Performance Validation
+
+> **🔄 MISE À JOUR SEPTEMBRE 2025**: Ce plan d'exécution est obsolète. Le papier académique a été complété avec une approche honnête documentant les limitations critiques.
+>
+> **Documentation Actuelle**:
+> - **[Papier Académique Final](./CAPS_ACADEMIC_PAPER_COMPLETE.md)** - Version complète avec évaluation honnête
+> - **[Roadmap Long Terme](./ROADMAP.md)** - Plan transformation vers système pratique
+> - **[Plan Développement Phase 1](./DEVELOPMENT_PLAN.md)** - Détails techniques pour résolution bugs
 
 ## Executive Summary
 
-Following the successful completion of Phase 0 technical improvements, this document outlines the execution plan for generating a comprehensive academic paper on CAPS (Constraint-Adaptive Path Simplex) performance validation. The paper will present honest, rigorous findings suitable for academic submission.
+~~Following the successful completion of Phase 0 technical improvements~~ **Note: Performance claims invalidées par tests étendus**, this document outlines the execution plan for generating a comprehensive academic paper on CAPS (Constraint-Adaptive Path Simplex) performance validation. The paper will present honest, rigorous findings suitable for academic submission.
 
 ## Phase 0 Completion Status ✅
 

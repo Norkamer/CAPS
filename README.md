@@ -189,6 +189,62 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 
 **CAPS** sert d'exemple académique important des risques d'over-engineering et de l'importance de la justification architecturale basée sur des preuves empiriques.
 
+## 🗺️ Roadmap Long Terme: Academic Tool → Practical System
+
+### Vision de Transformation
+
+CAPS entreprend une transformation sur 24 mois pour passer d'outil de recherche académique avec limitations critiques vers un système de simulation économique pratique et déployable.
+
+### 📍 Plan de Développement
+
+**🔧 [Phase 1: Foundation Repair](./ROADMAP.md#phase-1-foundation-repair--simplification) (3-6 mois)**
+- Résolution bugs critiques (TypeError transaction creation)
+- Évaluation architecture hybride vs alternatives simples
+- Foundation testing robuste (scalabilité 100+ agents)
+- **Target**: Système fonctionnel avec performance <50% gap vs alternatives
+
+**⚡ [Phase 2: Performance & Scalability](./ROADMAP.md#phase-2-performance--scalability) (6-12 mois)**
+- Optimisation performance (égalité vs NetworkX baselines)
+- Scalabilité validée 1000+ agents
+- Benchmarking rigoureux vs ecosystem existant
+- **Target**: Performance compétitive et scalabilité production-ready
+
+**🏭 [Phase 3: Practical Features](./ROADMAP.md#phase-3-practical-economic-features) (12-18 mois)**
+- Modèles économiques sophistiqués (Input-Output matrices)
+- APIs intuitives pour économistes non-techniques
+- Bibliothèque scénarios policy simulation
+- **Target**: Adoption par 3+ institutions académiques/gouvernementales
+
+**🚀 [Phase 4: Production System](./ROADMAP.md#phase-4-production-system) (18-24 mois)**
+- Validation cas d'usage professionnels réels
+- Infrastructure production et monitoring
+- Community et ecosystem development
+- **Target**: Déploiement production chez 2+ organisations
+
+### 🎯 Critères de Succès Measurables
+
+| Phase | KPI Principal | Target | Status |
+|-------|---------------|--------|--------|
+| Phase 1 | Transaction Success Rate | 100% | ❌ 0% (bug critique) |
+| Phase 2 | Performance vs NetworkX | Equal/Better | ❌ 2.4x slower |
+| Phase 3 | Academic Adoption | 3+ institutions | ❌ 0 institutions |
+| Phase 4 | Production Deployments | 2+ organizations | ❌ 0 deployments |
+
+### 📋 Documentation Complète
+
+- **[📊 ROADMAP.md](./ROADMAP.md)** - Plan détaillé 4 phases avec timelines et budgets
+- **[🎓 Academic Paper](./CAPS_ACADEMIC_PAPER_COMPLETE.md)** - Documentation honnête limitations actuelles
+- **[📈 Baseline Analysis](./architectural_justification_analysis.json)** - Évaluation complexité vs bénéfices
+
+### ⚖️ Décisions Critiques Anticipées
+
+**Decision Point Phase 1**: Architecture hybride justifiable ou pivot vers simplicité?
+- **Option A**: Maintenir hybride si avantages démontrés empiriquement
+- **Option B**: Migrer vers NetworkX + SciPy si performance équivalente
+- **Option C**: Architecture modulaire avec pluggable backends
+
+**Success Factor**: Décisions basées données empiriques, pas suppositions théoriques
+
 ---
 
 ## 📊 Cohérence Économique
@@ -207,16 +263,16 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 - ✅ Cohérence FEASIBILITY ⊆ OPTIMIZATION (100%)
 - ✅ Flux inter-sectoriels cohérents (supply chain)
 
-### 🔮 Évolutions Futures Planifiées
+### 🔮 Évolutions Économiques Planifiées
 
-**Phase 1** (Semaine 4+): Calibrage réaliste
+Dans le cadre de la roadmap long terme, les améliorations économiques suivront:
+
+**Phase 3 Economic Features** (12-18 mois):
 - Matrices Input-Output basées données OECD/INSEE
 - Contraintes capacité production sectorielles
 - Validation équilibre offre/demande global
+- Cycles économiques et dynamiques temporelles
 
-**Phase 2** (Future): Dynamiques temporelles
-- Cycles économiques et saisonnalité
-- Délais production→livraison réalistes
-- Chocs exogènes (crises, innovations)
+**Référence**: Voir [ROADMAP.md - Phase 3](./ROADMAP.md#phase-3-practical-economic-features) pour détails complets
 
 **Documentation**: [Analyse Cohérence Complète](./docs/economic_coherence_analysis.md)

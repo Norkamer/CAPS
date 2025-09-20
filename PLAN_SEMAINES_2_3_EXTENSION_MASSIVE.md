@@ -1,6 +1,9 @@
-# 🚀 Plan Semaines 2-3 : Extension Simulation Massive 40-65 Agents
+# ⚠️ OBSOLETE: Plan Semaines 2-3 : Extension Simulation Massive 40-65 Agents
 
-**Status Semaine 1** : ✅ **SUCCÈS EXCEPTIONNEL VALIDÉ**
+> **🔄 MISE À JOUR SEPTEMBRE 2025**: Ce plan est obsolète suite à la découverte de limitations critiques dans CAPS.
+> Voir la nouvelle **[Roadmap Long Terme](./ROADMAP.md)** pour le plan de transformation académique vers système pratique.
+
+**Status Semaine 1** : ✅ **SUCCÈS EXCEPTIONNEL VALIDÉ** (Note: Claims invalidées par tests étendus)
 - ✅ Character-Set Manager + EnhancedDAG intégré
 - ✅ 100% FEASIBILITY (objectif 70%+ LARGEMENT DÉPASSÉ)
 - ✅ Infrastructure pour 7 agents validée

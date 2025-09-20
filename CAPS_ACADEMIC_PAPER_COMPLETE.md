@@ -494,14 +494,150 @@ The research demonstrates important limitations of hybrid computational architec
 
 ### 7.3 Future Work
 
-Future research should focus on:
+This paper documents significant limitations and architectural over-engineering in the CAPS hybrid system. However, the research foundation provides valuable insights for future development along multiple pathways.
 
-1. **Critical Bug Resolution**: Addressing the fundamental transaction creation failure before architectural enhancements
-2. **Simplified Alternatives**: Exploring proven approaches like NetworkX + linear programming for robust economic simulation
-3. **Incremental Complexity**: Building complexity gradually with validated benefits at each step
-4. **Architectural Justification**: Requiring empirical evidence before adopting complex integration patterns
+#### 7.3.1 Immediate Research Priorities (Phase 1: 3-6 months)
 
-The CAPS system serves as an important cautionary example in computational economics, demonstrating that architectural sophistication without proportional benefits can lead to over-engineering and system failure. The academic value lies in documenting these negative results to guide future architectural decisions.
+**Critical Bug Resolution**:
+The fundamental transaction creation failure (TypeError: float and decimal.Decimal multiplication) must be addressed before any architectural enhancements. This requires:
+- Comprehensive audit of type conversion pipeline
+- Systematic testing of transaction creation workflows
+- Validation of end-to-end economic simulation capabilities
+
+**Architecture Evaluation**:
+The 2.4x performance penalty vs. simple alternatives necessitates rigorous architectural evaluation:
+- Controlled experiments comparing hybrid vs. simplified architectures
+- Quantitative cost-benefit analysis with measurable criteria
+- Decision framework for architectural complexity justification
+
+**Scalability Foundation**:
+Current 20-agent limitation requires systematic scalability engineering:
+- Algorithm optimization for linear complexity maintenance
+- Memory management for larger agent populations
+- Performance regression testing for scaling validation
+
+#### 7.3.2 Performance & Scalability Research (Phase 2: 6-12 months)
+
+**Performance Optimization Studies**:
+Addressing the demonstrated performance overhead requires research into:
+- Algorithmic optimization techniques for hybrid computational models
+- Caching strategies for repeated economic pattern evaluation
+- Parallel processing opportunities in DAG-NFA-Simplex integration
+
+**Scalability Validation**:
+Systematic studies of computational scaling for economic simulation:
+- Theoretical complexity analysis vs. empirical performance characteristics
+- Memory usage patterns and optimization strategies
+- Comparison with industry-standard economic simulation tools
+
+**Benchmarking Framework**:
+Development of standardized benchmarking for economic simulation systems:
+- Reproducible performance evaluation methodologies
+- Comparative analysis frameworks vs. existing tools (GAMS, CPLEX, NetworkX)
+- Publication of transparent benchmark results
+
+#### 7.3.3 Economic Model Enhancement (Phase 3: 12-18 months)
+
+**Realistic Economic Integration**:
+Moving beyond the current limited economic model requires:
+- Integration of Input-Output matrices from real economic data (OECD, national statistics)
+- Sophisticated sectoral modeling with empirical validation
+- Collaboration with economic domain experts for model validation
+
+**Policy Simulation Applications**:
+Development of practical policy simulation capabilities:
+- Template libraries for common economic policy scenarios
+- Integration with government economic data sources
+- Validation framework for economic simulation accuracy
+
+**User Experience Research**:
+Studies on making economic simulation accessible to non-technical economists:
+- User interface design for economic scenario configuration
+- Workflow optimization for policy analysis use cases
+- User satisfaction and adoption studies
+
+#### 7.3.4 Long-term Research Directions (Phase 4: 18-24+ months)
+
+**Production System Research**:
+Investigation of production deployment requirements:
+- Security and compliance frameworks for government use
+- High-availability and disaster recovery for critical economic analysis
+- Integration with existing economic analysis workflows
+
+**Ecosystem Development**:
+Research into sustainable open-source economic simulation platforms:
+- Plugin architectures for extensible economic models
+- Community development models for academic/government collaboration
+- Training and certification frameworks for economic simulation practitioners
+
+**Alternative Architectural Approaches**:
+Comparative research on different architectural paradigms:
+- Modular vs. integrated approaches to economic simulation
+- Microservices architecture for large-scale economic modeling
+- Cloud-native approaches to economic simulation at scale
+
+#### 7.3.5 Research Methodology & Validation
+
+**Evidence-Based Development**:
+All future research should maintain the academic standards established:
+- Empirical validation requirements before architectural complexity adoption
+- Transparent reporting of both positive and negative results
+- Peer review and external validation of performance claims
+
+**Alternative Pathway Research**:
+Parallel investigation of simpler approaches:
+- NetworkX + SciPy/OR-Tools implementations for comparison
+- Incremental complexity addition with validation at each step
+- Decision criteria for when hybrid approaches are justified
+
+**Educational Research**:
+Using CAPS as an educational platform:
+- Case studies in architectural decision-making
+- Teaching materials on complexity vs. benefit analysis
+- Workshop development on over-engineering prevention
+
+#### 7.3.6 Success Criteria & Validation Framework
+
+**Measurable Objectives**:
+Future research should establish clear, measurable success criteria:
+- Performance parity or improvement vs. simple alternatives
+- Scalability validation to 1000+ economic agents
+- Real-world adoption by academic or government institutions
+- User satisfaction metrics for practical usability
+
+**Decision Framework**:
+Research should develop frameworks for architectural decisions:
+- Cost-benefit analysis methodologies for system complexity
+- Performance threshold criteria for architectural justification
+- User value proposition validation requirements
+
+#### 7.3.7 Academic Contribution Framework
+
+**Negative Results Publication**:
+The current findings represent important negative results that should be disseminated:
+- Conference presentations on architectural over-engineering
+- Workshop organization on evidence-based system design
+- Collaboration with software engineering education programs
+
+**Comparative Studies**:
+Future research should contribute to broader understanding:
+- Systematic comparison of hybrid vs. simple approaches
+- Meta-analysis of complexity vs. benefit in computational economics
+- Best practices development for economic simulation system design
+
+### 7.3.8 Conclusion on Future Directions
+
+The CAPS system's documented limitations provide a valuable foundation for future research into economic simulation architectures. The most important lesson is the necessity of empirical justification for architectural complexity.
+
+Future work should prioritize:
+1. **Evidence-based development** with measurable criteria at each phase
+2. **Incremental complexity** with validation of benefits before adding sophistication
+3. **User-centered design** focused on practical economic simulation needs
+4. **Transparent reporting** of both successes and failures
+
+The detailed development roadmap (available in project documentation) provides a concrete pathway for transforming the research insights into practical economic simulation tools, while maintaining the academic rigor and honesty demonstrated in this work.
+
+The academic value of this research lies not only in the novel architectural exploration but also in demonstrating the importance of critical evaluation and the courage to document when complexity is not justified by results.
 
 ---
 

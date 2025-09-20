@@ -1,7 +1,15 @@
-# 🔄 ÉLÉMENTS CRITIQUES RÉCUPÉRÉS - CAPS
+# ⚠️ OBSOLETE: ÉLÉMENTS CRITIQUES RÉCUPÉRÉS - CAPS
+
+> **🔄 MISE À JOUR SEPTEMBRE 2025**: Ce document contient des analyses obsolètes. L'évaluation académique honnête a révélé des limitations critiques majeures.
+>
+> **Documentation Actuelle**:
+> - **[Évaluation Honnête](./CAPS_ACADEMIC_PAPER_COMPLETE.md)** - Analysis complète avec limitations critiques
+> - **[Analyse Architecturale](./architectural_justification_analysis.json)** - Évaluation coût-bénéfice empirique
+> - **[Roadmap Transformation](./ROADMAP.md)** - Plan réaliste vers système pratique
 
 *Document consolidé des éléments pertinents des fichiers supprimés*
 *Généré: 2025-09-19 - Filtrage intelligent des contenus obsolètes*
+*Note: Beaucoup de métriques dans ce document ont été invalidées par tests étendus*
 
 ---
 
