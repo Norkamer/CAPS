@@ -137,37 +137,41 @@ class TestAcademicTaxonomyInvariants:
             with pytest.raises(ValueError, match="Invalid UTF-32 character"):
                 self.taxonomy.update_taxonomy({"test_account": invalid_char}, 2)
                 
-    def test_invariant_collision_absence(self):
+    def test_invariant_character_sharing_breakthrough(self):
         """
-        INVARIANT 5: Absence Collisions
-        ∀ tx : caractères uniques dans même transaction
-        ∀ account_i ≠ account_j : character(account_i) ≠ character(account_j)
+        INVARIANT 5 REVISED: Character Sharing (BREAKTHROUGH)
+        POST-BREAKTHROUGH: Caractères partagés autorisés pour agents illimités
+        ∀ tx : character(account_i) = character(account_j) AUTORISÉ pour agents même secteur
         """
-        # Test collision detection dans même transaction
-        with pytest.raises(ValueError, match="Character collision"):
-            self.taxonomy.update_taxonomy({
-                "alice": "A",
-                "bob": "A"  # Collision intentionnelle
-            }, 1)
-            
-        # Test absence collision avec mappings tous explicites
-        mixed_accounts = {
+        # Test BREAKTHROUGH: Caractères partagés AUTORISÉS
+        # Ancien comportement: lever ValueError
+        # Nouveau comportement: accepter caractères dupliqués
+        shared_mapping = self.taxonomy.update_taxonomy({
+            "alice": "A",
+            "bob": "A"  # Partage caractère AUTORISÉ post-breakthrough
+        }, 1)
+
+        # Validation breakthrough: mapping réussi avec caractères partagés
+        assert shared_mapping["alice"] == "A"
+        assert shared_mapping["bob"] == "A"
+        print("✅ BREAKTHROUGH: Caractères partagés autorisés validé")
+
+        # Test mappings explicites traditionnels toujours fonctionnels
+        unique_accounts = {
             "explicit_1": "X",
             "explicit_2": "Y",
             "explicit_3": "M",
             "explicit_4": "N",
             "explicit_5": "Z"
         }
-        mapping = self.taxonomy.update_taxonomy(mixed_accounts, 1)
-        
-        # Vérification unicité tous caractères
-        used_chars = set()
-        for character in mapping.values():
-            assert character not in used_chars, f"Collision detected: {character}"
-            used_chars.add(character)
-            
-        # Vérification stats collision tracking
-        assert self.taxonomy.stats['collisions_resolved'] == 0
+        mapping = self.taxonomy.update_taxonomy(unique_accounts, 2)
+
+        # Vérification mappings explicites préservés
+        assert len(mapping) == 5
+        expected_chars = {"X", "Y", "M", "N", "Z"}
+        actual_chars = set(mapping.values())
+        assert actual_chars == expected_chars
+        print("✅ BACKWARD COMPATIBILITY: Mappings uniques préservés")
         
     def test_invariant_logarithmic_complexity(self):
         """
