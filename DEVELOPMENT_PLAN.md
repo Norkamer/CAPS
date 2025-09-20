@@ -90,42 +90,72 @@ agents_per_sector = {}  # ✅ Sans limite arbitraire
 
 **Impact**: Débloque immédiatement les cas d'usage économiques réels
 
-##### 0.1.2 Élimination Mapping Unicode (Priority P1)
+##### 0.1.2 Simplification Mapping Unicode UTF-16 Compatible (Priority P1)
 
 **Current Over-Engineering:**
 ```python
-# AVANT : Complexité Unicode inutile
+# AVANT : Complexité UTF-32 private use area inutile
 agent_char = chr(0x10000 + sector_offset + agent_index)  # ❌
-# Problèmes: portabilité, maintenance, extensibilité limitée
+# Problèmes: over-complexity, maintenance burden, fragile mapping
 ```
 
-**Simplified Implementation:**
+**Simplified Implementation (UTF-16 Compatible):**
 ```python
-# APRÈS : Identifiants standards et portables
+# APRÈS : Approche hybride UUID interne + UTF-16 display
 import uuid
-agent_id = str(uuid.uuid4())  # ✅ Portable, extensible, maintenable
-# Alternative: agent_id = f"{sector}_{incremental_id}"
+
+# Système interne optimisé pour performance et extensibilité
+agent_internal_id = uuid.uuid4()  # ✅ Portable, extensible, maintenable
+
+# Layer UTF-16 pour compliance et display
+def get_utf16_display_char(agent_internal_id, sector):
+    # Basic Multilingual Plane (UTF-16 direct, no surrogates needed)
+    base_symbols = {"AGRICULTURE": 0x2600, "INDUSTRY": 0x2700,
+                   "SERVICES": 0x2800, "FINANCE": 0x2900, "ENERGY": 0x2A00}
+    char_offset = hash(str(agent_internal_id)) % 100  # Limited range
+    result_char = chr(base_symbols[sector] + char_offset)
+
+    # Protection contre emojis multi code-point
+    if len(result_char.encode('utf-16le')) > 2:  # Guard contre surrogates
+        result_char = chr(base_symbols[sector])  # Fallback sûr
+
+    return result_char  # UTF-16 single code-point safe ✅
+
+# Alternative simple UTF-16
+agent_display_id = f"AG_{sector}_{incremental_id}"  # UTF-16 string
 ```
 
 **Implementation Tasks:**
-- [ ] **ID System Design**: Choose between UUID vs simple incremental IDs
-- [ ] **Migration Strategy**: Plan migration from Unicode to standard IDs
-- [ ] **API Refactoring**: Update all APIs to use new ID system
-- [ ] **Data Migration**: Scripts to convert existing Unicode mappings
+- [ ] **Hybrid Architecture Design**: UUID internal + UTF-16 display layer separation
+- [ ] **UTF-16 Compliance Validation**: Ensure all characters within BMP (U+0000-U+FFFF)
+- [ ] **Migration Strategy**: Plan migration from UTF-32 private use to UTF-16 standard
+- [ ] **API Dual Layer**: Internal UUID performance + external UTF-16 compatibility
+- [ ] **Display Layer**: UTF-16 character generation for visualization/export needs
 
 **Testing Requirements:**
-- [ ] **Migration Tests**: Validate smooth transition from Unicode system
-- [ ] **Performance Tests**: Ensure ID operations remain fast
-- [ ] **Compatibility Tests**: Verify backward compatibility during transition
-- [ ] **Integration Tests**: End-to-end testing with new ID system
+- [ ] **UTF-16 Compliance Tests**: Validate all generated characters UTF-16 compatible
+- [ ] **Multi Code-Point Protection Tests**: Ensure no emoji sequences or surrogate pairs generated
+- [ ] **Performance Tests**: Ensure UUID internal operations maintain speed
+- [ ] **Display Layer Tests**: Verify UTF-16 character generation and uniqueness
+- [ ] **Character Safety Tests**: Validate single code-point guarantee for all generated chars
+- [ ] **Migration Tests**: Smooth transition maintaining UTF-16 constraint
+- [ ] **Integration Tests**: End-to-end with both internal UUID and display UTF-16
 
 **Success Criteria:**
-- Complete removal of Unicode character mapping system
-- Standard, portable agent identification system
-- Maintained or improved performance
-- Successful data migration without loss
+- Hybrid system: UUID internal performance + UTF-16 display compliance
+- UTF-16 character compatibility maintained (no surrogates needed)
+- Simplified mapping logic vs current UTF-32 private use approach
+- Maintained or improved performance for internal operations
+- Successful data migration respecting UTF-16 constraint
 
-**Benefits**: Portabilité, extensibilité, maintenabilité
+**Benefits**: Performance (UUID internal) + Compliance (UTF-16) + Maintenabilité
+
+**UTF-16 Constraint Compliance:**
+- All display characters within Basic Multilingual Plane (U+0000-U+FFFF)
+- No dependency on UTF-32 extended areas or surrogate pairs
+- Protection against multi code-point emoji sequences
+- Single code-point character guarantee for all generated identifiers
+- Standard UTF-16 encoding compatibility for all external interfaces
 
 ##### 0.1.3 Quick Wins Integration (Week 2)
 
@@ -497,7 +527,7 @@ class PerformanceTest:
 
 #### Architectural Simplification Requirements (Quick Wins)
 - [ ] **Dynamic Agent Support**: Support for unlimited agents per sector (configurable constraints only)
-- [ ] **Unicode System Removal**: Complete elimination of Unicode character mapping system
+- [ ] **Unicode System Simplification**: Migration from UTF-32 private use to UTF-16 compatible hybrid system
 - [ ] **Standard ID System**: Implementation of portable, standard agent identification (UUID or incremental)
 - [ ] **API Modernization**: Simplified APIs without artificial limitations
 - [ ] **Backward Compatibility**: Smooth migration without data loss or functionality regression

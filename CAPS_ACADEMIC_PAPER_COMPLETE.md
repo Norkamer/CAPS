@@ -523,15 +523,51 @@ agents_per_sector = {}  # Enables realistic economic modeling
 ```
 This change immediately unlocks practical economic use cases while reducing architectural constraints. Research should document the decision process, implementation approach, and impact measurement.
 
-*Case Study 2: Unicode Mapping System Elimination*
+*Case Study 2: Unicode Mapping System UTF-16 Simplification*
 ```python
-# Current complexity: Unicode character mapping
-agent_char = chr(0x10000 + sector_offset + agent_index)  # Limited scalability
+# Current over-complexity: UTF-32 private use area
+agent_char = chr(0x10000 + sector_offset + agent_index)  # Requires surrogate pairs
 
-# Simplified approach: Standard identifiers
-agent_id = str(uuid.uuid4())  # Portable, extensible, maintainable
+# Simplified UTF-16 compatible approach: Hybrid architecture
+import uuid
+
+# Internal system: UUID for performance and extensibility
+agent_internal_id = uuid.uuid4()
+
+# UTF-16 display layer: Basic Multilingual Plane only
+def get_utf16_display_char(agent_id, sector):
+    # Safe UTF-16 symbols (avoiding multi code-point emojis)
+    base_symbols = {"AGRICULTURE": 0x2600,  # Misc symbols
+                   "INDUSTRY": 0x2700,      # Dingbats
+                   "SERVICES": 0x2800,      # Braille patterns
+                   "FINANCE": 0x2900,       # Misc symbols
+                   "ENERGY": 0x2A00}        # Supplemental symbols
+
+    # Protection against multi code-point sequences
+    char_offset = hash(str(agent_id)) % 100  # Limited range to avoid complex chars
+    result_char = chr(base_symbols[sector] + char_offset)
+
+    # Validation: ensure single code-point character
+    if len(result_char.encode('utf-16le')) > 2:  # Guard against surrogates
+        result_char = chr(base_symbols[sector])  # Fallback to base symbol
+
+    return result_char  # Safe UTF-16 single code-point ✅
 ```
-This simplification improves portability, maintainability, and extensibility while reducing implementation complexity. Documentation should include migration strategies and performance comparisons.
+
+This hybrid approach addresses multiple architectural challenges while respecting UTF-16 constraints:
+
+**Technical Considerations:**
+- **UTF-16 Compliance**: All characters within Basic Multilingual Plane (U+0000-U+FFFF)
+- **Multi Code-Point Protection**: Explicit guards against emoji sequences and surrogate pairs
+- **Performance Optimization**: UUID internal operations for speed and extensibility
+- **Compatibility Layer**: UTF-16 display characters for external interface requirements
+
+**Research Opportunities:**
+- **Constraint-Driven Simplification**: Methods for simplifying under external constraints
+- **Hybrid Architecture Patterns**: Performance vs. compliance trade-off analysis
+- **Character Set Safety**: Techniques for avoiding Unicode complexity pitfalls
+
+Documentation should include migration strategies, performance comparisons, and comprehensive testing for UTF-16 compliance and multi code-point avoidance.
 
 These concrete examples provide research opportunities for studying when and how to reduce architectural complexity, establishing empirical methods for evaluating simplification decisions, and measuring the practical impact of complexity reduction on system usability and maintainability.
 

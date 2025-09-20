@@ -38,15 +38,18 @@ Transformer CAPS d'un outil de recherche académique avec limitations critiques 
   - Impact immédiat: Débloque cas d'usage économiques réels
   - Timeline: 1-2 jours (changement simple mais fondamental)
   - Testing: Validation avec 5, 10, 15+ agents par secteur
-- [ ] **Élimination Mapping Unicode**: Remplacer caractères Unicode par UUID/identifiants simples
-  - Bénéfices: Portabilité, extensibilité, maintenabilité
-  - Timeline: 3-5 jours (refactoring API layer)
-  - Migration: Scripts automatiques pour existing data
+- [ ] **Simplification Mapping Unicode UTF-16**: Hybrid UUID interne + UTF-16 display compatible
+  - Approche: UUID performance interne + layer UTF-16 pour compliance
+  - Bénéfices: Performance, portabilité, UTF-16 compliance, maintenabilité
+  - Timeline: 3-5 jours (architecture hybride + migration UTF-32→UTF-16)
+  - Migration: Scripts migration UTF-32 private use vers UTF-16 BMP
 
 **Success Criteria**:
 - Support dynamique agents per sector (unlimited capacity)
-- Migration complète away from Unicode mapping
-- API simplifiée avec identifiants standards
+- Migration UTF-32 private use vers UTF-16 compatible system
+- Architecture hybride: UUID interne + UTF-16 display layer
+- UTF-16 compliance (Basic Multilingual Plane, no surrogates)
+- API simplifiée avec performance et compliance
 - Aucune régression fonctionnalité existante
 
 ### 1.1 Critical Bug Resolution (Month 1-2, Adjusted Timeline)
@@ -290,9 +293,9 @@ Transformer CAPS d'un outil de recherche académique avec limitations critiques 
 ## Success Metrics & KPIs
 
 ### Phase 1 KPIs
-- [ ] **Quick Wins Architecturaux**: Support dynamique agents/secteur + suppression Unicode mapping
+- [ ] **Quick Wins Architecturaux**: Support dynamique agents/secteur + simplification UTF-16 compatible
 - [ ] **Agent Capacity**: Support unlimited agents per sector (removed 3-agent limit)
-- [ ] **ID System**: Migration complète vers identifiants standards (UUID/incremental)
+- [ ] **UTF-16 ID System**: Architecture hybride UUID interne + UTF-16 display compliance
 - [ ] Transaction success rate: 100%
 - [ ] Performance gap vs simples alternatives: <50% (from 2.4x)
 - [ ] Agent scalability: 100 agents minimum
