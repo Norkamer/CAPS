@@ -1,4 +1,4 @@
-# 🚀 CAPS - Computation Analytics & Policy Simulation
+# 🚀 CAPS - Constraint-Adaptive Path Simplex
 
 ## Vue d'Ensemble
 
