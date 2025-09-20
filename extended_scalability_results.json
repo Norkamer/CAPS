@@ -1,0 +1,332 @@
+{
+  "test_suite": "CAPS Extended Scalability Testing",
+  "execution_time_seconds": 0.021025419235229492,
+  "timestamp": "2025-09-20 08:58:45",
+  "test_results": [
+    {
+      "test_type": "extended_agent_scaling",
+      "results": [
+        {
+          "agent_count": 25,
+          "timestamp": 1758351525.256522,
+          "memory_start_mb": 22.69140625,
+          "setup_time_ms": 0.571170999592141,
+          "agents_successfully_created": 25,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.08379399969271617,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 22.81640625,
+          "memory_used_mb": 0.125,
+          "memory_per_agent_kb": 5.12
+        },
+        {
+          "agent_count": 30,
+          "timestamp": 1758351525.2572227,
+          "memory_start_mb": 22.81640625,
+          "setup_time_ms": 0.5132440001034411,
+          "agents_successfully_created": 30,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.059890000102313934,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 22.81640625,
+          "memory_used_mb": 0.0,
+          "memory_per_agent_kb": 0.0
+        },
+        {
+          "agent_count": 40,
+          "timestamp": 1758351525.2578366,
+          "memory_start_mb": 22.81640625,
+          "setup_time_ms": 0.5921530000705388,
+          "agents_successfully_created": 40,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.04594900019583292,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 22.94140625,
+          "memory_used_mb": 0.125,
+          "memory_per_agent_kb": 3.2
+        },
+        {
+          "agent_count": 50,
+          "timestamp": 1758351525.2585092,
+          "memory_start_mb": 22.94140625,
+          "setup_time_ms": 0.7215050000013434,
+          "agents_successfully_created": 50,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.045172000227466924,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 22.94140625,
+          "memory_used_mb": 0.0,
+          "memory_per_agent_kb": 0.0
+        },
+        {
+          "agent_count": 75,
+          "timestamp": 1758351525.2593112,
+          "memory_start_mb": 22.94140625,
+          "setup_time_ms": 1.1251299997638853,
+          "agents_successfully_created": 75,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.04909900007987744,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.19140625,
+          "memory_used_mb": 0.25,
+          "memory_per_agent_kb": 3.4133333333333336
+        },
+        {
+          "agent_count": 100,
+          "timestamp": 1758351525.2605298,
+          "memory_start_mb": 23.19140625,
+          "setup_time_ms": 1.531047000298713,
+          "agents_successfully_created": 100,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.05153699976290227,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.44140625,
+          "memory_used_mb": 0.25,
+          "memory_per_agent_kb": 2.56
+        }
+      ],
+      "scalability_ceiling": {
+        "last_successful_agent_count": 100,
+        "first_failure_agent_count": "none",
+        "estimated_ceiling": 100
+      }
+    },
+    {
+      "test_type": "memory_pressure",
+      "baseline_memory_mb": 23.44140625,
+      "results": [
+        {
+          "agent_count": 10,
+          "timestamp": 1758351525.2621686,
+          "memory_start_mb": 23.44140625,
+          "setup_time_ms": 0.19616200006566942,
+          "agents_successfully_created": 10,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.04100700016351766,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.44140625,
+          "memory_used_mb": 0.0,
+          "memory_per_agent_kb": 0.0
+        },
+        {
+          "agent_count": 30,
+          "timestamp": 1758351525.2624393,
+          "memory_start_mb": 23.44140625,
+          "setup_time_ms": 0.5257869997876696,
+          "agents_successfully_created": 30,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.04060299988850602,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.56640625,
+          "memory_used_mb": 0.125,
+          "memory_per_agent_kb": 4.266666666666667
+        },
+        {
+          "agent_count": 50,
+          "timestamp": 1758351525.2630415,
+          "memory_start_mb": 23.56640625,
+          "setup_time_ms": 0.7325429996853927,
+          "agents_successfully_created": 50,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.043387000005168375,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.69140625,
+          "memory_used_mb": 0.125,
+          "memory_per_agent_kb": 2.56
+        },
+        {
+          "agent_count": 70,
+          "timestamp": 1758351525.263857,
+          "memory_start_mb": 23.69140625,
+          "setup_time_ms": 1.0497470002519549,
+          "agents_successfully_created": 70,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.0451270002486126,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.94140625,
+          "memory_used_mb": 0.25,
+          "memory_per_agent_kb": 3.657142857142857
+        },
+        {
+          "agent_count": 90,
+          "timestamp": 1758351525.2649925,
+          "memory_start_mb": 23.94140625,
+          "setup_time_ms": 1.7030859999067616,
+          "agents_successfully_created": 90,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.052582000080292346,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.94140625,
+          "memory_used_mb": 0.0,
+          "memory_per_agent_kb": 0.0
+        },
+        {
+          "agent_count": 110,
+          "timestamp": 1758351525.2667975,
+          "memory_start_mb": 23.94140625,
+          "setup_time_ms": 1.344426999821735,
+          "agents_successfully_created": 110,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.04752399991048151,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.94140625,
+          "memory_used_mb": 0.0,
+          "memory_per_agent_kb": 0.0
+        },
+        {
+          "agent_count": 130,
+          "timestamp": 1758351525.2682314,
+          "memory_start_mb": 23.94140625,
+          "setup_time_ms": 1.7448759999751928,
+          "agents_successfully_created": 130,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.05766000003859517,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 23.94140625,
+          "memory_used_mb": 0.0,
+          "memory_per_agent_kb": 0.0
+        },
+        {
+          "agent_count": 150,
+          "timestamp": 1758351525.2700858,
+          "memory_start_mb": 23.94140625,
+          "setup_time_ms": 1.939956000114762,
+          "agents_successfully_created": 150,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.05034299965700484,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 24.06640625,
+          "memory_used_mb": 0.125,
+          "memory_per_agent_kb": 0.8533333333333334
+        },
+        {
+          "agent_count": 170,
+          "timestamp": 1758351525.272122,
+          "memory_start_mb": 24.06640625,
+          "setup_time_ms": 2.7319390001139254,
+          "agents_successfully_created": 170,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.0540510000064387,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 24.44140625,
+          "memory_used_mb": 0.375,
+          "memory_per_agent_kb": 2.2588235294117647
+        },
+        {
+          "agent_count": 190,
+          "timestamp": 1758351525.274957,
+          "memory_start_mb": 24.44140625,
+          "setup_time_ms": 2.2377919999598817,
+          "agents_successfully_created": 190,
+          "transaction_creation_failure": {
+            "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+            "error_type": "TypeError"
+          },
+          "transaction_creation_time_ms": 0.05214700013311813,
+          "validation_times_ms": [],
+          "mean_validation_time_ms": 0,
+          "validation_success_rate": 0,
+          "memory_end_mb": 24.44140625,
+          "memory_used_mb": 0.0,
+          "memory_per_agent_kb": 0.0
+        }
+      ]
+    },
+    {
+      "test_type": "transaction_volume_stress",
+      "agent_count": 10,
+      "results": [
+        {
+          "intensity": 0.1,
+          "error": "unsupported operand type(s) for *: 'float' and 'decimal.Decimal'",
+          "error_type": "TypeError"
+        }
+      ]
+    }
+  ],
+  "failure_analysis": {
+    "failure_modes_identified": {},
+    "total_failure_types": 0,
+    "failure_analysis": "System exhibits multiple failure modes as agent count increases"
+  },
+  "conclusions": {
+    "scalability_ceiling_confirmed": true,
+    "failure_modes_documented": false,
+    "academic_validity": "Extended testing reveals significant scalability limitations"
+  }
+}

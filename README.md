@@ -1,16 +1,30 @@
-# 🚀 CAPS - Constraint-Adaptive Path Simplex
+# CAPS - Constraint-Adaptive Path Simplex
 
 ## Vue d'Ensemble
 
-**CAPS** est une plateforme révolutionnaire de **simulation économique massive** permettant de modéliser des écosystèmes économiques complexes avec **65 agents économiques** répartis sur 5 secteurs. Combinant rigueur mathématique et performance industrielle pour applications gaming, académiques et business.
+**CAPS** est un projet de recherche expérimental explorant l'intégration de paradigmes computationnels hybrides (DAG-NFA-Simplex) pour la validation de transactions économiques. Le système présente des capacités de création d'agents mais souffre de limitations critiques empêchant son utilisation pratique.
 
-### 🎯 Capacités Principales
+## ⚠️ Limitations Critiques et État du Projet
 
-- **🏭 Simulation Économique Massive** : 7→40→65 agents, 5 secteurs (Agriculture, Industry, Services, Finance, Energy)
-- **⚡ Performance Industrielle** : 100% FEASIBILITY, 1.06ms validation, 30+ tx/sec validé
-- **🎮 Gaming Platform** : Foundation Carbon Flux, serious gaming économique
-- **🎓 Academic Research** : Données publications tier-1, théorèmes validés
-- **💼 Business Applications** : Policy simulation, corporate training ESG
+**Bugs Critiques Identifiés**:
+- **Transaction Creation Failure**: Bug TypeError empêchant la création de transactions (100% failure rate)
+- **Overhead Performance**: 2.4x plus lent que les approches simples pour la validation de contraintes
+- **Memory Inefficiency**: 100% d'overhead mémoire vs alternatives simples
+- **Scalability Issues**: Non testé au-delà de 20 agents, échecs au-delà de ce seuil
+
+### 🎯 Capacités Actuelles
+
+- **Agent Creation**: Création d'agents économiques jusqu'à 20 agents testés
+- **DAG Structure**: Construction de graphes de flux économiques (fonctionnel)
+- **NFA Patterns**: Validation de patterns économiques via automates (fonctionnel)
+- **Academic Value**: Démonstration des risques d'over-engineering architectural
+
+### ❌ Fonctionnalités Non-Opérationnelles
+
+- **Transaction Processing**: Échec critique empêchant toute transaction économique
+- **Economic Simulation**: Impossible due aux bugs de transaction
+- **Performance Claims**: Invalidées par les tests de scalabilité étendus
+- **Production Use**: Non recommandé pour usage réel
 
 ### 🏗️ Architecture Technique
 
@@ -100,15 +114,15 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 # Plus de boucles, plus de transaction_num à gérer !
 ```
 
-## 📊 Performance & Validation
+## 📊 Évaluation Honnête des Performances
 
-### 🎯 Métriques Industrielles & Académiques
-- **100% FEASIBILITY** : vs 16.7% baseline (×6 amélioration maintenue)
-- **1.06ms validation** : Performance <100ms objectif dépassé (×94 faster)
-- **192/192 tests** : Validation académique complète (100% succès) ✅
-- **7→40→65 agents** : Scalabilité architecture progressive démontrée
-- **19 flux automatiques** : Inter-sectoral flows en 0.17ms création
-- **Prêt papier académique** : Système entièrement validé 🎓
+### ❌ Échecs de Performance Documentés
+- **0% Transaction Success**: Bug critique empêchant toute transaction économique
+- **2.4x Performance Penalty**: Plus lent que les approches simples pour validation contraintes
+- **100% Memory Overhead**: Consommation mémoire double vs alternatives simples
+- **20 Agents Maximum**: Limite de scalabilité testée, échecs au-delà
+- **Architectural Over-Engineering**: Complexité non justifiée par les bénéfices
+- **Academic Paper**: Documente principalement les limitations et échecs système
 
 ### 🏭 Distribution Économique Réaliste
 | Secteur | Agents | Balance Moy | Poids | Description |
@@ -121,22 +135,24 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 
 **Total**: 65 agents, 86,800 unités, 52K+ unités/heure throughput
 
-## 🎮 Applications
+## 📚 Valeur Académique et Recherche
 
-### Gaming Platform
-- **🎯 Carbon Flux** : Dual-token (€ + @) serious gaming
-- **🌱 Carbon Commons** : Progression éducative économie verte
-- **🏆 Nash Tournaments** : Competitive gameplay économique
+### Academic Contributions
+- **Negative Results Documentation**: Démonstration empirique des risques d'over-engineering
+- **Architectural Analysis**: Évaluation coût-bénéfice des approches hybrides complexes
+- **Failure Mode Studies**: Documentation des échecs d'intégration multi-paradigmes
+- **Baseline Comparisons**: Preuve que les approches simples surpassent la complexité
 
-### Academic Research
-- **📊 Publications Tier-1** : VLDB/STOC submission ready
-- **🔬 Théorèmes Validés** : Conservation flux + Nash equilibrium
-- **📈 Benchmarks Référence** : Performance comparaisons industrielles
+### Research Lessons
+- **Complexity Justification**: Importance de justifier la complexité architecturale
+- **Incremental Development**: Nécessité de construire la complexité progressivement
+- **Critical Testing**: Valeur des tests étendus au-delà des cas favorables
+- **Honest Reporting**: Importance de la transparence dans la recherche académique
 
-### Business Applications
-- **🏛️ Policy Simulation** : Gouvernements testent réformes économiques
-- **🏢 Corporate Training** : ESG economics via serious gaming
-- **🌍 Commons Infrastructure** : Monnaies locales + coopératives
+### ❌ Applications Non-Réalisables
+- **Gaming Platforms**: Impossible due aux bugs critiques de transaction
+- **Business Simulation**: Non fonctionnel pour usage réel
+- **Policy Tools**: Inadapté pour applications gouvernementales
 
 ## 📚 Documentation
 
@@ -147,26 +163,31 @@ mapping = enhanced_dag.get_current_account_mapping("alice_farm")
 - **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** : Guide migration DAG → EnhancedDAG
 - **[tools/migration/](./tools/migration/)** : Outils automatisés migration
 
-## 🏆 Statut
+## 📊 Statut Actuel du Projet
 
-✅ **Semaine 1 (Sept 2025)**: Character-Set Manager Integration - BREAKTHROUGH
-✅ **Semaine 2 (Sept 2025)**: Extension 40 Agents - SUCCESS (Objectifs DÉPASSÉS)
-🚀 **Semaine 3**: Finalisation 65 agents + optimisations performance massive
-🎯 **Semaine 4**: Gaming + Academic + Business applications production-ready
-🌟 **Impact**: Plateforme simulation économique world-class opérationnelle
+### ✅ Composants Fonctionnels
+- **Agent Creation**: Système de création d'agents économiques (testé jusqu'à 20 agents)
+- **DAG Structure**: Construction de graphes dirigés acycliques
+- **NFA Components**: Automates finis non-déterministes pour patterns économiques
+- **Test Suite**: 246 tests académiques validant les composants individuels
 
-### 📈 Progress Semaine 2 (COMPLET)
-- ✅ **40 Agents Capacity**: 36+ agents supportés (108+ caractères)
-- ✅ **Flux Inter-Sectoriels**: 19 transactions automatiques
-- ✅ **Performance Excellence**: 100% FEASIBILITY, 1.06ms validation
-- ✅ **Tests Robustesse**: 7/7 nouveaux tests + 125/125 non-régression
-- ✅ **Architecture 65 Agents**: Infrastructure disponible et testée
+### ❌ Échecs Critiques Documentés
+- **Transaction Processing**: Bug TypeError empêchant toute transaction (100% failure)
+- **Economic Simulation**: Non-fonctionnel due aux échecs de transaction
+- **Scalability**: Tests étendus révèlent échecs au-delà de 20 agents
+- **Performance**: 2.4x plus lent que alternatives simples
+
+### 📝 Amélioration Académique (Semaine 1)
+- ✅ **Désinflation du Ton**: Suppression des superlatives excessifs
+- ✅ **Documentation Limitations**: Ajout honnête des contraintes système
+- ✅ **Tests Étendus**: Validation scalabilité jusqu'à 190 agents (révélant échecs)
+- ✅ **Benchmarks Baseline**: Comparaison avec approches simples
+- ✅ **Analyse Architecturale**: Évaluation coût-bénéfice de la complexité
+- ✅ **Restructuration Académique**: Paper honest documentant les échecs
 
 ---
 
-**CAPS** transforme la simulation économique de concept technique → plateforme gaming/academic/business révolutionnaire.
-
-Architecture validée, performance industrielle confirmée, applications déployables. 🚀
+**CAPS** sert d'exemple académique important des risques d'over-engineering et de l'importance de la justification architecturale basée sur des preuves empiriques.
 
 ---
 

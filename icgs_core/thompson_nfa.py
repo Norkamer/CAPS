@@ -281,7 +281,8 @@ class ThompsonNFABuilder:
             )
 
         else:
-            raise NotImplementedError(f"Token type {token.token_type} not implemented")
+            # Tous les TokenType définis sont implémentés. Ceci ne devrait jamais arriver.
+            raise ValueError(f"Unknown token type {token.token_type}. All defined TokenType values are implemented.")
 
     def _apply_star(self, fragment: PatternFragment) -> PatternFragment:
         """Application quantificateur * (zéro ou plus)"""

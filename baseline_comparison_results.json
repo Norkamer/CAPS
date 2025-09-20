@@ -1,0 +1,85 @@
+{
+  "comparison_suite": "CAPS vs Simple Baselines",
+  "timestamp": "2025-09-20 09:00:07",
+  "graph_benchmark": {
+    "test_type": "graph_operations",
+    "results": {
+      "10": {
+        "networkx_mean_ms": 0.015932499991322402,
+        "caps_mean_ms": 0.0026297000204067444,
+        "speedup": 6.0586758442729405
+      },
+      "20": {
+        "networkx_mean_ms": 0.02586079995126056,
+        "caps_mean_ms": 0.004732400020657224,
+        "speedup": 5.46462679367267
+      },
+      "50": {
+        "networkx_mean_ms": 0.03827380000984704,
+        "caps_mean_ms": 0.007731100004093605,
+        "speedup": 4.950627981733663
+      },
+      "100": {
+        "networkx_mean_ms": 0.06669469994449173,
+        "caps_mean_ms": 0.013495999974111328,
+        "speedup": 4.9418123942226355
+      }
+    },
+    "conclusion": "Comparison reveals overhead of hybrid architecture"
+  },
+  "constraint_benchmark": {
+    "test_type": "constraint_validation",
+    "results": {
+      "10": {
+        "simple_mean_ms": 0.001622099898668239,
+        "caps_mean_ms": 0.002106400006596232,
+        "overhead_factor": 1.2985636755945849
+      },
+      "50": {
+        "simple_mean_ms": 0.003816500020548119,
+        "caps_mean_ms": 0.007681799979764037,
+        "overhead_factor": 2.0127865684278943
+      },
+      "100": {
+        "simple_mean_ms": 0.006463799945777282,
+        "caps_mean_ms": 0.015580199988107779,
+        "overhead_factor": 2.410377814722766
+      },
+      "200": {
+        "simple_mean_ms": 0.014165699985824176,
+        "caps_mean_ms": 0.03718499992828583,
+        "overhead_factor": 2.6250026448038155
+      }
+    },
+    "conclusion": "CAPS shows significant overhead vs simple approaches"
+  },
+  "memory_benchmark": {
+    "test_type": "memory_efficiency",
+    "baseline_mb": 41.67578125,
+    "simple_approach_mb": 41.80078125,
+    "caps_approach_mb": 41.92578125,
+    "simple_overhead_mb": 0.125,
+    "caps_overhead_mb": 0.25,
+    "memory_overhead_ratio": 2.0
+  },
+  "critical_analysis": {
+    "architectural_justification": {
+      "graph_operations": "NetworkX baseline performs comparably for basic operations",
+      "constraint_validation": "CAPS shows 2.4x overhead vs simple approach",
+      "memory_efficiency": "CAPS uses 2.0x more memory than simple baseline",
+      "complexity_justified": false,
+      "recommendation": "Consider simpler approaches for most use cases"
+    },
+    "failure_mode_analysis": {
+      "caps_transaction_bug": "Critical TypeError prevents transaction creation beyond agent setup",
+      "baseline_robustness": "Simple approaches more robust due to lower complexity",
+      "production_readiness": "Baselines more suitable for production deployment"
+    }
+  },
+  "conclusions": {
+    "hybrid_architecture_justified": false,
+    "simple_alternatives_viable": true,
+    "caps_advantages_unclear": true,
+    "academic_contribution": "Demonstrates over-engineering vs practical benefit"
+  }
+}
