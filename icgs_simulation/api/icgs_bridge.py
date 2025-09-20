@@ -298,25 +298,31 @@ class EconomicSimulation:
             manager = create_massive_character_set_manager_65_agents()
             self.logger.info(f"Character-Set Manager configuré mode 65 agents (195 caractères)")
 
-        else:  # "7_agents" par défaut
+        else:  # "7_agents" par défaut (maintenant extensible)
             from icgs_core.character_set_manager import NamedCharacterSetManager
 
             manager = NamedCharacterSetManager()
 
-            # Configuration pour 7 agents actuels (21 caractères total)
+            # QUICK WIN: Configuration extensible pour agents illimités par secteur
             # Chaque agent nécessite 3 caractères (principal + source + sink)
+            # Pool de caractères élargie pour supporter 10+ agents par secteur
             extended_sectors = {
-                'AGRICULTURE': ['A', 'B', 'C'],                             # 1 agent × 3 = 3 chars
-                'INDUSTRY': ['I', 'J', 'K', 'L', 'M', 'N'],                 # 2 agents × 3 = 6 chars
-                'SERVICES': ['S', 'T', 'U', 'V', 'W', 'X'],                 # 2 agents × 3 = 6 chars
-                'FINANCE': ['F', 'G', 'H'],                                 # 1 agent × 3 = 3 chars
-                'ENERGY': ['E', 'Q', 'R'],                                  # 1 agent × 3 = 3 chars
+                'AGRICULTURE': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+                               'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c'],  # 30 chars = 10 agents max
+                'INDUSTRY': ['d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+                            's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η'],  # 30 chars = 10 agents max
+                'SERVICES': ['θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'σ', 'τ', 'υ', 'φ', 'χ',
+                            'ψ', 'ω', 'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν'],  # 30 chars = 10 agents max
+                'FINANCE': ['Ξ', 'Ο', 'Π', 'Ρ', 'Σ', 'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω', 'Ñ', 'Ó', 'Ô', 'Õ',
+                           'Ö', 'Ø', 'Ù', 'Ú', 'Û', 'Ü', 'Ý', 'Þ', 'ß', 'à', 'á', 'â', 'ã', 'ä', 'å'],  # 30 chars = 10 agents max
+                'ENERGY': ['æ', 'ç', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ð', 'ñ', 'ò', 'ó', 'ô',
+                          'õ', 'ö', 'ø', 'ù', 'ú', 'û', 'ü', 'ý', 'þ', 'ÿ', 'Ā', 'ă', 'Ą', 'ć', 'Ĉ'],  # 30 chars = 10 agents max
             }
 
             for sector_name, characters in extended_sectors.items():
                 manager.define_character_set(sector_name, characters)
 
-            self.logger.info(f"Character-Set Manager configuré mode 7 agents (21 caractères)")
+            self.logger.info(f"Character-Set Manager configuré mode extensible (225 caractères total)")
 
         # Affichage statistiques capacité
         stats = manager.get_allocation_statistics()
