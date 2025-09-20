@@ -95,23 +95,21 @@ class AccountTaxonomy:
         new_mapping = {}
         
         # Phase 1: Validation et préparation
-        requested_chars = {}  # character -> account_id pour détecter collisions
+        # SUPPRESSION CONTRAINTE UNICITÉ: Caractères partagés autorisés pour agents illimités
         auto_assign_accounts = []
-        
+
         for account_id, requested_char in accounts.items():
             self.account_registry.add(account_id)
-            
+
             if requested_char is None:
                 raise ValueError(f"Explicit character mapping required for account '{account_id}'. Auto-assignment disabled.")
             else:
                 # Validation caractère demandé
                 if not self._is_valid_utf32_character(requested_char):
                     raise ValueError(f"Invalid UTF-32 character: {requested_char} for account {account_id}")
-                
-                # Détection collision caractères dans même transaction
-                if requested_char in requested_chars:
-                    raise ValueError(f"Character collision detected: '{requested_char}' used by {account_id} and {requested_chars[requested_char]}")
-                requested_chars[requested_char] = account_id
+
+                # MODIFICATION BREAKTHROUGH: Caractères dupliqués AUTORISÉS pour agents illimités
+                # Suppression validation collision - caractères peuvent être partagés par secteur
                 new_mapping[account_id] = requested_char
         
         # Phase 2: Pas d'auto-assignment - tous les mappings sont explicites
@@ -316,14 +314,13 @@ class AccountTaxonomy:
             if self.taxonomy_history[i].transaction_num <= self.taxonomy_history[i-1].transaction_num:
                 errors.append(f"Non-increasing transaction numbers: {self.taxonomy_history[i-1].transaction_num} >= {self.taxonomy_history[i].transaction_num}")
         
-        # Vérification collisions dans chaque snapshot
+        # MODIFICATION BREAKTHROUGH: Validation cohérence sans contrainte unicité
+        # Caractères partagés autorisés - validation uniquement structure taxonomique
         for snapshot in self.taxonomy_history:
-            char_to_accounts = {}
+            # Validation structure basique sans collision checking
             for account_id, character in snapshot.account_mappings.items():
-                if character in char_to_accounts:
-                    errors.append(f"Character collision in transaction {snapshot.transaction_num}: {character} used by {account_id} and {char_to_accounts[character]}")
-                else:
-                    char_to_accounts[character] = account_id
+                if not self._is_valid_utf32_character(character):
+                    errors.append(f"Invalid UTF-32 character '{character}' for account '{account_id}' in transaction {snapshot.transaction_num}")
         
         return errors
     

@@ -293,10 +293,10 @@ class DAG:
         if not isinstance(taxonomic_chars, dict) or set(taxonomic_chars.keys()) != required_keys:
             raise ValueError(f"taxonomic_chars must contain exactly {required_keys}, got: {set(taxonomic_chars.keys())}")
 
-        # Validation caractères uniques
+        # SUPPRESSION CONTRAINTE UNICITÉ: Caractères dupliqués autorisés pour agents illimités
+        # Validation supprimée - caractères peuvent être partagés par secteur économique
         chars_list = list(taxonomic_chars.values())
-        if len(chars_list) != len(set(chars_list)):
-            raise ValueError(f"Taxonomic characters must be unique, got duplicates: {chars_list}")
+        # Aucune validation unicité nécessaire - DAG-NFA-Simplex fonctionne avec caractères partagés
 
         # Configuration taxonomique avec transaction_num incrémental
         account_mappings = {
